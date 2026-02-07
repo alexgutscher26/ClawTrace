@@ -796,68 +796,10 @@ function AgentDetailView({ navigate, session, api, agentId }) {
               <Card className="bg-card/60 border-border/40">
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2"><Terminal className="w-4 h-4 text-emerald-400" />Connect This Agent</CardTitle>
-                  <CardDescription>Run one of these commands on the machine where your OpenClaw agent is running. The heartbeat will keep your dashboard updated with live metrics.</CardDescription>
+                  <CardDescription>Run one of these commands on the machine where your OpenClaw agent is running. Pick your OS below.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  {/* Option 1: One-liner curl */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Recommended</Badge>
-                      <span className="text-sm font-medium">One-liner (bash)</span>
-                    </div>
-                    <div className="relative">
-                      <pre className="bg-background border border-border rounded-lg p-4 text-sm font-mono overflow-x-auto text-emerald-400">
-{`curl -sL "${typeof window !== 'undefined' ? window.location.origin : ''}/api/install-agent?agent_id=${agent.id}" | bash`}
-                      </pre>
-                      <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-7 text-xs" onClick={() => { navigator.clipboard.writeText(`curl -sL "${window.location.origin}/api/install-agent?agent_id=${agent.id}" | bash`); toast.success('Copied!'); }}>
-                        <Copy className="w-3 h-3 mr-1" />Copy
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">Downloads and runs a self-contained bash script. Sends heartbeats every 5 minutes with CPU & memory metrics.</p>
-                  </div>
-
-                  <Separator />
-
-                  {/* Option 2: Single curl heartbeat */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-sm font-medium">Single heartbeat (curl)</span>
-                    </div>
-                    <div className="relative">
-                      <pre className="bg-background border border-border rounded-lg p-4 text-sm font-mono overflow-x-auto text-cyan-400 whitespace-pre-wrap">
-{`curl -X POST ${typeof window !== 'undefined' ? window.location.origin : ''}/api/heartbeat \\
-  -H "Content-Type: application/json" \\
-  -d '{"agent_id":"${agent.id}","status":"healthy","metrics":{"cpu_usage":50,"memory_usage":60}}'`}
-                      </pre>
-                      <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-7 text-xs" onClick={() => { navigator.clipboard.writeText(`curl -X POST ${window.location.origin}/api/heartbeat -H "Content-Type: application/json" -d '{"agent_id":"${agent.id}","status":"healthy","metrics":{"cpu_usage":50,"memory_usage":60}}'`); toast.success('Copied!'); }}>
-                        <Copy className="w-3 h-3 mr-1" />Copy
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">Send a single heartbeat. Add to crontab for recurring: <code className="text-emerald-400">*/5 * * * * curl ...</code></p>
-                  </div>
-
-                  <Separator />
-
-                  {/* Option 3: Node.js */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-sm font-medium">Node.js script</span>
-                    </div>
-                    <div className="relative">
-                      <pre className="bg-background border border-border rounded-lg p-4 text-sm font-mono overflow-x-auto text-amber-400 whitespace-pre-wrap">
-{`# Download the CLI script
-curl -sL ${typeof window !== 'undefined' ? window.location.origin : ''}/api/install-agent?agent_id=${agent.id} > openclaw-monitor.sh
-chmod +x openclaw-monitor.sh
-
-# Run as background service
-nohup ./openclaw-monitor.sh > /var/log/openclaw-heartbeat.log 2>&1 &`}
-                      </pre>
-                      <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-7 text-xs" onClick={() => { navigator.clipboard.writeText(`curl -sL ${window.location.origin}/api/install-agent?agent_id=${agent.id} > openclaw-monitor.sh && chmod +x openclaw-monitor.sh && nohup ./openclaw-monitor.sh > /var/log/openclaw-heartbeat.log 2>&1 &`); toast.success('Copied!'); }}>
-                        <Copy className="w-3 h-3 mr-1" />Copy
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">Save as a file and run as a background daemon. Logs to <code className="text-emerald-400">/var/log/openclaw-heartbeat.log</code>.</p>
-                  </div>
+                <CardContent>
+                  <SetupInstructions agentId={agent.id} />
                 </CardContent>
               </Card>
 
