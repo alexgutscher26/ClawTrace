@@ -131,6 +131,72 @@ done
       });
     }
 
+    // PowerShell heartbeat script for Windows users
+    if (path === '/install-agent-ps') {
+      const { searchParams } = new URL(request.url);
+      const agentId = searchParams.get('agent_id') || 'YOUR_AGENT_ID';
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.headers.get('origin') || 'http://localhost:3000';
+      const interval = searchParams.get('interval') || '300';
+
+      const script = `# OpenClaw Fleet Monitor - PowerShell Heartbeat Agent
+# Agent: ${agentId}
+# Save as openclaw-monitor.ps1 and run: powershell -ExecutionPolicy Bypass -File openclaw-monitor.ps1
+
+$SaasUrl = "${baseUrl}"
+$AgentId = "${agentId}"
+$Interval = ${interval}
+
+Write-Host ""
+Write-Host "  [char]9889 OpenClaw Fleet Monitor" -ForegroundColor Green
+Write-Host "  --------------------------------"
+Write-Host "  Agent:    $AgentId"
+Write-Host "  SaaS:     $SaasUrl"
+Write-Host "  Interval: $\{Interval\}s"
+Write-Host ""
+
+function Send-Heartbeat {
+    $cpu = (Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average
+    if ($null -eq $cpu) { $cpu = 0 }
+
+    $os = Get-CimInstance Win32_OperatingSystem
+    $mem = [math]::Round(($os.TotalVisibleMemorySize - $os.FreePhysicalMemory) / $os.TotalVisibleMemorySize * 100)
+
+    $uptime = [math]::Round((New-TimeSpan -Start $os.LastBootUpTime -End (Get-Date)).TotalHours)
+
+    $body = @{
+        agent_id = $AgentId
+        status   = "healthy"
+        metrics  = @{
+            cpu_usage    = [int]$cpu
+            memory_usage = [int]$mem
+            uptime_hours = [int]$uptime
+        }
+    } | ConvertTo-Json -Depth 3
+
+    try {
+        $response = Invoke-RestMethod -Uri "$SaasUrl/api/heartbeat" -Method POST -ContentType "application/json" -Body $body
+        $time = Get-Date -Format "HH:mm:ss"
+        Write-Host "[$time] OK Heartbeat sent  CPU: $\{cpu\}%  MEM: $\{mem\}%" -ForegroundColor Green
+    } catch {
+        $time = Get-Date -Format "HH:mm:ss"
+        Write-Host "[$time] FAIL: $($_.Exception.Message)" -ForegroundColor Red
+    }
+}
+
+Write-Host "Starting heartbeat loop (Ctrl+C to stop)..." -ForegroundColor Yellow
+Write-Host ""
+
+while ($true) {
+    Send-Heartbeat
+    Start-Sleep -Seconds $Interval
+}
+`;
+      return new NextResponse(script, {
+        status: 200,
+        headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Content-Disposition': `attachment; filename="openclaw-monitor.ps1"` },
+      });
+    }
+
     if (path === '/auth/me') {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
