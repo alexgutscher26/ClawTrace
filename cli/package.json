@@ -1,0 +1,12 @@
+{
+  "name": "openclaw-fleet-monitor",
+  "version": "1.0.0",
+  "description": "CLI heartbeat agent for OpenClaw Fleet Orchestrator",
+  "bin": {
+    "openclaw": "./index.js"
+  },
+  "main": "index.js",
+  "keywords": ["openclaw", "fleet", "ai-agent", "monitoring", "heartbeat"],
+  "license": "MIT",
+  "dependencies": {}
+}
