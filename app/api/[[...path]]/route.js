@@ -643,6 +643,127 @@ export async function POST(request, { params }) {
       return json({ message: 'Demo data loaded', agents: agentDocs.length, alerts: alertDocs.length });
     }
 
+    // ============ LEMON SQUEEZY CHECKOUT ============
+    if (path === '/billing/checkout') {
+      const user = await getUser(request);
+      if (!user) return json({ error: 'Unauthorized' }, 401);
+      const body = await request.json();
+      const plan = body.plan || 'pro';
+      const LEMON_KEY = process.env.LEMON_SQUEEZY_API_KEY;
+      const STORE_ID = '139983';
+      const VARIANT_ID = '626520';
+
+      try {
+        const checkoutRes = await fetch('https://api.lemonsqueezy.com/v1/checkouts', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${LEMON_KEY}`,
+            'Accept': 'application/vnd.api+json',
+            'Content-Type': 'application/vnd.api+json',
+          },
+          body: JSON.stringify({
+            data: {
+              type: 'checkouts',
+              attributes: {
+                checkout_data: {
+                  email: user.email,
+                  custom: { user_id: user.id, plan: plan }
+                },
+                product_options: {
+                  name: plan === 'enterprise' ? 'OpenClaw Fleet Enterprise' : 'OpenClaw Fleet Pro',
+                  description: plan === 'enterprise' ? 'Unlimited agents, custom policies, SSO, priority support' : 'Unlimited agents, alerts, team collaboration',
+                },
+              },
+              relationships: {
+                store: { data: { type: 'stores', id: STORE_ID } },
+                variant: { data: { type: 'variants', id: VARIANT_ID } },
+              }
+            }
+          }),
+        });
+        const checkoutData = await checkoutRes.json();
+        const checkoutUrl = checkoutData?.data?.attributes?.url;
+        if (!checkoutUrl) return json({ error: 'Failed to create checkout' }, 500);
+        return json({ checkout_url: checkoutUrl, plan });
+      } catch (err) {
+        console.error('Lemon Squeezy error:', err);
+        return json({ error: 'Payment service unavailable' }, 500);
+      }
+    }
+
+    // ============ LEMON SQUEEZY WEBHOOK ============
+    if (path === '/webhooks/lemonsqueezy') {
+      const body = await request.json();
+      const eventName = body?.meta?.event_name;
+      const customData = body?.meta?.custom_data || {};
+      const db = await getDb();
+
+      if (eventName === 'subscription_created' || eventName === 'subscription_updated') {
+        const attrs = body?.data?.attributes || {};
+        await db.collection('subscriptions').updateOne(
+          { user_id: customData.user_id },
+          { $set: {
+            user_id: customData.user_id,
+            plan: customData.plan || 'pro',
+            status: attrs.status === 'active' ? 'active' : attrs.status,
+            lemon_subscription_id: body?.data?.id,
+            customer_id: attrs.customer_id,
+            variant_id: attrs.variant_id,
+            current_period_end: attrs.renews_at,
+            updated_at: new Date().toISOString(),
+          }},
+          { upsert: true }
+        );
+      }
+
+      if (eventName === 'subscription_cancelled' || eventName === 'subscription_expired') {
+        await db.collection('subscriptions').updateOne(
+          { user_id: customData.user_id },
+          { $set: { status: 'cancelled', updated_at: new Date().toISOString() } }
+        );
+      }
+
+      return json({ received: true });
+    }
+
+    // ============ TEAM INVITE ============
+    if (path === '/team/invite') {
+      const user = await getUser(request);
+      if (!user) return json({ error: 'Unauthorized' }, 401);
+      const body = await request.json();
+      const db = await getDb();
+      const team = await db.collection('teams').findOne({ owner_id: user.id });
+      if (!team) return json({ error: 'Only team owners can invite members' }, 403);
+
+      const existing = team.members?.find(m => m.email === body.email);
+      if (existing) return json({ error: 'Member already in team' }, 409);
+
+      await db.collection('teams').updateOne(
+        { id: team.id },
+        { $push: { members: { user_id: null, email: body.email, role: body.role || 'member', invited_by: user.id, joined_at: new Date().toISOString() } } }
+      );
+
+      return json({ message: `Invited ${body.email}` }, 201);
+    }
+
+    // ============ TEAM REMOVE MEMBER ============
+    if (path === '/team/remove') {
+      const user = await getUser(request);
+      if (!user) return json({ error: 'Unauthorized' }, 401);
+      const body = await request.json();
+      const db = await getDb();
+      const team = await db.collection('teams').findOne({ owner_id: user.id });
+      if (!team) return json({ error: 'Only team owners can remove members' }, 403);
+      if (body.email === user.email) return json({ error: 'Cannot remove yourself' }, 400);
+
+      await db.collection('teams').updateOne(
+        { id: team.id },
+        { $pull: { members: { email: body.email } } }
+      );
+
+      return json({ message: `Removed ${body.email}` });
+    }
+
     return json({ error: 'Not found' }, 404);
   } catch (error) {
     console.error('POST Error:', error);
