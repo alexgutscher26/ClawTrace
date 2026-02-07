@@ -887,11 +887,19 @@ function SetupInstructions({ agentId }) {
     toast.success('Copied to clipboard!');
   };
 
+  // Windows commands
   const psOneLiner = `irm "${origin}/api/install-agent-ps?agent_id=${agentId}" -OutFile openclaw-monitor.ps1; powershell -ExecutionPolicy Bypass -File openclaw-monitor.ps1`;
   const psSingle = `Invoke-RestMethod -Uri "${origin}/api/heartbeat" -Method POST -ContentType "application/json" -Body '{"agent_id":"${agentId}","status":"healthy","metrics":{"cpu_usage":50,"memory_usage":60}}'`;
+
+  // macOS / Linux commands
   const bashOneLiner = `curl -sL "${origin}/api/install-agent?agent_id=${agentId}" | bash`;
   const bashSingle = `curl -X POST ${origin}/api/heartbeat \\\n  -H "Content-Type: application/json" \\\n  -d '{"agent_id":"${agentId}","status":"healthy","metrics":{"cpu_usage":50,"memory_usage":60}}'`;
   const bashDaemon = `curl -sL "${origin}/api/install-agent?agent_id=${agentId}" > openclaw-monitor.sh\nchmod +x openclaw-monitor.sh\nnohup ./openclaw-monitor.sh > /var/log/openclaw-heartbeat.log 2>&1 &`;
+
+  // Python cross-platform
+  const pyOneLiner = platform === 'windows'
+    ? `irm "${origin}/api/install-agent-py?agent_id=${agentId}" -OutFile openclaw-monitor.py; python openclaw-monitor.py`
+    : `curl -sL "${origin}/api/install-agent-py?agent_id=${agentId}" -o openclaw-monitor.py && python3 openclaw-monitor.py`;
 
   return (
     <div className="space-y-5">
@@ -924,33 +932,42 @@ function SetupInstructions({ agentId }) {
               <pre className="bg-background border border-border rounded-lg p-4 text-sm font-mono overflow-x-auto text-emerald-400 whitespace-pre-wrap">{psOneLiner}</pre>
               <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-7 text-xs" onClick={() => copyText(psOneLiner)}><Copy className="w-3 h-3 mr-1" />Copy</Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Downloads a PowerShell script and runs it. Sends heartbeats every 5 minutes with real CPU & memory metrics.</p>
+            <p className="text-xs text-muted-foreground mt-1">Downloads a PowerShell script and runs it. Collects real CPU & memory via <code className="text-emerald-400">Get-CimInstance</code>. Sends heartbeats every 5 minutes.</p>
           </div>
           <Separator />
           <div>
-            <span className="text-sm font-medium">PowerShell — single heartbeat</span>
+            <span className="text-sm font-medium">PowerShell — single heartbeat (test connectivity)</span>
             <div className="relative mt-2">
               <pre className="bg-background border border-border rounded-lg p-4 text-sm font-mono overflow-x-auto text-cyan-400 whitespace-pre-wrap">{psSingle}</pre>
               <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-7 text-xs" onClick={() => copyText(psSingle)}><Copy className="w-3 h-3 mr-1" />Copy</Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Send a single heartbeat to verify connectivity. Use Task Scheduler for recurring runs.</p>
+            <p className="text-xs text-muted-foreground mt-1">Send a single heartbeat to verify your agent connects. Use Task Scheduler for recurring runs.</p>
+          </div>
+          <Separator />
+          <div>
+            <span className="text-sm font-medium">Python — cross-platform alternative</span>
+            <div className="relative mt-2">
+              <pre className="bg-background border border-border rounded-lg p-4 text-sm font-mono overflow-x-auto text-amber-400 whitespace-pre-wrap">{pyOneLiner}</pre>
+              <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-7 text-xs" onClick={() => copyText(pyOneLiner)}><Copy className="w-3 h-3 mr-1" />Copy</Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Requires Python 3. Uses <code className="text-emerald-400">wmic</code> for metrics on Windows. No extra dependencies.</p>
           </div>
         </div>
       )}
 
-      {/* macOS / Linux */}
-      {(platform === 'mac' || platform === 'linux') && (
+      {/* macOS */}
+      {platform === 'mac' && (
         <div className="space-y-5">
           <div>
             <div className="flex items-center gap-2 mb-2">
               <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Recommended</Badge>
-              <span className="text-sm font-medium">One-liner (bash)</span>
+              <span className="text-sm font-medium">Bash — continuous monitor</span>
             </div>
             <div className="relative">
               <pre className="bg-background border border-border rounded-lg p-4 text-sm font-mono overflow-x-auto text-emerald-400 whitespace-pre-wrap">{bashOneLiner}</pre>
               <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-7 text-xs" onClick={() => copyText(bashOneLiner)}><Copy className="w-3 h-3 mr-1" />Copy</Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Downloads and runs a self-contained bash script. Sends heartbeats every 5 minutes with CPU & memory metrics.</p>
+            <p className="text-xs text-muted-foreground mt-1">Downloads and runs a bash script. Uses <code className="text-emerald-400">vm_stat</code> for memory, <code className="text-emerald-400">ps</code> for CPU, <code className="text-emerald-400">sysctl</code> for uptime. Heartbeats every 5 min.</p>
           </div>
           <Separator />
           <div>
@@ -959,16 +976,51 @@ function SetupInstructions({ agentId }) {
               <pre className="bg-background border border-border rounded-lg p-4 text-sm font-mono overflow-x-auto text-cyan-400 whitespace-pre-wrap">{bashSingle}</pre>
               <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-7 text-xs" onClick={() => copyText(bashSingle)}><Copy className="w-3 h-3 mr-1" />Copy</Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Send a single heartbeat. Add to crontab for recurring: <code className="text-emerald-400">*/5 * * * * curl ...</code></p>
+            <p className="text-xs text-muted-foreground mt-1">Test connectivity with a single heartbeat. Add to crontab: <code className="text-emerald-400">*/5 * * * * curl ...</code></p>
+          </div>
+          <Separator />
+          <div>
+            <span className="text-sm font-medium">Python — cross-platform alternative</span>
+            <div className="relative mt-2">
+              <pre className="bg-background border border-border rounded-lg p-4 text-sm font-mono overflow-x-auto text-amber-400 whitespace-pre-wrap">{pyOneLiner}</pre>
+              <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-7 text-xs" onClick={() => copyText(pyOneLiner)}><Copy className="w-3 h-3 mr-1" />Copy</Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Requires Python 3 (pre-installed on macOS). Uses native APIs for metrics. No extra dependencies.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Linux */}
+      {platform === 'linux' && (
+        <div className="space-y-5">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Recommended</Badge>
+              <span className="text-sm font-medium">Bash — continuous monitor</span>
+            </div>
+            <div className="relative">
+              <pre className="bg-background border border-border rounded-lg p-4 text-sm font-mono overflow-x-auto text-emerald-400 whitespace-pre-wrap">{bashOneLiner}</pre>
+              <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-7 text-xs" onClick={() => copyText(bashOneLiner)}><Copy className="w-3 h-3 mr-1" />Copy</Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Downloads and runs a bash script. Uses <code className="text-emerald-400">/proc/stat</code> for CPU, <code className="text-emerald-400">free</code> for memory. Heartbeats every 5 min.</p>
           </div>
           <Separator />
           <div>
             <span className="text-sm font-medium">Run as background daemon</span>
             <div className="relative mt-2">
-              <pre className="bg-background border border-border rounded-lg p-4 text-sm font-mono overflow-x-auto text-amber-400 whitespace-pre-wrap">{bashDaemon}</pre>
+              <pre className="bg-background border border-border rounded-lg p-4 text-sm font-mono overflow-x-auto text-cyan-400 whitespace-pre-wrap">{bashDaemon}</pre>
               <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-7 text-xs" onClick={() => copyText(bashDaemon)}><Copy className="w-3 h-3 mr-1" />Copy</Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Save script to file and run as a background daemon. Logs to <code className="text-emerald-400">/var/log/openclaw-heartbeat.log</code>.</p>
+            <p className="text-xs text-muted-foreground mt-1">Save and run as background process. Logs to <code className="text-emerald-400">/var/log/openclaw-heartbeat.log</code>.</p>
+          </div>
+          <Separator />
+          <div>
+            <span className="text-sm font-medium">Python — cross-platform alternative</span>
+            <div className="relative mt-2">
+              <pre className="bg-background border border-border rounded-lg p-4 text-sm font-mono overflow-x-auto text-amber-400 whitespace-pre-wrap">{pyOneLiner}</pre>
+              <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-7 text-xs" onClick={() => copyText(pyOneLiner)}><Copy className="w-3 h-3 mr-1" />Copy</Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Requires Python 3. Reads <code className="text-emerald-400">/proc/stat</code> and <code className="text-emerald-400">/proc/meminfo</code>. No extra dependencies.</p>
           </div>
         </div>
       )}
