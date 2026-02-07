@@ -447,17 +447,63 @@ done
       return json({ stats });
     }
 
-    return json({ error: 'Not found' }, 404);
-  } catch (error) {
-    console.error('GET Error:', error);
-    return json({ error: 'Internal server error' }, 500);
-  }
-}
+    // ============ STALE AGENT CRON ============
+    if (path === '/cron/check-stale') {
+      const db = await getDb();
+      const staleThreshold = new Date(Date.now() - 10 * 60 * 1000); // 10 min
+      const staleAgents = await db.collection('agents').find({
+        status: { $in: ['healthy', 'idle'] },
+        last_heartbeat: { $lt: staleThreshold.toISOString() }
+      }).toArray();
 
-export async function POST(request, { params }) {
-  const path = getPath(params);
-  try {
-    if (path === '/fleets') {
+      let updated = 0;
+      for (const agent of staleAgents) {
+        await db.collection('agents').updateOne({ id: agent.id }, { $set: { status: 'offline', updated_at: new Date().toISOString() } });
+        const existingAlert = await db.collection('alerts').findOne({ agent_id: agent.id, type: 'downtime', resolved: false });
+        if (!existingAlert) {
+          await db.collection('alerts').insertOne({
+            id: uuidv4(), agent_id: agent.id, agent_name: agent.name, user_id: agent.user_id,
+            type: 'downtime', message: `Agent offline - no heartbeat for 10+ minutes`, resolved: false,
+            created_at: new Date().toISOString(),
+          });
+        }
+        updated++;
+      }
+      return json({ checked: staleAgents.length, updated, timestamp: new Date().toISOString() });
+    }
+
+    // ============ BILLING / SUBSCRIPTION ============
+    if (path === '/billing') {
+      const user = await getUser(request);
+      if (!user) return json({ error: 'Unauthorized' }, 401);
+      const db = await getDb();
+      const sub = await db.collection('subscriptions').findOne({ user_id: user.id, status: { $ne: 'cancelled' } });
+      const agentCount = await db.collection('agents').countDocuments({ user_id: user.id });
+      return json({
+        subscription: sub || { plan: 'free', status: 'active' },
+        agent_count: agentCount,
+        limits: {
+          free: { max_agents: 1, alerts: false, teams: false },
+          pro: { max_agents: -1, alerts: true, teams: true },
+          enterprise: { max_agents: -1, alerts: true, teams: true, custom_policies: true, sso: true },
+        }
+      });
+    }
+
+    // ============ TEAM MANAGEMENT ============
+    if (path === '/team') {
+      const user = await getUser(request);
+      if (!user) return json({ error: 'Unauthorized' }, 401);
+      const db = await getDb();
+      let team = await db.collection('teams').findOne({ $or: [{ owner_id: user.id }, { 'members.user_id': user.id }] });
+      if (!team) {
+        team = { id: uuidv4(), name: `${user.email?.split('@')[0]}'s Team`, owner_id: user.id, members: [{ user_id: user.id, email: user.email, role: 'owner', joined_at: new Date().toISOString() }], created_at: new Date().toISOString() };
+        await db.collection('teams').insertOne(team);
+      }
+      return json({ team });
+    }
+
+    return json({ error: 'Not found' }, 404);
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
       const body = await request.json();
