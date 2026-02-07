@@ -63,7 +63,7 @@ export async function GET(request, { params }) {
       return json({ status: 'ok', timestamp: new Date().toISOString() });
     }
 
-    // Serve a shell-based heartbeat script for easy install
+    // Serve a shell-based heartbeat script for easy install (Linux + macOS)
     if (path === '/install-agent') {
       const { searchParams } = new URL(request.url);
       const agentId = searchParams.get('agent_id') || 'YOUR_AGENT_ID';
@@ -71,7 +71,7 @@ export async function GET(request, { params }) {
       const interval = searchParams.get('interval') || '300';
 
       const script = `#!/bin/bash
-# OpenClaw Fleet Monitor - Heartbeat Agent
+# OpenClaw Fleet Monitor - Heartbeat Agent (Linux & macOS)
 # Auto-generated for agent: ${agentId}
 # Usage: curl -sL "${baseUrl}/api/install-agent?agent_id=${agentId}" | bash
 
@@ -80,28 +80,83 @@ AGENT_ID="${agentId}"
 INTERVAL=${interval}
 
 echo ""
-echo "  ⚡ OpenClaw Fleet Monitor"
+echo "  OpenClaw Fleet Monitor"
 echo "  ─────────────────────────────"
 echo "  Agent:    $AGENT_ID"
 echo "  SaaS:     $SAAS_URL"
 echo "  Interval: \${INTERVAL}s"
+echo "  OS:       $(uname -s) $(uname -m)"
 echo ""
 
+get_cpu() {
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS: use ps to get total CPU
+    ps -A -o %cpu | awk '{s+=$1} END {printf "%.0f", s/4}' 2>/dev/null || echo "0"
+  elif [ -f /proc/stat ]; then
+    # Linux: calculate from /proc/stat
+    read -r cpu user nice system idle rest < /proc/stat
+    total1=$((user + nice + system + idle))
+    idle1=$idle
+    sleep 1
+    read -r cpu user nice system idle rest < /proc/stat
+    total2=$((user + nice + system + idle))
+    idle2=$idle
+    if [ $((total2 - total1)) -gt 0 ]; then
+      echo $(( (100 * ((total2 - total1) - (idle2 - idle1))) / (total2 - total1) ))
+    else
+      echo "0"
+    fi
+  else
+    echo "0"
+  fi
+}
+
+get_mem() {
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS: use vm_stat and sysctl
+    PAGES_ACTIVE=$(vm_stat 2>/dev/null | awk '/Pages active/ {gsub(/\\./, "", $3); print $3}')
+    PAGES_WIRED=$(vm_stat 2>/dev/null | awk '/Pages wired/ {gsub(/\\./, "", $4); print $4}')
+    PAGES_FREE=$(vm_stat 2>/dev/null | awk '/Pages free/ {gsub(/\\./, "", $3); print $3}')
+    PAGES_SPECULATIVE=$(vm_stat 2>/dev/null | awk '/Pages speculative/ {gsub(/\\./, "", $3); print $3}')
+    TOTAL=$((PAGES_ACTIVE + PAGES_WIRED + PAGES_FREE + PAGES_SPECULATIVE))
+    if [ "$TOTAL" -gt 0 ] 2>/dev/null; then
+      echo $(( (PAGES_ACTIVE + PAGES_WIRED) * 100 / TOTAL ))
+    else
+      echo "0"
+    fi
+  elif command -v free &> /dev/null; then
+    free 2>/dev/null | awk '/Mem/ {printf "%.0f", $3/$2 * 100}' || echo "0"
+  else
+    echo "0"
+  fi
+}
+
+get_uptime_hours() {
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS: use sysctl kern.boottime
+    BOOT=$(sysctl -n kern.boottime 2>/dev/null | awk -F'[= ,]' '{print $4}')
+    NOW=$(date +%s)
+    if [ -n "$BOOT" ] && [ "$BOOT" -gt 0 ] 2>/dev/null; then
+      echo $(( (NOW - BOOT) / 3600 ))
+    else
+      echo "0"
+    fi
+  elif [ -f /proc/uptime ]; then
+    awk '{printf "%.0f", $1/3600}' /proc/uptime 2>/dev/null || echo "0"
+  else
+    echo "0"
+  fi
+}
+
 send_heartbeat() {
-  CPU=0
-  MEM=0
+  CPU=$(get_cpu)
+  MEM=$(get_mem)
+  UPTIME_H=$(get_uptime_hours)
 
-  if command -v top &> /dev/null; then
-    CPU=$(top -bn1 2>/dev/null | grep -i "cpu" | head -1 | awk '{for(i=1;i<=NF;i++) if($i ~ /^[0-9.]+$/) {print int($i); exit}}' 2>/dev/null || echo "0")
-  fi
-
-  if command -v free &> /dev/null; then
-    MEM=$(free 2>/dev/null | grep Mem | awk '{printf "%.0f", $3/$2 * 100}' 2>/dev/null || echo "0")
-  elif [[ "$OSTYPE" == "darwin"* ]]; then
-    MEM=$(vm_stat 2>/dev/null | awk '/Pages active/ {active=$3} /Pages wired/ {wired=$4} /Pages free/ {free=$3} END {printf "%.0f", (active+wired)/(active+wired+free)*100}' 2>/dev/null || echo "0")
-  fi
-
-  UPTIME_H=$(awk '{printf "%.0f", $1/3600}' /proc/uptime 2>/dev/null || echo "0")
+  # Ensure numeric values
+  CPU=\${CPU:-0}
+  MEM=\${MEM:-0}
+  UPTIME_H=\${UPTIME_H:-0}
 
   RESPONSE=$(curl -s -w "\\n%{http_code}" -X POST "\${SAAS_URL}/api/heartbeat" \\
     -H "Content-Type: application/json" \\
@@ -111,9 +166,9 @@ send_heartbeat() {
   BODY=$(echo "$RESPONSE" | head -1)
 
   if [ "$HTTP_CODE" = "200" ]; then
-    echo "[$(date +%H:%M:%S)] ✓ Heartbeat sent  CPU: \${CPU}%  MEM: \${MEM}%"
+    echo "[$(date +%H:%M:%S)] Heartbeat sent  CPU: \${CPU}%  MEM: \${MEM}%  Uptime: \${UPTIME_H}h"
   else
-    echo "[$(date +%H:%M:%S)] ✗ Failed ($HTTP_CODE): $BODY"
+    echo "[$(date +%H:%M:%S)] Failed ($HTTP_CODE): $BODY"
   fi
 }
 
@@ -138,62 +193,192 @@ done
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.headers.get('origin') || 'http://localhost:3000';
       const interval = searchParams.get('interval') || '300';
 
-      const script = `# OpenClaw Fleet Monitor - PowerShell Heartbeat Agent
-# Agent: ${agentId}
-# Save as openclaw-monitor.ps1 and run: powershell -ExecutionPolicy Bypass -File openclaw-monitor.ps1
+      const psScript = [
+        '# OpenClaw Fleet Monitor - PowerShell Heartbeat Agent',
+        '# Agent: ' + agentId,
+        '# Run: powershell -ExecutionPolicy Bypass -File openclaw-monitor.ps1',
+        '',
+        '$SaasUrl = "' + baseUrl + '"',
+        '$AgentId = "' + agentId + '"',
+        '$Interval = ' + interval,
+        '',
+        'Write-Host ""',
+        'Write-Host "  OpenClaw Fleet Monitor" -ForegroundColor Green',
+        'Write-Host "  --------------------------------"',
+        'Write-Host "  Agent:    $AgentId"',
+        'Write-Host "  SaaS:     $SaasUrl"',
+        'Write-Host "  Interval: $($Interval)s"',
+        'Write-Host ""',
+        '',
+        'function Send-Heartbeat {',
+        '    $cpuVal = 0',
+        '    try {',
+        '        $cpuVal = [math]::Round((Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average)',
+        '    } catch { $cpuVal = 0 }',
+        '',
+        '    $memVal = 0',
+        '    try {',
+        '        $osInfo = Get-CimInstance Win32_OperatingSystem',
+        '        $memVal = [math]::Round(($osInfo.TotalVisibleMemorySize - $osInfo.FreePhysicalMemory) / $osInfo.TotalVisibleMemorySize * 100)',
+        '    } catch { $memVal = 0 }',
+        '',
+        '    $uptimeVal = 0',
+        '    try {',
+        '        $osInfo = Get-CimInstance Win32_OperatingSystem',
+        '        $uptimeVal = [math]::Round((New-TimeSpan -Start $osInfo.LastBootUpTime -End (Get-Date)).TotalHours)',
+        '    } catch { $uptimeVal = 0 }',
+        '',
+        '    $body = @{',
+        '        agent_id = $AgentId',
+        '        status   = "healthy"',
+        '        metrics  = @{',
+        '            cpu_usage    = [int]$cpuVal',
+        '            memory_usage = [int]$memVal',
+        '            uptime_hours = [int]$uptimeVal',
+        '        }',
+        '    } | ConvertTo-Json -Depth 3',
+        '',
+        '    try {',
+        '        $null = Invoke-RestMethod -Uri "$SaasUrl/api/heartbeat" -Method POST -ContentType "application/json" -Body $body',
+        '        $time = Get-Date -Format "HH:mm:ss"',
+        '        Write-Host "[$time] Heartbeat sent  CPU: $($cpuVal)%  MEM: $($memVal)%" -ForegroundColor Green',
+        '    } catch {',
+        '        $time = Get-Date -Format "HH:mm:ss"',
+        '        Write-Host "[$time] FAIL: $($_.Exception.Message)" -ForegroundColor Red',
+        '    }',
+        '}',
+        '',
+        'Write-Host "Starting heartbeat loop (Ctrl+C to stop)..." -ForegroundColor Yellow',
+        'Write-Host ""',
+        '',
+        'while ($true) {',
+        '    Send-Heartbeat',
+        '    Start-Sleep -Seconds $Interval',
+        '}',
+      ].join('\n');
 
-$SaasUrl = "${baseUrl}"
-$AgentId = "${agentId}"
-$Interval = ${interval}
-
-Write-Host ""
-Write-Host "  [char]9889 OpenClaw Fleet Monitor" -ForegroundColor Green
-Write-Host "  --------------------------------"
-Write-Host "  Agent:    $AgentId"
-Write-Host "  SaaS:     $SaasUrl"
-Write-Host "  Interval: $\{Interval\}s"
-Write-Host ""
-
-function Send-Heartbeat {
-    $cpu = (Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average
-    if ($null -eq $cpu) { $cpu = 0 }
-
-    $os = Get-CimInstance Win32_OperatingSystem
-    $mem = [math]::Round(($os.TotalVisibleMemorySize - $os.FreePhysicalMemory) / $os.TotalVisibleMemorySize * 100)
-
-    $uptime = [math]::Round((New-TimeSpan -Start $os.LastBootUpTime -End (Get-Date)).TotalHours)
-
-    $body = @{
-        agent_id = $AgentId
-        status   = "healthy"
-        metrics  = @{
-            cpu_usage    = [int]$cpu
-            memory_usage = [int]$mem
-            uptime_hours = [int]$uptime
-        }
-    } | ConvertTo-Json -Depth 3
-
-    try {
-        $response = Invoke-RestMethod -Uri "$SaasUrl/api/heartbeat" -Method POST -ContentType "application/json" -Body $body
-        $time = Get-Date -Format "HH:mm:ss"
-        Write-Host "[$time] OK Heartbeat sent  CPU: $\{cpu\}%  MEM: $\{mem\}%" -ForegroundColor Green
-    } catch {
-        $time = Get-Date -Format "HH:mm:ss"
-        Write-Host "[$time] FAIL: $($_.Exception.Message)" -ForegroundColor Red
-    }
-}
-
-Write-Host "Starting heartbeat loop (Ctrl+C to stop)..." -ForegroundColor Yellow
-Write-Host ""
-
-while ($true) {
-    Send-Heartbeat
-    Start-Sleep -Seconds $Interval
-}
-`;
-      return new NextResponse(script, {
+      return new NextResponse(psScript, {
         status: 200,
-        headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Content-Disposition': `attachment; filename="openclaw-monitor.ps1"` },
+        headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Content-Disposition': 'attachment; filename="openclaw-monitor.ps1"' },
+      });
+    }
+
+    // Python heartbeat script - cross-platform (Windows, macOS, Linux)
+    if (path === '/install-agent-py') {
+      const { searchParams } = new URL(request.url);
+      const agentId = searchParams.get('agent_id') || 'YOUR_AGENT_ID';
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.headers.get('origin') || 'http://localhost:3000';
+      const interval = searchParams.get('interval') || '300';
+
+      const pyLines = [
+        '#!/usr/bin/env python3',
+        '"""OpenClaw Fleet Monitor - Cross-platform Heartbeat Agent"""',
+        '# Agent: ' + agentId,
+        '# Run: python3 openclaw-monitor.py',
+        '',
+        'import json, time, urllib.request, platform, os',
+        '',
+        'SAAS_URL = "' + baseUrl + '"',
+        'AGENT_ID = "' + agentId + '"',
+        'INTERVAL = ' + interval,
+        '',
+        'def get_cpu():',
+        '    try:',
+        '        if platform.system() == "Linux":',
+        '            with open("/proc/stat") as f:',
+        '                a = [int(x) for x in f.readline().split()[1:]]',
+        '            time.sleep(1)',
+        '            with open("/proc/stat") as f:',
+        '                b = [int(x) for x in f.readline().split()[1:]]',
+        '            d = [b[i]-a[i] for i in range(len(a))]',
+        '            return int(100*(sum(d)-d[3])/max(sum(d),1))',
+        '        elif platform.system() == "Darwin":',
+        '            import subprocess',
+        '            r = subprocess.run(["ps", "-A", "-o", "%cpu"], capture_output=True, text=True)',
+        '            return min(100, int(sum(float(x) for x in r.stdout.strip().split("\\n")[1:] if x.strip()) / (os.cpu_count() or 4)))',
+        '        elif platform.system() == "Windows":',
+        '            import subprocess',
+        '            r = subprocess.run(["wmic", "cpu", "get", "loadpercentage"], capture_output=True, text=True)',
+        '            for line in r.stdout.strip().split("\\n"):',
+        '                line = line.strip()',
+        '                if line.isdigit(): return int(line)',
+        '    except: pass',
+        '    return 0',
+        '',
+        'def get_mem():',
+        '    try:',
+        '        if platform.system() == "Linux":',
+        '            with open("/proc/meminfo") as f:',
+        '                lines = {l.split(":")[0]: int(l.split(":")[1].strip().split()[0]) for l in f if ":" in l}',
+        '            return int((lines["MemTotal"]-lines["MemAvailable"])/lines["MemTotal"]*100)',
+        '        elif platform.system() == "Darwin":',
+        '            import subprocess',
+        '            r = subprocess.run(["vm_stat"], capture_output=True, text=True)',
+        '            d = {}',
+        '            for line in r.stdout.split("\\n"):',
+        '                if ":" in line:',
+        '                    k,v = line.split(":",1)',
+        '                    d[k.strip()] = int(v.strip().rstrip("."))',
+        '            active = d.get("Pages active",0)+d.get("Pages wired down",0)',
+        '            total = active+d.get("Pages free",0)+d.get("Pages speculative",0)',
+        '            return int(active/max(total,1)*100)',
+        '        elif platform.system() == "Windows":',
+        '            import subprocess',
+        '            r = subprocess.run(["wmic", "os", "get", "FreePhysicalMemory,TotalVisibleMemorySize", "/value"], capture_output=True, text=True)',
+        '            vals = {}',
+        '            for line in r.stdout.strip().split("\\n"):',
+        '                if "=" in line:',
+        '                    k,v = line.strip().split("=")',
+        '                    vals[k] = int(v)',
+        '            if vals: return int((vals["TotalVisibleMemorySize"]-vals["FreePhysicalMemory"])/vals["TotalVisibleMemorySize"]*100)',
+        '    except: pass',
+        '    return 0',
+        '',
+        'def get_uptime():',
+        '    try:',
+        '        if platform.system() == "Linux":',
+        '            with open("/proc/uptime") as f: return int(float(f.read().split()[0])/3600)',
+        '        elif platform.system() == "Darwin":',
+        '            import subprocess',
+        '            r = subprocess.run(["sysctl", "-n", "kern.boottime"], capture_output=True, text=True)',
+        '            import re; m = re.search(r"sec = (\\d+)", r.stdout)',
+        '            if m: return int((time.time()-int(m.group(1)))/3600)',
+        '        elif platform.system() == "Windows":',
+        '            return int(time.monotonic()/3600)',
+        '    except: pass',
+        '    return 0',
+        '',
+        'def send_heartbeat():',
+        '    cpu, mem, uptime = get_cpu(), get_mem(), get_uptime()',
+        '    data = json.dumps({"agent_id": AGENT_ID, "status": "healthy", "metrics": {"cpu_usage": cpu, "memory_usage": mem, "uptime_hours": uptime}}).encode()',
+        '    req = urllib.request.Request(f"{SAAS_URL}/api/heartbeat", data=data, headers={"Content-Type": "application/json"}, method="POST")',
+        '    try:',
+        '        with urllib.request.urlopen(req, timeout=10) as resp:',
+        '            t = time.strftime("%H:%M:%S")',
+        '            print(f"[{t}] Heartbeat sent  CPU: {cpu}%  MEM: {mem}%  Uptime: {uptime}h")',
+        '    except Exception as e:',
+        '        t = time.strftime("%H:%M:%S")',
+        '        print(f"[{t}] FAIL: {e}")',
+        '',
+        'if __name__ == "__main__":',
+        '    print()',
+        '    print("  OpenClaw Fleet Monitor")',
+        '    print("  --------------------------------")',
+        '    print(f"  Agent:    {AGENT_ID}")',
+        '    print(f"  SaaS:     {SAAS_URL}")',
+        '    print(f"  Interval: {INTERVAL}s")',
+        '    print(f"  OS:       {platform.system()} {platform.machine()}")',
+        '    print()',
+        '    print("Starting heartbeat loop (Ctrl+C to stop)...")',
+        '    print()',
+        '    while True:',
+        '        send_heartbeat()',
+        '        time.sleep(INTERVAL)',
+      ].join('\n');
+
+      return new NextResponse(pyLines, {
+        status: 200,
+        headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Content-Disposition': 'attachment; filename="openclaw-monitor.py"' },
       });
     }
 
