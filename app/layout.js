@@ -1,14 +1,14 @@
 import './globals.css'
 
 export const metadata = {
-  title: 'Next.js MongoDB Template',
-  description: 'A simple template with App Router, MongoDB, and shadcn/ui',
+  title: 'OpenClaw Fleet Orchestrator',
+  description: 'Scale your AI agents from 1 to 100 with centralized fleet management, real-time monitoring, and policy enforcement.',
 }
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <body className="min-h-screen bg-background antialiased">
         {children}
       </body>
     </html>
