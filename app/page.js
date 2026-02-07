@@ -741,14 +741,14 @@ function AgentDetailView({ navigate, session, api, agentId }) {
               <RefreshCw className={`w-4 h-4 mr-1 ${restarting ? 'animate-spin' : ''}`} />
               {restarting ? 'Restarting...' : 'Restart'}
             </Button>
-            <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(`openclaw monitor --saas-url=${typeof window !== 'undefined' ? window.location.origin : ''} --agent-id=${agent.id}`); toast.success('CLI command copied!'); }}>
-              <Copy className="w-4 h-4 mr-1" />Copy CLI
+            <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(agent.id); toast.success('Agent ID copied!'); }}>
+              <Copy className="w-4 h-4 mr-1" />Copy ID
             </Button>
           </div>
         </div>
 
         <Tabs defaultValue="overview">
-          <TabsList className="mb-6"><TabsTrigger value="overview">Overview</TabsTrigger><TabsTrigger value="config">Config</TabsTrigger><TabsTrigger value="metrics">Metrics</TabsTrigger></TabsList>
+          <TabsList className="mb-6"><TabsTrigger value="overview">Overview</TabsTrigger><TabsTrigger value="setup">Setup</TabsTrigger><TabsTrigger value="config">Config</TabsTrigger><TabsTrigger value="metrics">Metrics</TabsTrigger></TabsList>
 
           <TabsContent value="overview">
             <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
