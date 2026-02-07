@@ -63,6 +63,74 @@ export async function GET(request, { params }) {
       return json({ status: 'ok', timestamp: new Date().toISOString() });
     }
 
+    // Serve a shell-based heartbeat script for easy install
+    if (path === '/install-agent') {
+      const { searchParams } = new URL(request.url);
+      const agentId = searchParams.get('agent_id') || 'YOUR_AGENT_ID';
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.headers.get('origin') || 'http://localhost:3000';
+      const interval = searchParams.get('interval') || '300';
+
+      const script = `#!/bin/bash
+# OpenClaw Fleet Monitor - Heartbeat Agent
+# Auto-generated for agent: ${agentId}
+# Usage: curl -sL "${baseUrl}/api/install-agent?agent_id=${agentId}" | bash
+
+SAAS_URL="${baseUrl}"
+AGENT_ID="${agentId}"
+INTERVAL=${interval}
+
+echo ""
+echo "  ⚡ OpenClaw Fleet Monitor"
+echo "  ─────────────────────────────"
+echo "  Agent:    $AGENT_ID"
+echo "  SaaS:     $SAAS_URL"
+echo "  Interval: \${INTERVAL}s"
+echo ""
+
+send_heartbeat() {
+  CPU=0
+  MEM=0
+
+  if command -v top &> /dev/null; then
+    CPU=$(top -bn1 2>/dev/null | grep -i "cpu" | head -1 | awk '{for(i=1;i<=NF;i++) if($i ~ /^[0-9.]+$/) {print int($i); exit}}' 2>/dev/null || echo "0")
+  fi
+
+  if command -v free &> /dev/null; then
+    MEM=$(free 2>/dev/null | grep Mem | awk '{printf "%.0f", $3/$2 * 100}' 2>/dev/null || echo "0")
+  elif [[ "$OSTYPE" == "darwin"* ]]; then
+    MEM=$(vm_stat 2>/dev/null | awk '/Pages active/ {active=$3} /Pages wired/ {wired=$4} /Pages free/ {free=$3} END {printf "%.0f", (active+wired)/(active+wired+free)*100}' 2>/dev/null || echo "0")
+  fi
+
+  UPTIME_H=$(awk '{printf "%.0f", $1/3600}' /proc/uptime 2>/dev/null || echo "0")
+
+  RESPONSE=$(curl -s -w "\\n%{http_code}" -X POST "\${SAAS_URL}/api/heartbeat" \\
+    -H "Content-Type: application/json" \\
+    -d "{\\"agent_id\\":\\"$AGENT_ID\\",\\"status\\":\\"healthy\\",\\"metrics\\":{\\"cpu_usage\\":$CPU,\\"memory_usage\\":$MEM,\\"uptime_hours\\":$UPTIME_H}}")
+
+  HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+  BODY=$(echo "$RESPONSE" | head -1)
+
+  if [ "$HTTP_CODE" = "200" ]; then
+    echo "[$(date +%H:%M:%S)] ✓ Heartbeat sent  CPU: \${CPU}%  MEM: \${MEM}%"
+  else
+    echo "[$(date +%H:%M:%S)] ✗ Failed ($HTTP_CODE): $BODY"
+  fi
+}
+
+echo "Starting heartbeat loop (Ctrl+C to stop)..."
+echo ""
+
+while true; do
+  send_heartbeat
+  sleep $INTERVAL
+done
+`;
+      return new NextResponse(script, {
+        status: 200,
+        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      });
+    }
+
     if (path === '/auth/me') {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
