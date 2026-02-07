@@ -504,6 +504,16 @@ done
     }
 
     return json({ error: 'Not found' }, 404);
+  } catch (error) {
+    console.error('GET Error:', error);
+    return json({ error: 'Internal server error' }, 500);
+  }
+}
+
+export async function POST(request, { params }) {
+  const path = getPath(params);
+  try {
+    if (path === '/fleets') {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
       const body = await request.json();
