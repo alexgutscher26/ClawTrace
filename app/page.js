@@ -877,6 +877,106 @@ function AgentDetailView({ navigate, session, api, agentId }) {
   );
 }
 
+// ============ SETUP INSTRUCTIONS ============
+function SetupInstructions({ agentId }) {
+  const [platform, setPlatform] = useState('windows');
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+
+  const copyText = (text) => {
+    navigator.clipboard.writeText(text);
+    toast.success('Copied to clipboard!');
+  };
+
+  const psOneLiner = `irm "${origin}/api/install-agent-ps?agent_id=${agentId}" -OutFile openclaw-monitor.ps1; powershell -ExecutionPolicy Bypass -File openclaw-monitor.ps1`;
+  const psSingle = `Invoke-RestMethod -Uri "${origin}/api/heartbeat" -Method POST -ContentType "application/json" -Body '{"agent_id":"${agentId}","status":"healthy","metrics":{"cpu_usage":50,"memory_usage":60}}'`;
+  const bashOneLiner = `curl -sL "${origin}/api/install-agent?agent_id=${agentId}" | bash`;
+  const bashSingle = `curl -X POST ${origin}/api/heartbeat \\\n  -H "Content-Type: application/json" \\\n  -d '{"agent_id":"${agentId}","status":"healthy","metrics":{"cpu_usage":50,"memory_usage":60}}'`;
+  const bashDaemon = `curl -sL "${origin}/api/install-agent?agent_id=${agentId}" > openclaw-monitor.sh\nchmod +x openclaw-monitor.sh\nnohup ./openclaw-monitor.sh > /var/log/openclaw-heartbeat.log 2>&1 &`;
+
+  return (
+    <div className="space-y-5">
+      {/* Platform Tabs */}
+      <div className="flex gap-1 bg-muted/50 p-1 rounded-lg w-fit">
+        {[
+          { id: 'windows', label: 'Windows', icon: '🪟' },
+          { id: 'mac', label: 'macOS', icon: '🍎' },
+          { id: 'linux', label: 'Linux', icon: '🐧' },
+        ].map(p => (
+          <button
+            key={p.id}
+            onClick={() => setPlatform(p.id)}
+            className={`px-4 py-1.5 rounded text-sm font-medium transition-all ${platform === p.id ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            {p.icon} {p.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Windows / PowerShell */}
+      {platform === 'windows' && (
+        <div className="space-y-5">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Recommended</Badge>
+              <span className="text-sm font-medium">PowerShell — continuous monitor</span>
+            </div>
+            <div className="relative">
+              <pre className="bg-background border border-border rounded-lg p-4 text-sm font-mono overflow-x-auto text-emerald-400 whitespace-pre-wrap">{psOneLiner}</pre>
+              <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-7 text-xs" onClick={() => copyText(psOneLiner)}><Copy className="w-3 h-3 mr-1" />Copy</Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Downloads a PowerShell script and runs it. Sends heartbeats every 5 minutes with real CPU & memory metrics.</p>
+          </div>
+          <Separator />
+          <div>
+            <span className="text-sm font-medium">PowerShell — single heartbeat</span>
+            <div className="relative mt-2">
+              <pre className="bg-background border border-border rounded-lg p-4 text-sm font-mono overflow-x-auto text-cyan-400 whitespace-pre-wrap">{psSingle}</pre>
+              <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-7 text-xs" onClick={() => copyText(psSingle)}><Copy className="w-3 h-3 mr-1" />Copy</Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Send a single heartbeat to verify connectivity. Use Task Scheduler for recurring runs.</p>
+          </div>
+        </div>
+      )}
+
+      {/* macOS / Linux */}
+      {(platform === 'mac' || platform === 'linux') && (
+        <div className="space-y-5">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Recommended</Badge>
+              <span className="text-sm font-medium">One-liner (bash)</span>
+            </div>
+            <div className="relative">
+              <pre className="bg-background border border-border rounded-lg p-4 text-sm font-mono overflow-x-auto text-emerald-400 whitespace-pre-wrap">{bashOneLiner}</pre>
+              <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-7 text-xs" onClick={() => copyText(bashOneLiner)}><Copy className="w-3 h-3 mr-1" />Copy</Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Downloads and runs a self-contained bash script. Sends heartbeats every 5 minutes with CPU & memory metrics.</p>
+          </div>
+          <Separator />
+          <div>
+            <span className="text-sm font-medium">Single heartbeat (curl)</span>
+            <div className="relative mt-2">
+              <pre className="bg-background border border-border rounded-lg p-4 text-sm font-mono overflow-x-auto text-cyan-400 whitespace-pre-wrap">{bashSingle}</pre>
+              <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-7 text-xs" onClick={() => copyText(bashSingle)}><Copy className="w-3 h-3 mr-1" />Copy</Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Send a single heartbeat. Add to crontab for recurring: <code className="text-emerald-400">*/5 * * * * curl ...</code></p>
+          </div>
+          <Separator />
+          <div>
+            <span className="text-sm font-medium">Run as background daemon</span>
+            <div className="relative mt-2">
+              <pre className="bg-background border border-border rounded-lg p-4 text-sm font-mono overflow-x-auto text-amber-400 whitespace-pre-wrap">{bashDaemon}</pre>
+              <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-7 text-xs" onClick={() => copyText(bashDaemon)}><Copy className="w-3 h-3 mr-1" />Copy</Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Save script to file and run as a background daemon. Logs to <code className="text-emerald-400">/var/log/openclaw-heartbeat.log</code>.</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 // ============ PRICING ============
 function PricingView({ navigate, session }) {
   const tiers = [
