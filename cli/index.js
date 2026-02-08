@@ -118,6 +118,9 @@ function log(msg) {
   console.log(`${COLORS.dim}[${time}]${COLORS.reset} ${msg}`);
 }
 
+/**
+ * Prints a banner for the Fleet Monitor.
+ */
 function printBanner() {
   console.log(`
 ${COLORS.green}${COLORS.bold}  ⚡ Fleet Monitor${COLORS.reset}`);
@@ -134,6 +137,20 @@ function printStatus(metrics) {
 
 // ============ COMMANDS ============
 
+/**
+ * Monitors the agent's status and sends heartbeat signals to the specified SaaS URL.
+ *
+ * This function initializes a session with the SaaS service by performing a handshake using the provided agent credentials.
+ * It then enters a loop to send heartbeat signals at a specified interval, handling session expiration and connection errors gracefully.
+ * If required parameters are missing, it logs an error and exits the process.
+ *
+ * @param args - An object containing the parameters for the monitoring process, including:
+ *   - saas_url: The URL of the SaaS service (required).
+ *   - agent_id: The UUID of the agent (required).
+ *   - agent_secret: The secret for the agent (required).
+ *   - interval: The heartbeat interval in seconds (optional, defaults to 300).
+ *   - status: The status of the agent (optional, defaults to 'healthy').
+ */
 async function monitorCommand(args) {
   const saasUrl = args.saas_url;
   const agentId = args.agent_id;
@@ -228,6 +245,13 @@ function statusCommand(args) {
   console.log();
 }
 
+/**
+ * Handles configuration commands based on the provided subcommand.
+ *
+ * This function checks the subcommand from the args object. If the subcommand is 'push', it calls the configPushCommand function to handle the push operation. If the subcommand is unknown, it logs an error message and displays usage instructions before exiting the process.
+ *
+ * @param {Object} args - The arguments object containing the subcommand and other parameters.
+ */
 async function configCommand(args) {
   const subcommand = args._subcommand || args.subcommand;
 
