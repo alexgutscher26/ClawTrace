@@ -735,6 +735,18 @@ function DashboardView({ navigate, session, api }) {
 }
 
 // ============ AGENT DETAIL ============
+/**
+ * Renders the agent detail view, displaying agent information and metrics.
+ *
+ * This component fetches agent details using the provided API and agentId, manages loading and restarting states, and allows configuration editing. It utilizes various hooks such as useState and useEffect to manage state and side effects. The metrics are generated dynamically based on the agent's data, and the UI is structured with tabs for different sections like overview, setup, config, and metrics.
+ *
+ * @param {Object} props - The component props.
+ * @param {function} props.navigate - Function to navigate to different routes.
+ * @param {Object} props.session - The current user session.
+ * @param {function} props.api - Function to make API calls.
+ * @param {string} props.agentId - The ID of the agent to display.
+ * @returns {JSX.Element|null} The rendered component or null if the agent is not found.
+ */
 function AgentDetailView({ navigate, session, api, agentId }) {
   const [agent, setAgent] = useState(null);
   const [loading, setLoading] = useState(true);
