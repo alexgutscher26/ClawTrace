@@ -1,28 +1,11 @@
 import { NextResponse } from 'next/server';
-import { MongoClient } from 'mongodb';
 import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
-
-const MONGO_URL = process.env.MONGO_URL;
-const DB_NAME = process.env.DB_NAME || 'openclaw_fleet';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
-
-let cachedClient = null;
-let cachedDb = null;
-
-async function getDb() {
-  if (cachedDb) return cachedDb;
-  if (!cachedClient) {
-    cachedClient = new MongoClient(MONGO_URL);
-    await cachedClient.connect();
-  }
-  cachedDb = cachedClient.db(DB_NAME);
-  return cachedDb;
-}
 
 async function getUser(request) {
   const authHeader = request.headers.get('authorization');
@@ -158,6 +141,7 @@ send_heartbeat() {
   MEM=\${MEM:-0}
   UPTIME_H=\${UPTIME_H:-0}
 
+  # Update URL to use /api/heartbeat
   RESPONSE=$(curl -s -w "\\n%{http_code}" -X POST "\${SAAS_URL}/api/heartbeat" \\
     -H "Content-Type: application/json" \\
     -d "{\\"agent_id\\":\\"$AGENT_ID\\",\\"status\\":\\"healthy\\",\\"metrics\\":{\\"cpu_usage\\":$CPU,\\"memory_usage\\":$MEM,\\"uptime_hours\\":$UPTIME_H}}")
@@ -391,20 +375,24 @@ done
     if (path === '/fleets') {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
-      const db = await getDb();
-      const fleets = await db.collection('fleets').find({ user_id: user.id }).sort({ created_at: -1 }).toArray();
+      const { data: fleets, error } = await supabaseAdmin
+        .from('fleets')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
       return json({ fleets });
     }
 
     if (path === '/agents') {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
-      const db = await getDb();
       const { searchParams } = new URL(request.url);
       const fleet_id = searchParams.get('fleet_id');
-      const query = { user_id: user.id };
-      if (fleet_id) query.fleet_id = fleet_id;
-      const agents = await db.collection('agents').find(query).sort({ created_at: -1 }).toArray();
+      let query = supabaseAdmin.from('agents').select('*').eq('user_id', user.id);
+      if (fleet_id) query = query.eq('fleet_id', fleet_id);
+      const { data: agents, error } = await query.order('created_at', { ascending: false });
+      if (error) throw error;
       return json({ agents });
     }
 
@@ -412,8 +400,13 @@ done
     if (agentMatch) {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
-      const db = await getDb();
-      const agent = await db.collection('agents').findOne({ id: agentMatch[1], user_id: user.id });
+      const { data: agent, error } = await supabaseAdmin
+        .from('agents')
+        .select('*')
+        .eq('id', agentMatch[1])
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (error) throw error;
       if (!agent) return json({ error: 'Agent not found' }, 404);
       return json({ agent });
     }
@@ -421,18 +414,30 @@ done
     if (path === '/alerts') {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
-      const db = await getDb();
-      const alerts = await db.collection('alerts').find({ user_id: user.id }).sort({ created_at: -1 }).limit(50).toArray();
+      const { data: alerts, error } = await supabaseAdmin
+        .from('alerts')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
       return json({ alerts });
     }
 
     if (path === '/dashboard/stats') {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
-      const db = await getDb();
-      const agents = await db.collection('agents').find({ user_id: user.id }).toArray();
-      const fleets = await db.collection('fleets').find({ user_id: user.id }).toArray();
-      const unresolvedAlerts = await db.collection('alerts').countDocuments({ user_id: user.id, resolved: false });
+
+      const [agentsRes, fleetsRes, alertsRes] = await Promise.all([
+        supabaseAdmin.from('agents').select('*').eq('user_id', user.id),
+        supabaseAdmin.from('fleets').select('*').eq('user_id', user.id),
+        supabaseAdmin.from('alerts').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('resolved', false)
+      ]);
+
+      const agents = agentsRes.data || [];
+      const fleets = fleetsRes.data || [];
+      const unresolvedAlerts = alertsRes.count || 0;
+
       const stats = {
         total_agents: agents.length,
         total_fleets: fleets.length,
@@ -449,19 +454,32 @@ done
 
     // ============ STALE AGENT CRON ============
     if (path === '/cron/check-stale') {
-      const db = await getDb();
       const staleThreshold = new Date(Date.now() - 10 * 60 * 1000); // 10 min
-      const staleAgents = await db.collection('agents').find({
-        status: { $in: ['healthy', 'idle'] },
-        last_heartbeat: { $lt: staleThreshold.toISOString() }
-      }).toArray();
+      const { data: staleAgents, error: selectError } = await supabaseAdmin
+        .from('agents')
+        .select('*')
+        .in('status', ['healthy', 'idle'])
+        .lt('last_heartbeat', staleThreshold.toISOString());
+
+      if (selectError) throw selectError;
 
       let updated = 0;
-      for (const agent of staleAgents) {
-        await db.collection('agents').updateOne({ id: agent.id }, { $set: { status: 'offline', updated_at: new Date().toISOString() } });
-        const existingAlert = await db.collection('alerts').findOne({ agent_id: agent.id, type: 'downtime', resolved: false });
+      for (const agent of staleAgents || []) {
+        await supabaseAdmin
+          .from('agents')
+          .update({ status: 'offline', updated_at: new Date().toISOString() })
+          .eq('id', agent.id);
+
+        const { data: existingAlert } = await supabaseAdmin
+          .from('alerts')
+          .select('*')
+          .eq('agent_id', agent.id)
+          .eq('type', 'downtime')
+          .eq('resolved', false)
+          .maybeSingle();
+
         if (!existingAlert) {
-          await db.collection('alerts').insertOne({
+          await supabaseAdmin.from('alerts').insert({
             id: uuidv4(), agent_id: agent.id, agent_name: agent.name, user_id: agent.user_id,
             type: 'downtime', message: `Agent offline - no heartbeat for 10+ minutes`, resolved: false,
             created_at: new Date().toISOString(),
@@ -469,16 +487,23 @@ done
         }
         updated++;
       }
-      return json({ checked: staleAgents.length, updated, timestamp: new Date().toISOString() });
+      return json({ checked: (staleAgents || []).length, updated, timestamp: new Date().toISOString() });
     }
 
     // ============ BILLING / SUBSCRIPTION ============
     if (path === '/billing') {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
-      const db = await getDb();
-      const sub = await db.collection('subscriptions').findOne({ user_id: user.id, status: { $ne: 'cancelled' } });
-      const agentCount = await db.collection('agents').countDocuments({ user_id: user.id });
+      const { data: sub } = await supabaseAdmin
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', user.id)
+        .neq('status', 'cancelled')
+        .maybeSingle();
+      const { count: agentCount } = await supabaseAdmin
+        .from('agents')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
       return json({
         subscription: sub || { plan: 'free', status: 'active' },
         agent_count: agentCount,
@@ -494,11 +519,22 @@ done
     if (path === '/team') {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
-      const db = await getDb();
-      let team = await db.collection('teams').findOne({ $or: [{ owner_id: user.id }, { 'members.user_id': user.id }] });
-      if (!team) {
-        team = { id: uuidv4(), name: `${user.email?.split('@')[0]}'s Team`, owner_id: user.id, members: [{ user_id: user.id, email: user.email, role: 'owner', joined_at: new Date().toISOString() }], created_at: new Date().toISOString() };
-        await db.collection('teams').insertOne(team);
+
+      let { data: team, error } = await supabaseAdmin
+        .from('teams')
+        .select('*')
+        .or(`owner_id.eq.${user.id},members.cs.[{"user_id":"${user.id}"}]`)
+        .maybeSingle();
+
+      if (!team && !error) {
+        team = {
+          id: uuidv4(),
+          name: `${user.email?.split('@')[0]}'s Team`,
+          owner_id: user.id,
+          members: [{ user_id: user.id, email: user.email, role: 'owner', joined_at: new Date().toISOString() }],
+          created_at: new Date().toISOString()
+        };
+        await supabaseAdmin.from('teams').insert(team);
       }
       return json({ team });
     }
@@ -506,7 +542,7 @@ done
     return json({ error: 'Not found' }, 404);
   } catch (error) {
     console.error('GET Error:', error);
-    return json({ error: 'Internal server error' }, 500);
+    return json({ error: 'Internal server error', details: error.message }, 500);
   }
 }
 
@@ -517,7 +553,6 @@ export async function POST(request, { params }) {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
       const body = await request.json();
-      const db = await getDb();
       const fleet = {
         id: uuidv4(),
         user_id: user.id,
@@ -525,7 +560,8 @@ export async function POST(request, { params }) {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
-      await db.collection('fleets').insertOne(fleet);
+      const { error } = await supabaseAdmin.from('fleets').insert(fleet);
+      if (error) throw error;
       return json({ fleet }, 201);
     }
 
@@ -533,7 +569,6 @@ export async function POST(request, { params }) {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
       const body = await request.json();
-      const db = await getDb();
       const agent = {
         id: uuidv4(),
         fleet_id: body.fleet_id,
@@ -550,7 +585,8 @@ export async function POST(request, { params }) {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
-      await db.collection('agents').insertOne(agent);
+      const { error } = await supabaseAdmin.from('agents').insert(agent);
+      if (error) throw error;
       return json({ agent }, 201);
     }
 
@@ -558,21 +594,29 @@ export async function POST(request, { params }) {
     if (restartMatch) {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
-      const db = await getDb();
-      const agent = await db.collection('agents').findOneAndUpdate(
-        { id: restartMatch[1], user_id: user.id },
-        { $set: { status: 'idle', last_heartbeat: new Date().toISOString(), updated_at: new Date().toISOString() } },
-        { returnDocument: 'after' }
-      );
+      const { data: agent, error } = await supabaseAdmin
+        .from('agents')
+        .update({ status: 'idle', last_heartbeat: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq('id', restartMatch[1])
+        .eq('user_id', user.id)
+        .select()
+        .maybeSingle();
+      if (error) throw error;
       if (!agent) return json({ error: 'Agent not found' }, 404);
       return json({ agent, message: 'Agent restart initiated' });
     }
 
     if (path === '/heartbeat') {
       const body = await request.json();
-      const db = await getDb();
-      const agent = await db.collection('agents').findOne({ id: body.agent_id });
+      const { data: agent, error: fetchError } = await supabaseAdmin
+        .from('agents')
+        .select('*')
+        .eq('id', body.agent_id)
+        .maybeSingle();
+
+      if (fetchError) throw fetchError;
       if (!agent) return json({ error: 'Agent not found' }, 404);
+
       const update = {
         status: body.status || 'healthy',
         last_heartbeat: new Date().toISOString(),
@@ -581,7 +625,8 @@ export async function POST(request, { params }) {
       if (body.metrics) {
         update.metrics_json = { ...agent.metrics_json, ...body.metrics };
       }
-      await db.collection('agents').updateOne({ id: body.agent_id }, { $set: update });
+      const { error } = await supabaseAdmin.from('agents').update(update).eq('id', body.agent_id);
+      if (error) throw error;
       return json({ message: 'Heartbeat received', status: update.status });
     }
 
@@ -589,30 +634,30 @@ export async function POST(request, { params }) {
     if (resolveMatch) {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
-      const db = await getDb();
-      await db.collection('alerts').updateOne(
-        { id: resolveMatch[1], user_id: user.id },
-        { $set: { resolved: true, resolved_at: new Date().toISOString() } }
-      );
+      const { error } = await supabaseAdmin
+        .from('alerts')
+        .update({ resolved: true, resolved_at: new Date().toISOString() })
+        .eq('id', resolveMatch[1])
+        .eq('user_id', user.id);
+      if (error) throw error;
       return json({ message: 'Alert resolved' });
     }
 
     if (path === '/seed-demo') {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
-      const db = await getDb();
 
-      let fleets = await db.collection('fleets').find({ user_id: user.id }).toArray();
+      let { data: fleets } = await supabaseAdmin.from('fleets').select('*').eq('user_id', user.id);
       let fleet;
-      if (fleets.length === 0) {
+      if (!fleets || fleets.length === 0) {
         fleet = { id: uuidv4(), user_id: user.id, name: 'Production Fleet', created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
-        await db.collection('fleets').insertOne(fleet);
+        await supabaseAdmin.from('fleets').insert(fleet);
       } else {
         fleet = fleets[0];
       }
 
-      await db.collection('agents').deleteMany({ user_id: user.id });
-      await db.collection('alerts').deleteMany({ user_id: user.id });
+      await supabaseAdmin.from('agents').delete().eq('user_id', user.id);
+      await supabaseAdmin.from('alerts').delete().eq('user_id', user.id);
 
       const now = new Date();
       const demoAgents = [
@@ -627,7 +672,7 @@ export async function POST(request, { params }) {
         id: uuidv4(), fleet_id: fleet.id, user_id: user.id,
         ...a, created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
       }));
-      await db.collection('agents').insertMany(agentDocs);
+      await supabaseAdmin.from('agents').insert(agentDocs);
 
       const demoAlerts = [
         { agent_id: agentDocs[3].id, agent_name: 'delta-monitor', type: 'high-error', message: 'Error rate exceeded threshold: 28 errors in 24h', resolved: false },
@@ -638,7 +683,7 @@ export async function POST(request, { params }) {
         id: uuidv4(), user_id: user.id, ...a,
         created_at: new Date(now - Math.random() * 86400000).toISOString(),
       }));
-      await db.collection('alerts').insertMany(alertDocs);
+      await supabaseAdmin.from('alerts').insert(alertDocs);
 
       return json({ message: 'Demo data loaded', agents: agentDocs.length, alerts: alertDocs.length });
     }
@@ -696,31 +741,25 @@ export async function POST(request, { params }) {
       const body = await request.json();
       const eventName = body?.meta?.event_name;
       const customData = body?.meta?.custom_data || {};
-      const db = await getDb();
 
       if (eventName === 'subscription_created' || eventName === 'subscription_updated') {
         const attrs = body?.data?.attributes || {};
-        await db.collection('subscriptions').updateOne(
-          { user_id: customData.user_id },
-          { $set: {
-            user_id: customData.user_id,
-            plan: customData.plan || 'pro',
-            status: attrs.status === 'active' ? 'active' : attrs.status,
-            lemon_subscription_id: body?.data?.id,
-            customer_id: attrs.customer_id,
-            variant_id: attrs.variant_id,
-            current_period_end: attrs.renews_at,
-            updated_at: new Date().toISOString(),
-          }},
-          { upsert: true }
-        );
+        await supabaseAdmin.from('subscriptions').upsert({
+          user_id: customData.user_id,
+          plan: customData.plan || 'pro',
+          status: attrs.status === 'active' ? 'active' : attrs.status,
+          lemon_subscription_id: body?.data?.id,
+          customer_id: attrs.customer_id,
+          variant_id: attrs.variant_id,
+          current_period_end: attrs.renews_at,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' });
       }
 
       if (eventName === 'subscription_cancelled' || eventName === 'subscription_expired') {
-        await db.collection('subscriptions').updateOne(
-          { user_id: customData.user_id },
-          { $set: { status: 'cancelled', updated_at: new Date().toISOString() } }
-        );
+        await supabaseAdmin.from('subscriptions')
+          .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+          .eq('user_id', customData.user_id);
       }
 
       return json({ received: true });
@@ -731,17 +770,14 @@ export async function POST(request, { params }) {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
       const body = await request.json();
-      const db = await getDb();
-      const team = await db.collection('teams').findOne({ owner_id: user.id });
+      const { data: team } = await supabaseAdmin.from('teams').select('*').eq('owner_id', user.id).maybeSingle();
       if (!team) return json({ error: 'Only team owners can invite members' }, 403);
 
       const existing = team.members?.find(m => m.email === body.email);
       if (existing) return json({ error: 'Member already in team' }, 409);
 
-      await db.collection('teams').updateOne(
-        { id: team.id },
-        { $push: { members: { user_id: null, email: body.email, role: body.role || 'member', invited_by: user.id, joined_at: new Date().toISOString() } } }
-      );
+      const newMembers = [...(team.members || []), { user_id: null, email: body.email, role: body.role || 'member', invited_by: user.id, joined_at: new Date().toISOString() }];
+      await supabaseAdmin.from('teams').update({ members: newMembers }).eq('id', team.id);
 
       return json({ message: `Invited ${body.email}` }, 201);
     }
@@ -751,15 +787,12 @@ export async function POST(request, { params }) {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
       const body = await request.json();
-      const db = await getDb();
-      const team = await db.collection('teams').findOne({ owner_id: user.id });
+      const { data: team } = await supabaseAdmin.from('teams').select('*').eq('owner_id', user.id).maybeSingle();
       if (!team) return json({ error: 'Only team owners can remove members' }, 403);
       if (body.email === user.email) return json({ error: 'Cannot remove yourself' }, 400);
 
-      await db.collection('teams').updateOne(
-        { id: team.id },
-        { $pull: { members: { email: body.email } } }
-      );
+      const newMembers = team.members?.filter(m => m.email !== body.email) || [];
+      await supabaseAdmin.from('teams').update({ members: newMembers }).eq('id', team.id);
 
       return json({ message: `Removed ${body.email}` });
     }
@@ -767,7 +800,7 @@ export async function POST(request, { params }) {
     return json({ error: 'Not found' }, 404);
   } catch (error) {
     console.error('POST Error:', error);
-    return json({ error: 'Internal server error' }, 500);
+    return json({ error: 'Internal server error', details: error.message }, 500);
   }
 }
 
@@ -779,7 +812,6 @@ export async function PUT(request, { params }) {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
       const body = await request.json();
-      const db = await getDb();
       const updateFields = { updated_at: new Date().toISOString() };
       if (body.name !== undefined) updateFields.name = body.name;
       if (body.gateway_url !== undefined) updateFields.gateway_url = body.gateway_url;
@@ -788,11 +820,16 @@ export async function PUT(request, { params }) {
       if (body.location !== undefined) updateFields.location = body.location;
       if (body.model !== undefined) updateFields.model = body.model;
       if (body.status !== undefined) updateFields.status = body.status;
-      const agent = await db.collection('agents').findOneAndUpdate(
-        { id: agentMatch[1], user_id: user.id },
-        { $set: updateFields },
-        { returnDocument: 'after' }
-      );
+
+      const { data: agent, error } = await supabaseAdmin
+        .from('agents')
+        .update(updateFields)
+        .eq('id', agentMatch[1])
+        .eq('user_id', user.id)
+        .select()
+        .maybeSingle();
+
+      if (error) throw error;
       if (!agent) return json({ error: 'Agent not found' }, 404);
       return json({ agent });
     }
@@ -802,12 +839,15 @@ export async function PUT(request, { params }) {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
       const body = await request.json();
-      const db = await getDb();
-      const fleet = await db.collection('fleets').findOneAndUpdate(
-        { id: fleetMatch[1], user_id: user.id },
-        { $set: { name: body.name, updated_at: new Date().toISOString() } },
-        { returnDocument: 'after' }
-      );
+      const { data: fleet, error } = await supabaseAdmin
+        .from('fleets')
+        .update({ name: body.name, updated_at: new Date().toISOString() })
+        .eq('id', fleetMatch[1])
+        .eq('user_id', user.id)
+        .select()
+        .maybeSingle();
+
+      if (error) throw error;
       if (!fleet) return json({ error: 'Fleet not found' }, 404);
       return json({ fleet });
     }
@@ -815,7 +855,7 @@ export async function PUT(request, { params }) {
     return json({ error: 'Not found' }, 404);
   } catch (error) {
     console.error('PUT Error:', error);
-    return json({ error: 'Internal server error' }, 500);
+    return json({ error: 'Internal server error', details: error.message }, 500);
   }
 }
 
@@ -826,10 +866,9 @@ export async function DELETE(request, { params }) {
     if (agentMatch) {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
-      const db = await getDb();
-      const result = await db.collection('agents').deleteOne({ id: agentMatch[1], user_id: user.id });
-      if (result.deletedCount === 0) return json({ error: 'Agent not found' }, 404);
-      await db.collection('alerts').deleteMany({ agent_id: agentMatch[1], user_id: user.id });
+      const { error: deleteError } = await supabaseAdmin.from('agents').delete().eq('id', agentMatch[1]).eq('user_id', user.id);
+      if (deleteError) throw deleteError;
+      await supabaseAdmin.from('alerts').delete().eq('agent_id', agentMatch[1]).eq('user_id', user.id);
       return json({ message: 'Agent deleted' });
     }
 
@@ -837,17 +876,16 @@ export async function DELETE(request, { params }) {
     if (fleetMatch) {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
-      const db = await getDb();
-      await db.collection('agents').deleteMany({ fleet_id: fleetMatch[1], user_id: user.id });
-      await db.collection('alerts').deleteMany({ fleet_id: fleetMatch[1], user_id: user.id });
-      const result = await db.collection('fleets').deleteOne({ id: fleetMatch[1], user_id: user.id });
-      if (result.deletedCount === 0) return json({ error: 'Fleet not found' }, 404);
+      await supabaseAdmin.from('agents').delete().eq('fleet_id', fleetMatch[1]).eq('user_id', user.id);
+      await supabaseAdmin.from('alerts').delete().eq('fleet_id', fleetMatch[1]).eq('user_id', user.id);
+      const { error: deleteError } = await supabaseAdmin.from('fleets').delete().eq('id', fleetMatch[1]).eq('user_id', user.id);
+      if (deleteError) throw deleteError;
       return json({ message: 'Fleet and associated agents deleted' });
     }
 
     return json({ error: 'Not found' }, 404);
   } catch (error) {
     console.error('DELETE Error:', error);
-    return json({ error: 'Internal server error' }, 500);
+    return json({ error: 'Internal server error', details: error.message }, 500);
   }
 }

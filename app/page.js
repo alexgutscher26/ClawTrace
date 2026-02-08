@@ -416,9 +416,9 @@ function DashboardView({ navigate, session, api }) {
   }, [api, selectedFleet]);
 
   const loadAgents = useCallback(async () => {
-    if (!selectedFleet) return;
     try {
-      const res = await api(`/api/agents?fleet_id=${selectedFleet}`);
+      const url = selectedFleet ? `/api/agents?fleet_id=${selectedFleet}` : '/api/agents';
+      const res = await api(url);
       setAgents(res.agents);
     } catch (err) {
       console.error(err);
@@ -520,7 +520,7 @@ function DashboardView({ navigate, session, api }) {
         )}
 
         {/* Empty State */}
-        {agents.length === 0 && fleets.length === 0 && (
+        {agents.length === 0 && (
           <Card className="bg-card/60 border-border/40 border-dashed">
             <CardContent className="py-16 text-center">
               <Server className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -844,7 +844,7 @@ function AgentDetailView({ navigate, session, api, agentId }) {
                 <CardContent>
                   <ResponsiveContainer width="100%" height={200}>
                     <AreaChart data={metricsData}>
-                      <defs><linearGradient id="latGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/><stop offset="95%" stopColor="#10b981" stopOpacity={0}/></linearGradient></defs>
+                      <defs><linearGradient id="latGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.3} /><stop offset="95%" stopColor="#10b981" stopOpacity={0} /></linearGradient></defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                       <XAxis dataKey="hour" tick={{ fontSize: 10, fill: '#64748b' }} interval={5} />
                       <YAxis tick={{ fontSize: 10, fill: '#64748b' }} />
