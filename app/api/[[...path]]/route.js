@@ -146,6 +146,18 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
 }
 
+/**
+ * Handles GET requests and routes them based on the request path.
+ *
+ * This function processes incoming requests, checks rate limits, and serves different responses based on the path.
+ * It includes health checks, agent installation scripts for various platforms, and user authentication.
+ * Additionally, it manages agent status updates and billing information, while ensuring proper error handling throughout.
+ *
+ * @param request - The incoming request object.
+ * @param context - The context object containing parameters and other relevant data.
+ * @returns A JSON response based on the requested path and processed data.
+ * @throws Error If an internal error occurs during processing.
+ */
 export async function GET(request, context) {
   const params = await context.params;
   const path = getPath(params);
