@@ -39,6 +39,19 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
 }
 
+/**
+ * Handles GET requests for various API endpoints and returns appropriate responses.
+ *
+ * The function processes the request based on the path derived from the parameters. It handles health checks,
+ * installs agent scripts for different platforms, retrieves user data, manages fleets and agents,
+ * checks for stale agents, and handles billing and team management. It also ensures user authentication
+ * and returns relevant data or error messages as needed.
+ *
+ * @param request - The incoming request object.
+ * @param params - An object containing the path parameters.
+ * @returns A JSON response with the requested data or an error message.
+ * @throws Error If an internal error occurs during processing.
+ */
 export async function GET(request, { params }) {
   const path = getPath(params);
   try {
@@ -546,6 +559,16 @@ done
   }
 }
 
+/**
+ * Handles various POST requests for fleet and agent management, billing, and team operations.
+ *
+ * This function processes requests based on the provided path, performing actions such as creating fleets and agents, updating agent statuses, handling heartbeats, resolving alerts, seeding demo data, managing billing through Lemon Squeezy, and inviting or removing team members. It ensures user authentication and handles errors appropriately, returning relevant JSON responses.
+ *
+ * @param request - The incoming request object containing the request data.
+ * @param params - An object containing route parameters.
+ * @returns A JSON response indicating the result of the operation.
+ * @throws Error If an internal error occurs during processing.
+ */
 export async function POST(request, { params }) {
   const path = getPath(params);
   try {
@@ -804,6 +827,16 @@ export async function POST(request, { params }) {
   }
 }
 
+/**
+ * Handles the PUT request to update agent or fleet information.
+ *
+ * This function first determines the resource type (agent or fleet) based on the request path. It then verifies the user's authorization and processes the request body to update the relevant fields in the database. If the resource is not found or an error occurs during the update, appropriate error responses are returned.
+ *
+ * @param request - The incoming request object containing the data to be updated.
+ * @param params - An object containing route parameters, including the resource identifier.
+ * @returns A JSON response containing the updated agent or fleet data, or an error message.
+ * @throws Error If an internal error occurs during the processing of the request.
+ */
 export async function PUT(request, { params }) {
   const path = getPath(params);
   try {
