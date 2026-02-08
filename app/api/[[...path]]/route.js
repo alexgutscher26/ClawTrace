@@ -190,6 +190,7 @@ perform_handshake() {
   
   if [ -n "$SESSION_TOKEN" ]; then
     echo "[$(date +%H:%M:%S)] Handshake successful"
+    if [ -n "$GATEWAY_URL" ]; then echo -e "   \\033[0;36mProbing active: $GATEWAY_URL\\033[0m"; fi
     return 0
   else
     echo "[$(date +%H:%M:%S)] Handshake failed: $RESPONSE"
@@ -292,7 +293,13 @@ get_uptime_hours() {
   BODY=$(echo "$RESPONSE" | head -1)
 
   if [ "$HTTP_CODE" = "200" ]; then
-    echo "[$(date +%H:%M:%S)] Heartbeat sent  CPU: \${CPU}%  MEM: \${MEM}%  Uptime: \${UPTIME_H}h"
+    # Use green for healthy, red for error
+    COLOR="\\033[0;32m"
+    if [ "$STATUS" = "error" ]; then
+      COLOR="\\033[0;31m"
+      echo -e "\\033[0;31m[$(date +%H:%M:%S)] WARNING: Gateway probe failed ($GATEWAY_URL)\\033[0m"
+    fi
+    echo -e "\${COLOR}[$(date +%H:%M:%S)] Heartbeat sent (\${STATUS^^})  CPU: \${CPU}%  MEM: \${MEM}%  Latency: \${LATENCY}ms\\033[0m"
   elif [ "$HTTP_CODE" = "401" ]; then
     echo "[$(date +%H:%M:%S)] Session expired, retrying..."
     SESSION_TOKEN=""
@@ -349,7 +356,7 @@ done
         'Write-Host "  Agent:    $AgentId"',
         'Write-Host "  SaaS:     $SaasUrl"',
         'Write-Host "  Interval: $($Interval)s"',
-        'Write-Host "  Gateway:  $($GatewayUrl ?? "N/A (Probing Disabled)")"',
+        'Write-Host "  Gateway:  $(if ($GatewayUrl) { $GatewayUrl } else { "N/A (Probing Disabled)" })"',
         'Write-Host ""',
         '',
         'function Perform-Handshake {',
@@ -361,6 +368,7 @@ done
         '            $script:SessionToken = $res.token',
         '            $script:GatewayUrl = $res.gateway_url',
         '            Write-Host "[$(Get-Date -Format "HH:mm:ss")] Handshake successful" -ForegroundColor Green',
+        '            if ($GatewayUrl) { Write-Host "   Probing active: $GatewayUrl" -ForegroundColor Cyan }',
         '            return $true',
         '        }',
         '    } catch {',
@@ -420,6 +428,9 @@ done
         '        $null = Invoke-RestMethod -Uri "$SaasUrl/api/heartbeat" -Method POST -ContentType "application/json" -Body $body -Headers $headers',
         '        $time = Get-Date -Format "HH:mm:ss"',
         '        $statusColor = if ($status -eq "healthy") { "Green" } else { "Red" }',
+        '        if ($status -eq "error") {',
+        '            Write-Host "[$time] WARNING: Gateway probe failed ($GatewayUrl)" -ForegroundColor Red',
+        '        }',
         '        Write-Host "[$time] Heartbeat sent ($($status.ToUpper()))  CPU: $($cpuVal)%  MEM: $($memVal)%  Latency: $($latency)ms" -ForegroundColor $statusColor',
         '    } catch {',
         '        $time = Get-Date -Format "HH:mm:ss"',
@@ -480,7 +491,7 @@ done
         '    data = json.dumps({"agent_id": AGENT_ID, "agent_secret": AGENT_SECRET}).encode()',
         '    req = urllib.request.Request(f"{SAAS_URL}/api/agents/handshake", data=data, headers={"Content-Type": "application/json"}, method="POST")',
         '    try:',
-        '        with urllib.request.urlopen(req, timeout=10) as resp:\n            res = json.loads(resp.read().decode())\n            SESSION_TOKEN = res.get("token")\n            GATEWAY_URL = res.get("gateway_url")\n            return True',
+        '        with urllib.request.urlopen(req, timeout=10) as resp:\n            res = json.loads(resp.read().decode())\n            SESSION_TOKEN = res.get("token")\n            GATEWAY_URL = res.get("gateway_url")\n            print(f"[{time.strftime(\'%H:%M:%S\')}] Handshake successful")\n            if GATEWAY_URL: print(f"   \\033[96mProbing active: {GATEWAY_URL}\\033[0m")\n            return True',
         '    except Exception as e:',
         '        print(f"[{time.strftime(\'%H:%M:%S\')}] Handshake failed: {e}")',
         '        return False',
@@ -559,7 +570,12 @@ done
         '    try:',
         '        with urllib.request.urlopen(req, timeout=10) as resp:',
         '            t = time.strftime("%H:%M:%S")',
-        '            print(f"[{t}] Heartbeat sent  CPU: {cpu}%  MEM: {mem}%  Uptime: {uptime}h")',
+        '            st_upper = status.upper()',
+        '            if status == "error":',
+        '                print(f"[{t}] \\033[91mWARNING: Gateway probe failed ({GATEWAY_URL})\\033[0m")',
+        '                print(f"[{t}] \\033[91mHeartbeat sent ({st_upper})  CPU: {cpu}%  MEM: {mem}%  Latency: {latency}ms\\033[0m")',
+        '            else:',
+        '                print(f"[{t}] \\033[92mHeartbeat sent ({st_upper})  CPU: {cpu}%  MEM: {mem}%  Latency: {latency}ms\\033[0m")',
         '    except urllib.error.HTTPError as e:',
         '        if e.code == 401:',
         '            print(f"[{time.strftime(\'%H:%M:%S\')}] Session expired, retrying...")',

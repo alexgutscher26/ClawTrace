@@ -10,7 +10,7 @@ This document serves as the master source of truth for the development, stabiliz
 ### 🔐 Security & Authentication
 - [x] **Agent Secret Handshake**: Replace simple UUID checks with signed JWTs or long-lived `AGENT_SECRET` keys for all heartbeat communication.
 - [x] **Rate Limiting**: Implement Global and Route-level rate limiting on the API to prevent DDoS from misconfigured agents.
-- [ ] **Data Encryption at Rest**: Ensure all sensitive agent configuration (keys, env vars) in MongoDB/Supabase are encrypted using AES-256.
+- [x] **Data Encryption at Rest**: Ensure all sensitive agent configuration (keys, env vars) in MongoDB/Supabase are encrypted using AES-256.
 - [ ] **Team Scoping**: Fix potential IDOR (Insecure Direct Object Reference) vulnerabilities; ensure a user can *never* query or restart an agent they don't own by brute-forcing IDs.
 
 ### 🛠️ Infrastructure & Backend

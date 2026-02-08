@@ -15,6 +15,7 @@ Write-Host "  --------------------------------"
 Write-Host "  Agent:    $AgentId"
 Write-Host "  SaaS:     $SaasUrl"
 Write-Host "  Interval: $($Interval)s"
+Write-Host "  Gateway:  $(if ($GatewayUrl) { $GatewayUrl } else { "N/A (Probing Disabled)" })"
 Write-Host ""
 
 function Perform-Handshake {
@@ -26,6 +27,7 @@ function Perform-Handshake {
             $script:SessionToken = $res.token
             $script:GatewayUrl = $res.gateway_url
             Write-Host "[$(Get-Date -Format "HH:mm:ss")] Handshake successful" -ForegroundColor Green
+            if ($GatewayUrl) { Write-Host "   Probing active: $GatewayUrl" -ForegroundColor Cyan }
             return $true
         }
     } catch {
@@ -84,7 +86,11 @@ function Send-Heartbeat {
         $headers = @{ Authorization = "Bearer $SessionToken" }
         $null = Invoke-RestMethod -Uri "$SaasUrl/api/heartbeat" -Method POST -ContentType "application/json" -Body $body -Headers $headers
         $time = Get-Date -Format "HH:mm:ss"
-        Write-Host "[$time] Heartbeat sent  CPU: $($cpuVal)%  MEM: $($memVal)%" -ForegroundColor Green
+        $statusColor = if ($status -eq "healthy") { "Green" } else { "Red" }
+        if ($status -eq "error") {
+            Write-Host "[$time] WARNING: Gateway probe failed ($GatewayUrl)" -ForegroundColor Red
+        }
+        Write-Host "[$time] Heartbeat sent ($($status.ToUpper()))  CPU: $($cpuVal)%  MEM: $($memVal)%  Latency: $($latency)ms" -ForegroundColor $statusColor
     } catch {
         $time = Get-Date -Format "HH:mm:ss"
         if ($_.Exception.Response.StatusCode -eq 401) {
