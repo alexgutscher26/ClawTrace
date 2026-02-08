@@ -655,6 +655,20 @@ function DashboardView({ navigate, session, api }) {
 }
 
 // ============ AGENT DETAIL ============
+/**
+ * Component that displays detailed information about an agent.
+ *
+ * It manages the agent's state, handles loading, restarting, and saving configurations.
+ * The component fetches agent data from the API, displays metrics, and allows for configuration edits.
+ * It also provides visual representations of the agent's performance metrics over time.
+ *
+ * @param {Object} props - The component properties.
+ * @param {function} props.navigate - Function to navigate to different routes.
+ * @param {Object} props.session - The current user session.
+ * @param {function} props.api - Function to make API calls.
+ * @param {string} props.agentId - The ID of the agent to display.
+ * @returns {JSX.Element|null} The rendered component or null if the agent is not found.
+ */
 function AgentDetailView({ navigate, session, api, agentId }) {
   const [agent, setAgent] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -878,6 +892,18 @@ function AgentDetailView({ navigate, session, api, agentId }) {
 }
 
 // ============ SETUP INSTRUCTIONS ============
+/**
+ * Renders setup instructions for an agent based on the selected platform.
+ *
+ * The function initializes the platform state and constructs command strings for
+ * installing and monitoring the agent across different operating systems (Windows,
+ * macOS, and Linux). It provides options for users to copy the commands to the clipboard
+ * and displays relevant information based on the selected platform.
+ *
+ * @param {Object} params - The parameters for the function.
+ * @param {string} params.agentId - The ID of the agent.
+ * @param {string} params.agentSecret - The secret key for the agent.
+ */
 function SetupInstructions({ agentId, agentSecret }) {
   const [platform, setPlatform] = useState('windows');
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
