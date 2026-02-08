@@ -815,6 +815,16 @@ done
   }
 }
 
+/**
+ * Handles various POST requests for fleet and agent management.
+ *
+ * This function processes incoming requests based on the specified path, performing actions such as creating fleets and agents, updating agent statuses, handling heartbeats, and managing subscriptions. It includes rate limiting, user authentication, and error handling for various operations, ensuring that only authorized users can perform specific actions. The function also manages metrics and billing interactions with external services.
+ *
+ * @param request - The incoming request object containing headers and body data.
+ * @param context - The context object providing parameters and other relevant data.
+ * @returns A JSON response indicating the result of the operation.
+ * @throws Error If an internal error occurs during processing.
+ */
 export async function POST(request, context) {
   const params = await context.params;
   const path = getPath(params);
