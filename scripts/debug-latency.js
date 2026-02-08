@@ -3,6 +3,13 @@ const fs = require('fs');
 const path = require('path');
 
 // Basic .env parser
+/**
+ * Loads environment variables from a .env file.
+ *
+ * This function resolves the path to the .env file, checks if it exists, and reads its content.
+ * Each line is split into key-value pairs, which are then trimmed and assigned to the process.env object
+ * if the key is valid and the value is present. This allows for dynamic configuration of environment variables.
+ */
 function loadEnv() {
     const envPath = path.resolve(__dirname, '../.env');
     if (!fs.existsSync(envPath)) return;
@@ -22,6 +29,13 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+/**
+ * Fix the latency configuration for agents in the database.
+ *
+ * This function checks the latency configuration of agents by fetching all agents from the database, filtering them based on a specific ID prefix, and updating the gateway URL for the first matching agent. It handles potential errors during database operations and logs relevant information to the console.
+ *
+ * @returns {Promise<void>} A promise that resolves when the operation is complete.
+ */
 async function fixLatency() {
     console.log('🕵️ Checking Agent Latency configuration...');
 
