@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -741,12 +741,18 @@ function AgentDetailView({ navigate, session, api, agentId }) {
   const [restarting, setRestarting] = useState(false);
   const [configEdit, setConfigEdit] = useState('');
   const [savingConfig, setSavingConfig] = useState(false);
+  const [metricsHistory, setMetricsHistory] = useState([]);
 
   const loadAgent = useCallback(async () => {
     try {
       const res = await api(`/api/agents/${agentId}`);
       setAgent(res.agent);
       setConfigEdit(JSON.stringify(res.agent.config_json, null, 2));
+
+      try {
+        const mRes = await api(`/api/agents/${agentId}/metrics`);
+        if (mRes?.metrics) setMetricsHistory(mRes.metrics);
+      } catch (e) { console.error('Metrics fetch error', e); }
     } catch (err) {
       toast.error('Failed to load agent');
       navigate('/dashboard');
@@ -784,13 +790,36 @@ function AgentDetailView({ navigate, session, api, agentId }) {
     }
   };
 
-  const metricsData = Array.from({ length: 24 }, (_, i) => ({
-    hour: `${String(i).padStart(2, '0')}:00`,
-    latency: agent ? Math.max(20, (agent.metrics_json?.latency_ms || 100) + (Math.random() - 0.5) * 100) : 0,
-    errors: Math.floor(Math.random() * 5),
-    tasks: Math.floor(Math.random() * 15 + 3),
-  }));
+  const metricsData = useMemo(() => {
+    if (!metricsHistory || metricsHistory.length === 0) {
+      // Return empty 24h placeholders if no history
+      return Array.from({ length: 24 }, (_, i) => ({
+        hour: `${String(i).padStart(2, '0')}:00`,
+        latency: 0,
+        errors: 0,
+        tasks: 0
+      }));
+    }
 
+    // Sort just in case, though API should return sorted
+    const sorted = [...metricsHistory].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+    return sorted.map((m, i) => {
+      const prev = i > 0 ? sorted[i - 1] : null;
+      // Calculate deltas for cumulative metrics
+      const tasksDelta = prev ? Math.max(0, (m.tasks_completed || 0) - (prev.tasks_completed || 0)) : 0;
+      const errorsDelta = prev ? Math.max(0, (m.errors_count || 0) - (prev.errors_count || 0)) : 0;
+
+      return {
+        hour: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        latency: m.latency_ms || 0,
+        errors: errorsDelta,
+        tasks: tasksDelta,
+        cpu: m.cpu_usage || 0,
+        memory: m.memory_usage || 0
+      };
+    });
+  }, [metricsHistory]);
   if (loading) return <div className="min-h-screen flex items-center justify-center"><RefreshCw className="w-6 h-6 animate-spin text-emerald-400" /></div>;
   if (!agent) return null;
 

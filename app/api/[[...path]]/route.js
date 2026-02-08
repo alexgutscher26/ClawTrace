@@ -694,6 +694,26 @@ done
       return json({ agent: decryptAgent(agent) });
     }
 
+    const metricsMatch = path.match(/^\/agents\/([^/]+)\/metrics$/);
+    if (metricsMatch) {
+      const user = await getUser(request);
+      if (!user) return json({ error: 'Unauthorized' }, 401);
+
+      const agentId = metricsMatch[1];
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+      const { data: metrics, error } = await supabaseAdmin
+        .from('agent_metrics')
+        .select('created_at, latency_ms, errors_count, tasks_completed, cpu_usage, memory_usage')
+        .eq('agent_id', agentId)
+        .eq('user_id', user.id) // Ensure ownership
+        .gte('created_at', twentyFourHoursAgo)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      return json({ metrics });
+    }
+
     if (path === '/alerts') {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
@@ -1000,6 +1020,28 @@ export async function POST(request, context) {
 
       const { error } = await supabaseAdmin.from('agents').update(update).eq('id', body.agent_id);
       if (error) throw error;
+
+      // Insert historical metrics for charts
+      if (body.metrics) {
+        try {
+          const { error: metricsError } = await supabaseAdmin.from('agent_metrics').insert({
+            agent_id: agent.id,
+            user_id: agent.user_id,
+            cpu_usage: body.metrics.cpu_usage || 0,
+            memory_usage: body.metrics.memory_usage || 0,
+            latency_ms: body.metrics.latency_ms || 0,
+            uptime_hours: body.metrics.uptime_hours || 0,
+            tasks_completed: newTasksCompleted,
+            errors_count: (update.metrics_json?.errors_count || 0)
+          });
+          if (metricsError) {
+            console.error('Failed to insert metrics:', metricsError);
+          }
+        } catch (e) {
+          console.error('Metrics insertion exception:', e);
+        }
+      }
+
       return json({ message: 'Heartbeat received', status: update.status });
     }
 
