@@ -920,7 +920,11 @@ export async function POST(request, context) {
         update.metrics_json = {
           ...agent.metrics_json,
           ...body.metrics,
-          tasks_completed: (agent.metrics_json?.tasks_completed || 0) + 1
+          tasks_completed: (agent.metrics_json?.tasks_completed || 0) + 1,
+          // Increment errors_count if status is 'error'
+          errors_count: (body.status === 'error')
+            ? (agent.metrics_json?.errors_count || 0) + 1
+            : (agent.metrics_json?.errors_count || 0)
         };
       }
       const { error } = await supabaseAdmin.from('agents').update(update).eq('id', body.agent_id);
