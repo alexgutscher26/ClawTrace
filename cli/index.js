@@ -43,6 +43,18 @@ function collectMetrics() {
 }
 
 // ============ HTTP REQUEST HELPER ============
+/**
+ * Sends an HTTP request and returns a promise with the response.
+ *
+ * The function constructs a request based on the provided method, URL, and optional payload. It sets the appropriate headers, including content type and authorization if a token is provided. The response is processed to resolve the promise with the status code and parsed body, handling errors in the response data gracefully.
+ *
+ * @param method - The HTTP method to use for the request (e.g., GET, POST).
+ * @param urlStr - The URL to which the request is sent.
+ * @param payloadObj - The payload to send with the request, if applicable.
+ * @param token - An optional authorization token for the request.
+ * @returns A promise that resolves with the response status and body.
+ * @throws Error If there is an error with the request.
+ */
 function apiRequest(method, urlStr, payloadObj, token = null) {
   return new Promise((resolve, reject) => {
     const url = new URL(urlStr);
@@ -85,6 +97,9 @@ function apiRequest(method, urlStr, payloadObj, token = null) {
   });
 }
 
+/**
+ * Sends a handshake request to the specified SaaS URL.
+ */
 function postHandshake(saasUrl, agentId, agentSecret) {
   return apiRequest('POST', `${saasUrl}/api/agents/handshake`, {
     agent_id: agentId,
@@ -92,6 +107,9 @@ function postHandshake(saasUrl, agentId, agentSecret) {
   });
 }
 
+/**
+ * Sends a heartbeat status to the specified SaaS URL.
+ */
 function postHeartbeat(saasUrl, agentId, status, metrics, token) {
   return apiRequest('POST', `${saasUrl}/api/heartbeat`, {
     agent_id: agentId,
@@ -179,6 +197,14 @@ async function monitorCommand(args) {
     }
   }
 
+  /**
+   * Sends a heartbeat signal to the server.
+   *
+   * The function checks for a valid session token and performs a handshake if necessary. It collects metrics and attempts to post the heartbeat to the specified saasUrl. Depending on the response status, it logs the result, handles session expiration by retrying the handshake, or logs an error for failed attempts. If an error occurs during the process, it logs the connection error.
+   *
+   * @returns {Promise<void>} A promise that resolves when the heartbeat has been sent or retried.
+   * @throws {Error} If there is a connection error during the heartbeat process.
+   */
   async function sendHeartbeat() {
     if (!sessionToken) {
       const ok = await performHandshake();
@@ -227,6 +253,9 @@ function statusCommand(args) {
   console.log();
 }
 
+/**
+ * Displays the help information and available commands.
+ */
 function helpCommand() {
   printBanner();
   console.log(`
