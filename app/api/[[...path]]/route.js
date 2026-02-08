@@ -712,43 +712,9 @@ done
       return json({ stats });
     }
 
-    // ============ STALE AGENT CRON ============
-    if (path === '/cron/check-stale') {
-      const staleThreshold = new Date(Date.now() - 10 * 60 * 1000); // 10 min
-      const { data: staleAgents, error: selectError } = await supabaseAdmin
-        .from('agents')
-        .select('*')
-        .in('status', ['healthy', 'idle'])
-        .lt('last_heartbeat', staleThreshold.toISOString());
+    // ============ STALE AGENT CRON (MOVED TO /api/cron/check-stale) ============
+    // Logic migrated to specialized route handler: app/api/cron/check-stale/route.js
 
-      if (selectError) throw selectError;
-
-      let updated = 0;
-      for (const agent of staleAgents || []) {
-        await supabaseAdmin
-          .from('agents')
-          .update({ status: 'offline', updated_at: new Date().toISOString() })
-          .eq('id', agent.id);
-
-        const { data: existingAlert } = await supabaseAdmin
-          .from('alerts')
-          .select('*')
-          .eq('agent_id', agent.id)
-          .eq('type', 'downtime')
-          .eq('resolved', false)
-          .maybeSingle();
-
-        if (!existingAlert) {
-          await supabaseAdmin.from('alerts').insert({
-            id: uuidv4(), agent_id: agent.id, agent_name: agent.name, user_id: agent.user_id,
-            type: 'downtime', message: `Agent offline - no heartbeat for 10+ minutes`, resolved: false,
-            created_at: new Date().toISOString(),
-          });
-        }
-        updated++;
-      }
-      return json({ checked: (staleAgents || []).length, updated, timestamp: new Date().toISOString() });
-    }
 
     // ============ BILLING / SUBSCRIPTION ============
     if (path === '/billing') {

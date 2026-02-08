@@ -11,12 +11,12 @@ This document serves as the master source of truth for the development, stabiliz
 - [x] **Agent Secret Handshake**: Replace simple UUID checks with signed JWTs or long-lived `AGENT_SECRET` keys for all heartbeat communication.
 - [x] **Rate Limiting**: Implement Global and Route-level rate limiting on the API to prevent DDoS from misconfigured agents.
 - [x] **Data Encryption at Rest**: Ensure all sensitive agent configuration (keys, env vars) in MongoDB/Supabase are encrypted using AES-256.
-- [ ] **Team Scoping**: Fix potential IDOR (Insecure Direct Object Reference) vulnerabilities; ensure a user can *never* query or restart an agent they don't own by brute-forcing IDs.
+- [x] **Team Scoping**: Fix potential IDOR (Insecure Direct Object Reference) vulnerabilities; ensure a user can *never* query or restart an agent they don't own by brute-forcing IDs.
 
 ### 🛠️ Infrastructure & Backend
-- [ ] **Automated Cron Jobs**:
-    - [ ] Set up `/api/cron/check-stale` on a 5-minute trigger.
-    - [ ] Implement a nightly cleanup cron to purge heartbeat data older than 30 days.
+- [x] **Automated Cron Jobs**:
+    - [x] Set up `/api/cron/check-stale` on a 5-minute trigger.
+    - [x] Implement a nightly cleanup cron to purge heartbeat data older than 30 days.
 - [ ] **Database Optimization**:
     - [ ] Create compound indexes: `{ user_id: 1, fleet_id: 1, status: 1 }`.
     - [ ] Implement database connection pooling (Supabase/Prisma) to handle 1000+ concurrent agent heartbeats.
