@@ -111,7 +111,7 @@ class BM25:
         self.N = 0
 
     def tokenize(self, text):
-        """Lowercase, split, remove punctuation, filter short words"""
+        """Tokenize and clean the input text."""
         text = re.sub(r'[^\w\s]', ' ', str(text).lower())
         return [w for w in text.split() if len(w) > 2]
 
@@ -135,7 +135,15 @@ class BM25:
             self.idf[word] = log((self.N - freq + 0.5) / (freq + 0.5) + 1)
 
     def score(self, query):
-        """Score all documents against query"""
+        """Score all documents against a given query.
+        
+        This function tokenizes the input query and computes a score for each document
+        in the corpus based on term frequency and inverse document frequency. It
+        iterates through the documents, calculates the term frequencies, and applies
+        the scoring formula using the parameters k1 and b. The final scores are sorted
+        in descending order and returned as a list of tuples containing document
+        indices and their scores.
+        """
         query_tokens = self.tokenize(query)
         scores = []
 
@@ -161,13 +169,27 @@ class BM25:
 
 # ============ SEARCH FUNCTIONS ============
 def _load_csv(filepath):
-    """Load CSV and return list of dicts"""
+    """Load a CSV file and return a list of dictionaries."""
     with open(filepath, 'r', encoding='utf-8') as f:
         return list(csv.DictReader(f))
 
 
 def _search_csv(filepath, search_cols, output_cols, query, max_results):
-    """Core search function using BM25"""
+    """Core search function using BM25.
+    
+    This function performs a search on a CSV file specified by the  `filepath`,
+    utilizing the BM25 algorithm to rank results based  on the provided `query`. It
+    first loads the CSV data and constructs  documents from the specified
+    `search_cols`. After fitting the BM25  model to these documents, it retrieves
+    and ranks the results,  returning the top entries that meet the score criteria.
+    
+    Args:
+        filepath: The path to the CSV file to be searched.
+        search_cols: The columns in the CSV to search for the query.
+        output_cols: The columns to include in the output results.
+        query: The search query to be used for ranking.
+        max_results: The maximum number of results to return.
+    """
     if not filepath.exists():
         return []
 
@@ -192,7 +214,14 @@ def _search_csv(filepath, search_cols, output_cols, query, max_results):
 
 
 def detect_domain(query):
-    """Auto-detect the most relevant domain from query"""
+    """Auto-detect the most relevant domain from a query.
+    
+    This function analyzes the input `query` by converting it to lowercase and
+    scoring it against predefined domain keywords. It utilizes a dictionary  of
+    keywords associated with various domains to calculate scores based on  the
+    presence of these keywords in the query. The domain with the highest  score is
+    returned, or "style" is returned if no relevant keywords are found.
+    """
     query_lower = query.lower()
 
     domain_keywords = {
@@ -215,7 +244,7 @@ def detect_domain(query):
 
 
 def search(query, domain=None, max_results=MAX_RESULTS):
-    """Main search function with auto-domain detection"""
+    """Main search function with auto-domain detection."""
     if domain is None:
         domain = detect_domain(query)
 
