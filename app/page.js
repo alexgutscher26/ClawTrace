@@ -466,6 +466,17 @@ function RegisterView({ navigate, session }) {
 }
 
 // ============ DASHBOARD ============
+/**
+ * Dashboard view component for monitoring and managing AI agent fleets.
+ *
+ * This component fetches and displays statistics, fleets, agents, and alerts. It allows users to add agents, delete agents, resolve alerts, and load demo data. The component manages its state using hooks and handles asynchronous data loading with error handling. It also provides a user interface for selecting fleets and displaying relevant information about agents and alerts.
+ *
+ * @param {Object} props - The component properties.
+ * @param {Function} props.navigate - Function to navigate to different routes.
+ * @param {Object} props.session - User session information.
+ * @param {Function} props.api - Function to make API calls.
+ * @returns {JSX.Element} The rendered dashboard view.
+ */
 function DashboardView({ navigate, session, api }) {
   const [stats, setStats] = useState(null);
   const [fleets, setFleets] = useState([]);
