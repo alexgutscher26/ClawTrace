@@ -2,6 +2,13 @@ const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const path = require('path');
 
+/**
+ * Loads environment variables from a .env file.
+ *
+ * This function resolves the path to the .env file, checks if it exists, and reads its content.
+ * Each line is split into key-value pairs, which are then trimmed and assigned to the process.env object
+ * if the key is valid and the value is present. This allows for dynamic configuration of environment variables.
+ */
 function loadEnv() {
     const envPath = path.resolve(__dirname, '../.env');
     if (!fs.existsSync(envPath)) return;
@@ -17,6 +24,14 @@ loadEnv();
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
+/**
+ * Checks the uptime of an agent by comparing the stored uptime with the calculated uptime.
+ *
+ * This function retrieves the agent's details from the 'agents' table in Supabase using the agentId.
+ * It calculates the actual uptime based on the agent's creation date and compares it with the stored uptime
+ * from the agent's metrics. The results are logged to the console, indicating whether the uptime is correct
+ * or if there is a mismatch that needs to be addressed.
+ */
 async function checkUptime() {
     const agentId = '79a68826-b5af-49a3-b9db-6c322c858f17';
 
