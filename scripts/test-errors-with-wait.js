@@ -7,6 +7,15 @@ async function wait(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+/**
+ * Sends error heartbeats to test the error counting mechanism.
+ *
+ * The function first waits for 60 seconds to allow the rate limit to reset, then performs a handshake with the server to obtain a token.
+ * It sends one healthy heartbeat followed by two error heartbeats, logging the results of each request.
+ * The expected outcome is that the errors_count should increment by two after sending the error heartbeats.
+ *
+ * @returns {Promise<void>} A promise that resolves when the test is complete.
+ */
 async function sendErrorHeartbeats() {
     console.log('⏳ Waiting 60 seconds for rate limit to reset...\n');
     await wait(60000);
