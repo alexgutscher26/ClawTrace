@@ -2,6 +2,14 @@ const { createClient } = require('@supabase/supabase-js');
 // Basic .env parser
 const fs = require('fs');
 const path = require('path');
+/**
+ * Loads environment variables from a .env file.
+ *
+ * This function resolves the path to the .env file, checks if it exists, and reads its content.
+ * It splits the content by lines and processes each line to extract key-value pairs,
+ * which are then assigned to the process.env object if valid.
+ * This allows for dynamic configuration of environment variables in the application.
+ */
 function loadEnv() {
     const envPath = path.resolve(__dirname, '../.env');
     if (!fs.existsSync(envPath)) return;
