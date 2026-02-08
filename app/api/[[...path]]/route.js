@@ -921,17 +921,58 @@ export async function POST(request, context) {
         const now = new Date();
         const uptimeHours = Math.floor((now - createdAt) / (1000 * 60 * 60));
 
+        // Calculate cost based on model pricing (cost per task)
+        // Pricing estimates based on typical task size (~1K input, ~500 output tokens)
+        const MODEL_PRICING = {
+          // Anthropic Claude models
+          'claude-opus-4.5': 0.0338,        // $15/$75 per M tokens → ~$0.034/task
+          'claude-sonnet-4': 0.0090,        // $3/$15 per M tokens → ~$0.009/task
+          'claude-3': 0.0090,               // Same as Sonnet 4
+          'claude-haiku': 0.0015,           // Budget Claude option
+
+          // OpenAI GPT models
+          'gpt-4o': 0.0090,                 // $2.50/$10 per M tokens → ~$0.009/task
+          'gpt-4o-mini': 0.0004,            // $0.15/$0.60 per M tokens → ~$0.0004/task
+          'gpt-4': 0.0180,                  // Legacy GPT-4 (more expensive)
+          'gpt-3.5-turbo': 0.0010,          // $0.50/$1.50 per M tokens → ~$0.001/task
+
+          // Google Gemini models
+          'gemini-3-pro': 0.0056,           // $1.25/$10 per M tokens → ~$0.0056/task
+          'gemini-2-flash': 0.0015,         // Budget Gemini option
+
+          // xAI Grok models
+          'grok-4.1-mini': 0.0004,          // $0.20/$0.50 per M tokens → ~$0.0004/task
+          'grok-2': 0.0030,                 // Mid-tier Grok
+
+          // Open-source models (via haimaker.ai or self-hosted)
+          'llama-3.3-70b': 0.0003,          // ~$0.10-$0.50 per M tokens → ~$0.0003/task
+          'llama-3': 0.0003,                // Same as above
+          'qwen-2.5-72b': 0.0003,           // Similar to Llama pricing
+          'mistral-large': 0.0020,          // ~$1/$5 per M tokens → ~$0.002/task
+          'mistral-medium': 0.0010,         // Budget Mistral
+          'deepseek-v3': 0.0002,            // Very cheap open-source
+
+          // Legacy/fallback
+          'gpt-4-turbo': 0.0120,            // Between GPT-4 and GPT-4o
+        };
+
+        const costPerTask = MODEL_PRICING[agent.model] || 0.01; // Default $0.01
+        const newTasksCompleted = (agent.metrics_json?.tasks_completed || 0) + 1;
+        const totalCost = parseFloat((newTasksCompleted * costPerTask).toFixed(4));
+
         // Merge incoming metrics and increment tasks_completed
         update.metrics_json = {
           ...agent.metrics_json,
           ...body.metrics,
-          tasks_completed: (agent.metrics_json?.tasks_completed || 0) + 1,
+          tasks_completed: newTasksCompleted,
           // Increment errors_count if status is 'error'
           errors_count: (body.status === 'error')
             ? (agent.metrics_json?.errors_count || 0) + 1
             : (agent.metrics_json?.errors_count || 0),
           // Override uptime_hours with calculated value
-          uptime_hours: uptimeHours
+          uptime_hours: uptimeHours,
+          // Calculate cost based on model and tasks
+          cost_usd: totalCost
         };
       }
       const { error } = await supabaseAdmin.from('agents').update(update).eq('id', body.agent_id);
