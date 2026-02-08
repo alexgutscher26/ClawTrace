@@ -3,13 +3,13 @@ const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const path = require('path');
 
-/**
- * scripts/migrate-encryption.js
- * 
- * Migrates existing plaintext agent data to AES-256-GCM encrypted format.
- */
 
 // Basic .env parser
+/**
+ * Loads environment variables from a .env file.
+ *
+ * This function checks for the existence of a .env file in the parent directory. If the file exists, it reads its content, splits it into lines, and processes each line to extract key-value pairs. Valid pairs are then assigned to the process.env object, allowing the application to access these variables during runtime.
+ */
 function loadEnv() {
     const envPath = path.resolve(__dirname, '../.env');
     if (!fs.existsSync(envPath)) return;
@@ -29,6 +29,14 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+/**
+ * Migrate and encrypt sensitive data for agents in the database.
+ *
+ * This function fetches all agents from the 'agents' table, checks their `config_json` and `agent_secret` fields for encryption,
+ * and updates them if they are not already encrypted. It logs the progress and counts the number of migrated and skipped agents.
+ *
+ * @returns {Promise<void>} A promise that resolves when the migration process is complete.
+ */
 async function migrate() {
     console.log('🚀 Starting Data Encryption Migration...');
 
