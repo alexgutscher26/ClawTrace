@@ -146,6 +146,16 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
 }
 
+/**
+ * Handles GET requests and routes them based on the request path.
+ *
+ * This function retrieves parameters from the context, checks the global IP rate limit, and serves different responses based on the request path. It includes health checks, agent installation scripts for various platforms, and user authentication. The function also manages agent status updates and billing information, ensuring proper error handling and response formatting throughout the process.
+ *
+ * @param request - The incoming request object.
+ * @param context - The context object containing parameters and other relevant data.
+ * @returns A JSON response based on the requested path and processed data.
+ * @throws Error If an internal error occurs during processing.
+ */
 export async function GET(request, context) {
   const params = await context.params;
   const path = getPath(params);
@@ -806,6 +816,19 @@ done
   }
 }
 
+/**
+ * Handles POST requests for various endpoints related to fleets, agents, alerts, billing, and team management.
+ *
+ * The function processes the request based on the path, performing actions such as creating fleets and agents,
+ * managing agent heartbeats, resolving alerts, handling billing checkouts, and managing team invitations.
+ * It also includes rate limiting and authorization checks for user actions, ensuring that only authorized users can
+ * perform certain operations. Errors are caught and logged, returning appropriate responses based on the context.
+ *
+ * @param request - The incoming request object containing headers and body data.
+ * @param context - The context object providing parameters and other relevant data.
+ * @returns A JSON response indicating the result of the operation, including success messages or error details.
+ * @throws Error If an internal error occurs during processing.
+ */
 export async function POST(request, context) {
   const params = await context.params;
   const path = getPath(params);
