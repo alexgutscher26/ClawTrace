@@ -18,6 +18,16 @@ loadEnv();
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
+/**
+ * Debugs the secret associated with a specific agent by inspecting its stored configuration.
+ *
+ * The function retrieves the agent's data from the database using the agentId, checks for errors,
+ * and verifies if the agent's configuration and secret are encrypted. It attempts to decrypt the
+ * agent's secret and compares it with the provided agentSecretParam, logging the results of the
+ * comparison and any errors encountered during the process.
+ *
+ * @returns {Promise<void>} A promise that resolves when the debugging process is complete.
+ */
 async function debugSecret() {
     const agentId = '79a68826-b5af-49a3-b9db-6c322c858f17'; // from user command
     const agentSecretParam = '4721c562-21eb-4b65-ae77-dcd6ec94f710'; // from user command
