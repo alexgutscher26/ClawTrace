@@ -777,6 +777,18 @@ done
   }
 }
 
+/**
+ * Handles POST requests for various endpoints related to fleets, agents, alerts, billing, and team management.
+ *
+ * The function processes the request based on the path, performing actions such as creating fleets and agents,
+ * managing agent heartbeats, handling billing through Lemon Squeezy, and managing team invitations.
+ * It includes rate limiting, user authentication, and error handling for various operations.
+ *
+ * @param request - The incoming request object containing headers and body data.
+ * @param context - The context object providing parameters and other relevant data.
+ * @returns A JSON response indicating the result of the operation.
+ * @throws Error If an internal error occurs during processing.
+ */
 export async function POST(request, context) {
   const params = await context.params;
   const path = getPath(params);
