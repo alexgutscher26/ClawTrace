@@ -2,6 +2,22 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 import { SignJWT, jwtVerify } from 'jose';
+import { encrypt, decrypt } from '@/lib/encryption';
+
+const decryptAgent = (a) => {
+  if (!a) return a;
+  const decrypted = { ...a };
+  try {
+    if (a.config_json) {
+      const d = decrypt(a.config_json);
+      decrypted.config_json = d ? JSON.parse(d) : a.config_json;
+    }
+    if (a.agent_secret) decrypted.agent_secret = decrypt(a.agent_secret);
+  } catch (e) {
+    console.error('Failed to decrypt agent:', a.id, e);
+  }
+  return decrypted;
+};
 
 const JWT_SECRET = new TextEncoder().encode(process.env.SUPABASE_SERVICE_ROLE_KEY || 'default-secret-for-development-only');
 
@@ -637,7 +653,7 @@ done
       if (fleet_id) query = query.eq('fleet_id', fleet_id);
       const { data: agents, error } = await query.order('created_at', { ascending: false });
       if (error) throw error;
-      return json({ agents });
+      return json({ agents: agents.map(decryptAgent) });
     }
 
     const agentMatch = path.match(/^\/agents\/([^/]+)$/);
@@ -652,7 +668,7 @@ done
         .maybeSingle();
       if (error) throw error;
       if (!agent) return json({ error: 'Agent not found' }, 404);
-      return json({ agent });
+      return json({ agent: decryptAgent(agent) });
     }
 
     if (path === '/alerts') {
@@ -820,6 +836,7 @@ export async function POST(request, context) {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
       const body = await request.json();
+      const plainSecret = uuidv4();
       const agent = {
         id: uuidv4(),
         fleet_id: body.fleet_id,
@@ -828,18 +845,26 @@ export async function POST(request, context) {
         gateway_url: body.gateway_url || '',
         status: 'idle',
         last_heartbeat: null,
-        config_json: body.config_json || { profile: 'dev', skills: ['code', 'search'], model: 'gpt-4', data_scope: 'full' },
+        config_json: encrypt(body.config_json || { profile: 'dev', skills: ['code', 'search'], model: 'gpt-4', data_scope: 'full' }),
         metrics_json: { latency_ms: 0, tasks_completed: 0, errors_count: 0, uptime_hours: 0, cost_usd: 0, cpu_usage: 0, memory_usage: 0 },
         machine_id: body.machine_id || '',
         location: body.location || '',
         model: body.model || 'gpt-4',
-        agent_secret: uuidv4(), // Secure auto-generated secret
+        agent_secret: JSON.stringify(encrypt(plainSecret)), // Secure auto-generated secret
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
       const { error } = await supabaseAdmin.from('agents').insert(agent);
       if (error) throw error;
-      return json({ agent }, 201);
+
+      // Return plaintext to the UI
+      return json({
+        agent: {
+          ...agent,
+          agent_secret: plainSecret,
+          config_json: body.config_json || { profile: 'dev', skills: ['code', 'search'], model: 'gpt-4', data_scope: 'full' }
+        }
+      }, 201);
     }
 
     const restartMatch = path.match(/^\/agents\/([^/]+)\/restart$/);
@@ -876,7 +901,8 @@ export async function POST(request, context) {
       if (!handshakeLimit.allowed) return handshakeLimit.response;
 
       // Simple secret check (Option B uses secret for handshake)
-      if (!agent.agent_secret || agent.agent_secret !== body.agent_secret) {
+      const decryptedSecret = decrypt(agent.agent_secret);
+      if (!decryptedSecret || decryptedSecret !== body.agent_secret) {
         return json({ error: 'Invalid agent secret' }, 401);
       }
 
@@ -1112,7 +1138,7 @@ export async function PUT(request, context) {
       const updateFields = { updated_at: new Date().toISOString() };
       if (body.name !== undefined) updateFields.name = body.name;
       if (body.gateway_url !== undefined) updateFields.gateway_url = body.gateway_url;
-      if (body.config_json !== undefined) updateFields.config_json = body.config_json;
+      if (body.config_json !== undefined) updateFields.config_json = encrypt(body.config_json);
       if (body.machine_id !== undefined) updateFields.machine_id = body.machine_id;
       if (body.location !== undefined) updateFields.location = body.location;
       if (body.model !== undefined) updateFields.model = body.model;
@@ -1128,7 +1154,7 @@ export async function PUT(request, context) {
 
       if (error) throw error;
       if (!agent) return json({ error: 'Agent not found' }, 404);
-      return json({ agent });
+      return json({ agent: decryptAgent(agent) });
     }
 
     const fleetMatch = path.match(/^\/fleets\/([^/]+)$/);
