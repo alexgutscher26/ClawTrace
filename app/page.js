@@ -181,6 +181,12 @@ function Navbar({ navigate, session, transparent = false }) {
 
 // ============ LANDING ============
 // ============ LANDING ============
+/**
+ * Renders the landing view of the application, displaying features and navigation.
+ * @param {Object} props - The component props.
+ * @param {Function} props.navigate - Function to navigate to different routes.
+ * @param {Object} props.session - The current user session.
+ */
 function LandingView({ navigate, session }) {
   const features = [
     { icon: Server, title: 'FLEET DASHBOARD', desc: 'Real-time overview of all your agents with status, health, and performance at a glance.' },
@@ -415,6 +421,18 @@ function LoginView({ navigate, session }) {
   );
 }
 
+/**
+ * Renders the registration view for new users.
+ *
+ * This component manages the registration process by capturing user input for email and password.
+ * It utilizes the Supabase authentication service to create a new account and handles navigation
+ * based on the registration outcome. If the user is already logged in, they are redirected to the
+ * dashboard. The loading state is managed to provide feedback during the registration process.
+ *
+ * @param {Object} props - The component props.
+ * @param {Function} props.navigate - Function to navigate to different routes.
+ * @param {Object} props.session - The current user session object.
+ */
 function RegisterView({ navigate, session }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -469,6 +487,17 @@ function RegisterView({ navigate, session }) {
 }
 
 // ============ DASHBOARD ============
+/**
+ * Dashboard view component for monitoring and managing AI agent fleets.
+ *
+ * This component fetches and displays statistics, fleets, agents, and alerts. It allows users to add agents, delete agents, resolve alerts, and load demo data. The component manages its state using hooks and handles asynchronous data loading with error handling. It also provides a user interface for selecting fleets and displaying agent information in a table format.
+ *
+ * @param {Object} props - The component properties.
+ * @param {Function} props.navigate - Function to navigate to different routes.
+ * @param {Object} props.session - User session information.
+ * @param {Function} props.api - Function to make API calls.
+ * @returns {JSX.Element} The rendered dashboard view.
+ */
 function DashboardView({ navigate, session, api }) {
   const [stats, setStats] = useState(null);
   const [fleets, setFleets] = useState([]);
@@ -735,6 +764,20 @@ function DashboardView({ navigate, session, api }) {
 }
 
 // ============ AGENT DETAIL ============
+/**
+ * Renders the agent detail view, displaying agent information and metrics.
+ *
+ * This component fetches agent data using the provided API and agentId, manages loading and restarting states,
+ * and allows configuration editing. It utilizes various hooks such as useState and useEffect to handle state
+ * and side effects, and displays metrics in a structured layout with tabs for different views.
+ *
+ * @param {Object} props - The component props.
+ * @param {Function} props.navigate - Function to navigate to different routes.
+ * @param {Object} props.session - The current user session.
+ * @param {Function} props.api - Function to make API calls.
+ * @param {string} props.agentId - The ID of the agent to display.
+ * @returns {JSX.Element|null} The rendered component or null if the agent is not found.
+ */
 function AgentDetailView({ navigate, session, api, agentId }) {
   const [agent, setAgent] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -974,6 +1017,18 @@ function AgentDetailView({ navigate, session, api, agentId }) {
 }
 
 // ============ SETUP INSTRUCTIONS ============
+/**
+ * Renders setup instructions for different platforms to install and monitor an agent.
+ *
+ * This component allows users to select their operating system (Windows, macOS, or Linux) and provides
+ * the corresponding commands to install and monitor the agent. It utilizes the `agentId` and `agentSecret`
+ * for generating the commands and includes functionality to copy these commands to the clipboard.
+ * The component also manages the platform state and displays relevant instructions based on the selected platform.
+ *
+ * @param {Object} props - The component props.
+ * @param {string} props.agentId - The ID of the agent to be monitored.
+ * @param {string} props.agentSecret - The secret key for the agent.
+ */
 function SetupInstructions({ agentId, agentSecret }) {
   const [platform, setPlatform] = useState('windows');
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -1104,6 +1159,17 @@ function SetupInstructions({ agentId, agentSecret }) {
 
 
 // ============ PRICING ============
+/**
+ * Renders the pricing view component displaying different subscription tiers.
+ *
+ * The function defines an array of pricing tiers, each with specific features, pricing, and descriptions.
+ * It utilizes the `Navbar` component for navigation and displays a grid of pricing options, highlighting the popular tier.
+ * The `Button` component is used for actions based on the user's session state, directing them to either the dashboard or registration.
+ *
+ * @param {Object} props - The properties object.
+ * @param {Function} props.navigate - The function to navigate between routes.
+ * @param {Object} props.session - The current user session object.
+ */
 function PricingView({ navigate, session }) {
   const tiers = [
     { name: 'FREE', price: '$0', period: '/mo', desc: 'For solo indie operators', features: ['1 Agent Node', 'Basic Metrics', 'Community Support', '5-min Heartbeat'], cta: 'INITIALIZE', popular: false },
@@ -1144,6 +1210,9 @@ function PricingView({ navigate, session }) {
 }
 
 // ============ LOADING ============
+/**
+ * Renders a loading screen with an animation and status message.
+ */
 function LoadingScreen() {
   return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4">
