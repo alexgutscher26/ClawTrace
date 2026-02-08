@@ -1,4 +1,7 @@
 import './globals.css'
+import { Plus_Jakarta_Sans } from 'next/font/google'
+
+const font = Plus_Jakarta_Sans({ subsets: ['latin'] })
 
 export const metadata = {
   title: 'OpenClaw Fleet Orchestrator',
@@ -8,7 +11,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
-      <body className="min-h-screen bg-background antialiased">
+      <body className={`min-h-screen bg-background antialiased ${font.className}`}>
         {children}
       </body>
     </html>

@@ -31,10 +31,10 @@ const supabase = createClient(
 );
 
 const STATUS_CONFIG = {
-  healthy: { color: 'bg-emerald-500', text: 'text-emerald-400', border: 'border-emerald-500/30', label: 'Healthy', bgLight: 'bg-emerald-500/10' },
-  idle: { color: 'bg-amber-500', text: 'text-amber-400', border: 'border-amber-500/30', label: 'Idle', bgLight: 'bg-amber-500/10' },
-  error: { color: 'bg-red-500', text: 'text-red-400', border: 'border-red-500/30', label: 'Error', bgLight: 'bg-red-500/10' },
-  offline: { color: 'bg-slate-500', text: 'text-slate-400', border: 'border-slate-500/30', label: 'Offline', bgLight: 'bg-slate-500/10' },
+  healthy: { color: 'bg-white', text: 'text-white', border: 'border-white/20', label: 'OPERATIONAL', bgLight: 'bg-white/10' },
+  idle: { color: 'bg-zinc-500', text: 'text-zinc-400', border: 'border-white/10', label: 'IDLE', bgLight: 'bg-white/5' },
+  error: { color: 'bg-white', text: 'text-white', border: 'border-white/40', label: 'ERROR', bgLight: 'bg-white/20' },
+  offline: { color: 'bg-zinc-700', text: 'text-zinc-500', border: 'border-white/5', label: 'OFFLINE', bgLight: 'bg-white/5' },
 };
 
 function timeAgo(dateString) {
@@ -111,44 +111,66 @@ export default function App() {
 }
 
 // ============ NAVBAR ============
+// ============ NAVBAR ============
 function Navbar({ navigate, session, transparent = false }) {
   const [open, setOpen] = useState(false);
   const handleLogout = async () => { await supabase.auth.signOut(); navigate('/'); };
+
   return (
-    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all ${transparent ? 'bg-background/60' : 'bg-background/90'} backdrop-blur-md border-b border-border/40`}>
-      <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
-          <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center"><Zap className="w-4 h-4 text-white" /></div>
-          <span className="text-lg font-bold tracking-tight">OpenClaw Fleet</span>
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-black border-b border-white">
+      <div className="container mx-auto grid grid-cols-2 md:grid-cols-12 h-16">
+        {/* Logo Section */}
+        <div className="col-span-1 md:col-span-3 flex items-center px-4 md:px-6 border-r border-white/20">
+          <div className="flex items-center gap-2 group cursor-pointer" onClick={() => navigate('/')}>
+            <div className="w-5 h-5 bg-white flex items-center justify-center transition-transform group-hover:rotate-180">
+              <Zap className="w-3 h-3 text-black fill-black" />
+            </div>
+            <span className="text-lg font-bold font-mono tracking-tighter text-white">FLEET<span className="text-zinc-500">//</span>OS</span>
+          </div>
         </div>
-        <div className="hidden md:flex items-center gap-1">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/pricing')}>Pricing</Button>
+
+        {/* Center / Spacer */}
+        <div className="hidden md:flex col-span-5 items-center px-6 border-r border-white/20">
+          <div className="flex gap-6 text-xs font-mono uppercase tracking-widest text-zinc-500">
+            <button onClick={() => navigate('/pricing')} className="hover:text-white transition-colors">PRICING</button>
+            <button onClick={() => window.open('https://github.com/openclaw/fleet', '_blank')} className="hover:text-white transition-colors">GITHUB</button>
+          </div>
+        </div>
+
+        {/* Auth Actions */}
+        <div className="col-span-1 md:col-span-4 flex items-center justify-end">
           {session ? (
-            <>
-              <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')}>Dashboard</Button>
-              <Button variant="ghost" size="sm" onClick={handleLogout}><LogOut className="w-4 h-4 mr-1" />Sign Out</Button>
-            </>
+            <div className="flex h-full w-full">
+              <button onClick={() => navigate('/dashboard')} className="flex-1 h-full border-r border-white/20 hover:bg-white hover:text-black transition-colors font-bold uppercase text-xs">CONSOLE</button>
+              <button onClick={handleLogout} className="w-24 h-full text-red-500 hover:bg-red-500 hover:text-black transition-colors font-bold uppercase text-xs">LOGOUT</button>
+            </div>
           ) : (
-            <>
-              <Button variant="ghost" size="sm" onClick={() => navigate('/login')}>Sign In</Button>
-              <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => navigate('/register')}>Get Started</Button>
-            </>
+            <div className="flex h-full w-full">
+              <button onClick={() => navigate('/login')} className="flex-1 h-full border-r border-white/20 hover:bg-white/10 transition-colors uppercase text-xs text-white">LOGIN</button>
+              <button onClick={() => navigate('/register')} className="flex-1 h-full bg-white text-black hover:bg-zinc-200 transition-colors uppercase text-xs font-bold">GET KEY</button>
+            </div>
           )}
+
+          {/* Mobile Menu Toggle */}
+          <button className="md:hidden w-16 h-full border-l border-white/20 flex items-center justify-center text-white" onClick={() => setOpen(!open)}>
+            {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
         </div>
-        <button className="md:hidden" onClick={() => setOpen(!open)}>{open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}</button>
       </div>
+
+      {/* Mobile Menu */}
       {open && (
-        <div className="md:hidden bg-background border-b border-border p-4 space-y-1">
-          <button onClick={() => { navigate('/pricing'); setOpen(false); }} className="block w-full text-left p-2 rounded text-sm hover:bg-muted">Pricing</button>
+        <div className="md:hidden bg-black border-b border-white p-0">
+          <button onClick={() => { navigate('/pricing'); setOpen(false); }} className="block w-full text-left p-4 font-mono text-xs uppercase hover:bg-white/10 border-b border-white/10 text-white">PRICING</button>
           {session ? (
             <>
-              <button onClick={() => { navigate('/dashboard'); setOpen(false); }} className="block w-full text-left p-2 rounded text-sm hover:bg-muted">Dashboard</button>
-              <button onClick={() => { handleLogout(); setOpen(false); }} className="block w-full text-left p-2 rounded text-sm text-red-400 hover:bg-muted">Sign Out</button>
+              <button onClick={() => { navigate('/dashboard'); setOpen(false); }} className="block w-full text-left p-4 font-mono text-xs uppercase hover:bg-white/10 border-b border-white/10 text-white">CONSOLE</button>
+              <button onClick={() => { handleLogout(); setOpen(false); }} className="block w-full text-left p-4 font-mono text-xs uppercase text-red-500 hover:bg-red-500 hover:text-black">LOGOUT</button>
             </>
           ) : (
             <>
-              <button onClick={() => { navigate('/login'); setOpen(false); }} className="block w-full text-left p-2 rounded text-sm hover:bg-muted">Sign In</button>
-              <button onClick={() => { navigate('/register'); setOpen(false); }} className="block w-full text-left p-2 rounded text-sm text-emerald-400 hover:bg-muted">Get Started</button>
+              <button onClick={() => { navigate('/login'); setOpen(false); }} className="block w-full text-left p-4 font-mono text-xs uppercase hover:bg-white/10 border-b border-white/10 text-white">LOGIN</button>
+              <button onClick={() => { navigate('/register'); setOpen(false); }} className="block w-full text-left p-4 font-bold text-xs uppercase bg-white text-black">GET KEY</button>
             </>
           )}
         </div>
@@ -158,127 +180,188 @@ function Navbar({ navigate, session, transparent = false }) {
 }
 
 // ============ LANDING ============
+// ============ LANDING ============
 function LandingView({ navigate, session }) {
   const features = [
-    { icon: Server, title: 'Fleet Dashboard', desc: 'Real-time overview of all your agents with status, health, and performance at a glance.' },
-    { icon: Activity, title: 'Live Monitoring', desc: 'Track latency, errors, tasks, and resource usage with real-time charts and metrics.' },
-    { icon: Shield, title: 'Policy Profiles', desc: 'Pre-built roles (Dev, Ops, Exec) to control agent skills, tools, and data access.' },
-    { icon: Zap, title: 'Easy Onboarding', desc: 'Add agents in seconds. Paste a gateway URL or use our CLI tool to register.' },
-    { icon: AlertTriangle, title: 'Smart Alerts', desc: 'Get notified via Slack or email when agents go down or exceed thresholds.' },
-    { icon: DollarSign, title: 'Usage Analytics', desc: 'Track costs per agent, model, and provider. Optimize your AI spend efficiently.' },
+    { icon: Server, title: 'FLEET DASHBOARD', desc: 'Real-time overview of all your agents with status, health, and performance at a glance.' },
+    { icon: Activity, title: 'LIVE MONITORING', desc: 'Track latency, errors, tasks, and resource usage with real-time charts and metrics.' },
+    { icon: Shield, title: 'POLICY PROFILES', desc: 'Pre-built roles (Dev, Ops, Exec) to control agent skills, tools, and data access.' },
+    { icon: Zap, title: 'EASY ONBOARDING', desc: 'Add agents in seconds. Paste a gateway URL or use our CLI tool to register.' },
+    { icon: AlertTriangle, title: 'SMART ALERTS', desc: 'Get notified via Slack or email when agents go down or exceed thresholds.' },
+    { icon: DollarSign, title: 'USAGE ANALYTICS', desc: 'Track costs per agent, model, and provider. Optimize your AI spend efficiently.' },
   ];
+
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar navigate={navigate} session={session} transparent />
-      {/* Hero */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
-        <div className="absolute inset-0 grid-pattern" />
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-emerald-500/8 rounded-full blur-[150px]" />
-        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent" />
-        <div className="relative z-10 container mx-auto px-6 text-center max-w-5xl">
-          <Badge className="mb-6 bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/15 cursor-default">
-            <Rocket className="w-3 h-3 mr-1" /> Now in Beta
-          </Badge>
-          <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-6 tracking-tight leading-tight">
-            Scale OpenClaw from{' '}
-            <span className="bg-gradient-to-r from-emerald-400 via-cyan-400 to-emerald-400 bg-clip-text text-transparent">1 to 100 agents</span>
-            {' '}in 2 clicks
-          </h1>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10">
-            Centrally manage your self-hosted AI agents with real-time monitoring,
-            policy enforcement, and scaling controls.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white px-8" onClick={() => navigate(session ? '/dashboard' : '/register')}>
-              {session ? 'Go to Dashboard' : 'Get Started Free'} <ChevronRight className="w-4 h-4 ml-1" />
-            </Button>
-            <Button size="lg" variant="outline" className="border-border/60" onClick={() => navigate('/pricing')}>View Pricing</Button>
-          </div>
-          <div className="mt-10 flex items-center justify-center gap-6 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1"><Check className="w-3 h-3 text-emerald-400" /> Free tier available</span>
-            <span className="flex items-center gap-1"><Check className="w-3 h-3 text-emerald-400" /> No credit card required</span>
-            <span className="flex items-center gap-1"><Check className="w-3 h-3 text-emerald-400" /> 5-minute setup</span>
-          </div>
-        </div>
-      </section>
+    <div className="min-h-screen bg-black text-white font-mono selection:bg-white selection:text-black flex flex-col">
+      <div className="scanline" />
 
-      {/* Stats */}
-      <section className="relative z-10 -mt-20 container mx-auto px-6 mb-24">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
-          {[{ v: '10,000+', l: 'Agents Managed' }, { v: '99.9%', l: 'Uptime SLA' }, { v: '<50ms', l: 'Avg Latency' }, { v: '500+', l: 'Teams Active' }].map(s => (
-            <Card key={s.l} className="bg-card/80 backdrop-blur-sm border-border/40 text-center">
-              <CardContent className="pt-6 pb-4">
-                <div className="text-2xl md:text-3xl font-bold text-emerald-400">{s.v}</div>
-                <div className="text-xs text-muted-foreground mt-1">{s.l}</div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
+      {/* Top Bar Navigation - Grid Style */}
+      <nav className="border-b border-white z-50 bg-black">
+        <div className="container mx-auto grid grid-cols-2 md:grid-cols-12 h-14 md:h-16">
+          <div className="col-span-1 md:col-span-3 flex items-center px-4 md:px-6 border-r border-white/20">
+            <div className="flex items-center gap-2 group cursor-pointer" onClick={() => navigate('/')}>
+              <div className="w-5 h-5 bg-white flex items-center justify-center transition-transform group-hover:rotate-180">
+                <Zap className="w-3 h-3 text-black fill-black" />
+              </div>
+              <span className="text-lg font-bold tracking-tighter">FLEET<span className="text-zinc-500">//</span>OS</span>
+            </div>
+          </div>
 
-      {/* Features */}
-      <section className="container mx-auto px-6 mb-24">
-        <div className="text-center mb-12">
-          <Badge variant="outline" className="mb-4">Features</Badge>
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Everything you need to manage your AI fleet</h2>
-          <p className="text-muted-foreground max-w-xl mx-auto">From onboarding to monitoring, OpenClaw Fleet gives you full control over your self-hosted agents.</p>
+          <div className="hidden md:flex col-span-6 items-center justify-center border-r border-white/20">
+            <span className="text-xs text-zinc-500 uppercase tracking-widest animate-pulse">System Status: 100% Operational</span>
+          </div>
+
+          <div className="col-span-1 md:col-span-3 flex items-center justify-end px-4 md:px-0">
+            {session ? (
+              <button onClick={() => navigate('/dashboard')} className="h-full w-full hover:bg-white hover:text-black transition-colors font-bold uppercase text-sm flex items-center justify-center gap-2">
+                Enter Console <ArrowLeft className="w-4 h-4 rotate-180" />
+              </button>
+            ) : (
+              <div className="grid grid-cols-2 w-full h-full">
+                <button onClick={() => navigate('/login')} className="h-full hover:bg-white/10 transition-colors uppercase text-xs border-r border-white/20">Login</button>
+                <button onClick={() => navigate('/register')} className="h-full bg-white text-black hover:bg-zinc-200 transition-colors uppercase text-xs font-bold">Get Key</button>
+              </div>
+            )}
+          </div>
         </div>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
-          {features.map(f => (
-            <Card key={f.title} className="bg-card/50 border-border/40 hover:border-emerald-500/30 transition-all group">
-              <CardHeader>
-                <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center mb-2 group-hover:bg-emerald-500/20 transition">
-                  <f.icon className="w-5 h-5 text-emerald-400" />
+      </nav>
+
+      {/* Main Content Grid */}
+      <main className="flex-1 container mx-auto border-x border-white/20">
+
+        {/* Hero Section */}
+        <section className="grid grid-cols-1 lg:grid-cols-2 border-b border-white mix-blend-screen min-h-[70vh]">
+          {/* Left Column: Typography */}
+          <div className="p-8 md:p-12 lg:p-20 border-b lg:border-b-0 lg:border-r border-white/20 flex flex-col justify-between relative overflow-hidden group">
+            <div className="absolute inset-0 grid-bg opacity-20 pointer-events-none" />
+
+            <div className="relative z-10">
+              <Badge variant="outline" className="mb-6 rounded-none border-white text-white font-mono text-[10px] uppercase tracking-widest px-2 py-1 inline-flex items-center gap-2">
+                <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" /> v2.0.4 Released
+              </Badge>
+              <h1 className="text-6xl sm:text-7xl md:text-8xl lg:text-[7rem] font-black tracking-tighter leading-[0.8] mb-8">
+                COMMAND<br />
+                YOUR<br />
+                <span className="text-transparent stroke-text" style={{ WebkitTextStroke: '2px white' }}>SWARM</span>
+              </h1>
+              <p className="text-base sm:text-lg text-zinc-400 max-w-md font-mono leading-relaxed uppercase tracking-wide">
+                The minimal orchestration layer for self-hosted AI fleets. Zero latency. Total visibility.
+              </p>
+            </div>
+
+            <div className="relative z-10 mt-12">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Button size="lg" className="bg-white text-black hover:bg-zinc-200 rounded-none h-14 font-bold text-base px-8 border border-white" onClick={() => navigate('/register')}>
+                  INITIALIZE FLEET
+                </Button>
+                <Button size="lg" variant="outline" className="rounded-none h-14 font-mono text-sm px-8 border-white/20 hover:border-white text-zinc-400 hover:text-white" onClick={() => navigate('/pricing')}>
+                  VIEW PROTOCOLS
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Visual/Terminal */}
+          <div className="bg-zinc-950 p-8 md:p-12 flex flex-col md:border-l border-white/0">
+            <div className="flex-1 border border-white/10 bg-black relative p-6 font-mono text-xs md:text-sm text-zinc-300 leading-relaxed overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-8 border-b border-white/10 bg-zinc-900/50 flex items-center px-4 gap-2">
+                <div className="w-3 h-3 rounded-full bg-red-500/20 border border-red-500/50" />
+                <div className="w-3 h-3 rounded-full bg-yellow-500/20 border border-yellow-500/50" />
+                <div className="w-3 h-3 rounded-full bg-emerald-500/20 border border-emerald-500/50" />
+                <span className="ml-auto text-[10px] text-zinc-600">bash - 80x24</span>
+              </div>
+              <div className="mt-8 space-y-2">
+                <p><span className="text-emerald-500">user@fleet:~$</span> curl -sL https://fleet.sh/install | bash</p>
+                <p className="text-zinc-500">[INFO] Downloading Fleet Agent v2.0...</p>
+                <p className="text-zinc-500">[INFO] Verifying checksums...</p>
+                <p className="text-zinc-500">[INFO] Expanding package...</p>
+                <p><span className="text-emerald-500">➜</span> <span className="text-white">Agent node initialized.</span></p>
+                <p><span className="text-emerald-500">➜</span> <span className="text-white">Connected to gateway: 192.168.1.40</span></p>
+                <p><span className="text-emerald-500">➜</span> <span className="text-white">Status: </span><span className="bg-white text-black px-1 font-bold">ONLINE</span></p>
+                <div className="mt-4 border-t border-white/10 pt-4 grid grid-cols-2 gap-4 text-[10px] uppercase tracking-widest text-zinc-500">
+                  <div>
+                    <p>CPU LOAD</p>
+                    <div className="w-full bg-zinc-900 h-1 mt-1"><div className="bg-white h-full w-[45%]" /></div>
+                  </div>
+                  <div>
+                    <p>MEMORY</p>
+                    <div className="w-full bg-zinc-900 h-1 mt-1"><div className="bg-white h-full w-[62%]" /></div>
+                  </div>
                 </div>
-                <CardTitle className="text-lg">{f.title}</CardTitle>
-              </CardHeader>
-              <CardContent><p className="text-sm text-muted-foreground">{f.desc}</p></CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
-
-      {/* Pricing Preview */}
-      <section className="container mx-auto px-6 mb-24">
-        <div className="text-center mb-12">
-          <Badge variant="outline" className="mb-4">Pricing</Badge>
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Simple, transparent pricing</h2>
-        </div>
-        <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-          {[
-            { name: 'Free', price: '$0', period: '/mo', features: ['1 agent', 'Basic metrics', 'Community support'], cta: 'Start Free' },
-            { name: 'Pro', price: '$19', period: '/mo', features: ['Unlimited agents', 'Alerts (Slack/Email)', 'Team collaboration', 'Policy profiles', 'Priority support'], cta: 'Start Pro Trial', popular: true },
-            { name: 'Enterprise', price: '$99', period: '/mo', features: ['Everything in Pro', 'Custom policies', 'SSO/SAML', 'Dedicated support', 'SLA guarantee'], cta: 'Contact Sales' },
-          ].map(t => (
-            <Card key={t.name} className={`bg-card/50 border-border/40 relative ${t.popular ? 'border-emerald-500/50 shadow-lg shadow-emerald-500/5' : ''}`}>
-              {t.popular && <div className="absolute -top-3 left-1/2 -translate-x-1/2"><Badge className="bg-emerald-600 text-white"><Star className="w-3 h-3 mr-1" />Most Popular</Badge></div>}
-              <CardHeader className="text-center">
-                <CardTitle>{t.name}</CardTitle>
-                <div className="mt-2"><span className="text-4xl font-bold">{t.price}</span><span className="text-muted-foreground">{t.period}</span></div>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2">
-                  {t.features.map(f => (<li key={f} className="flex items-center gap-2 text-sm"><Check className="w-4 h-4 text-emerald-400 shrink-0" />{f}</li>))}
-                </ul>
-              </CardContent>
-              <CardFooter>
-                <Button className={`w-full ${t.popular ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`} variant={t.popular ? 'default' : 'outline'} onClick={() => navigate('/register')}>{t.cta}</Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t border-border/40 py-12">
-        <div className="container mx-auto px-6 text-center text-sm text-muted-foreground">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="w-6 h-6 rounded bg-emerald-500 flex items-center justify-center"><Zap className="w-3 h-3 text-white" /></div>
-            <span className="font-semibold text-foreground">OpenClaw Fleet</span>
+              </div>
+              <div className="absolute bottom-4 right-4 animate-pulse">_</div>
+            </div>
           </div>
-          <p>&copy; 2025 OpenClaw Fleet Orchestrator. Built for indie devs and teams.</p>
+        </section>
+
+        {/* Ticker Tape */}
+        <div className="border-b border-white/20 bg-white text-black overflow-hidden py-3">
+          <div className="flex gap-12 animate-marquee whitespace-nowrap font-bold font-mono text-sm uppercase tracking-widest">
+            <span>/// SYSTEM READY</span>
+            <span>/// 99.99% UPTIME</span>
+            <span>/// GLOBAL LATENCY &lt; 50MS</span>
+            <span>/// END-TO-END ENCRYPTION</span>
+            <span>/// OPEN SOURCE CORE</span>
+            <span>/// SCALABLE ARCHITECTURE</span>
+            <span>/// SYSTEM READY</span>
+            <span>/// 99.99% UPTIME</span>
+            <span>/// GLOBAL LATENCY &lt; 50MS</span>
+            <span>/// END-TO-END ENCRYPTION</span>
+          </div>
         </div>
-      </footer>
+
+        {/* Features Grid */}
+        <section className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-white/20 border-b border-white/20">
+          {features.slice(0, 3).map((f, i) => (
+            <div key={i} className="p-8 sm:p-12 hover:bg-white hover:text-black transition-colors group cursor-default">
+              <f.icon className="w-8 h-8 mb-6 text-zinc-500 group-hover:text-black transition-colors" />
+              <h3 className="text-xl font-bold mb-4 uppercase tracking-tight">{f.title}</h3>
+              <p className="text-sm text-zinc-500 group-hover:text-zinc-600 font-mono leading-relaxed">{f.desc}</p>
+            </div>
+          ))}
+        </section>
+        <section className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-white/20 border-b border-white/20">
+          {features.slice(3, 6).map((f, i) => (
+            <div key={i} className="p-8 sm:p-12 hover:bg-white hover:text-black transition-colors group cursor-default">
+              <f.icon className="w-8 h-8 mb-6 text-zinc-500 group-hover:text-black transition-colors" />
+              <h3 className="text-xl font-bold mb-4 uppercase tracking-tight">{f.title}</h3>
+              <p className="text-sm text-zinc-500 group-hover:text-zinc-600 font-mono leading-relaxed">{f.desc}</p>
+            </div>
+          ))}
+        </section>
+
+        {/* Footer */}
+        <footer className="p-8 sm:p-12 flex flex-col md:flex-row justify-between items-end gap-8 text-xs font-mono text-zinc-600 uppercase">
+          <div className="flex flex-col gap-4">
+            <div className="w-8 h-8 bg-zinc-900 border border-white/10 flex items-center justify-center">
+              <Zap className="w-4 h-4 text-zinc-500" />
+            </div>
+            <p className="max-w-xs leading-relaxed">
+              OpenClaw Fleet Orchestrator.<br />
+              Built for the next generation of<br />
+              autonomous agent swarms.
+            </p>
+          </div>
+          <div className="text-right">
+            <p>&copy; 2025 OPENCLAW SYSTEMS INC.</p>
+            <div className="flex gap-4 justify-end mt-2 text-zinc-400">
+              <a href="#" className="hover:text-white">GITHUB</a>
+              <a href="#" className="hover:text-white">DOCS</a>
+              <a href="#" className="hover:text-white">TWITTER</a>
+            </div>
+          </div>
+        </footer>
+      </main>
+
+      <style jsx global>{`
+        @keyframes marquee {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        .animate-marquee {
+          animation: marquee 20s linear infinite;
+        }
+      `}</style>
     </div>
   );
 }
@@ -307,31 +390,31 @@ function LoginView({ navigate, session }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
-      <Card className="w-full max-w-md bg-card/80 backdrop-blur-sm">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <div className="w-12 h-12 rounded-xl bg-emerald-500 flex items-center justify-center"><Zap className="w-6 h-6 text-white" /></div>
+    <div className="min-h-screen flex items-center justify-center p-6 bg-black relative overflow-hidden">
+      <div className="absolute inset-0 grid-bg opacity-20" />
+      <Card className="w-full max-w-md bg-black border border-white/20 relative z-10 rounded-none">
+        <CardHeader className="text-center pb-2">
+          <div className="flex justify-center mb-6">
+            <div className="w-12 h-12 bg-white flex items-center justify-center"><Zap className="w-6 h-6 text-black fill-black" /></div>
           </div>
-          <CardTitle className="text-2xl">Welcome back</CardTitle>
-          <CardDescription>Sign in to your OpenClaw Fleet account</CardDescription>
+          <CardTitle className="text-2xl font-bold tracking-tight text-white">SYSTEM LOGIN</CardTitle>
+          <CardDescription className="font-mono text-zinc-500 uppercase text-xs tracking-widest">Identify Yourself</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div><Label htmlFor="email">Email</Label><Input id="email" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} required /></div>
-            <div><Label htmlFor="password">Password</Label><Input id="password" type="password" placeholder="Your password" value={password} onChange={e => setPassword(e.target.value)} required /></div>
-            <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700" disabled={loading}>{loading ? 'Signing in...' : 'Sign In'}</Button>
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div className="space-y-2"><Label htmlFor="email" className="font-mono text-xs uppercase text-zinc-400">Email Address</Label><Input id="email" type="email" className="bg-zinc-900 border-white/10 text-white rounded-none h-10 focus:border-white/40" placeholder="USER@EXAMPLE.COM" value={email} onChange={e => setEmail(e.target.value)} required /></div>
+            <div className="space-y-2"><Label htmlFor="password" className="font-mono text-xs uppercase text-zinc-400">Password</Label><Input id="password" type="password" className="bg-zinc-900 border-white/10 text-white rounded-none h-10 focus:border-white/40" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required /></div>
+            <Button type="submit" className="w-full bg-white text-black hover:bg-zinc-200 rounded-none font-bold uppercase tracking-widest h-10" disabled={loading}>{loading ? 'AUTHENTICATING...' : 'ACCESS DASHBOARD'}</Button>
           </form>
         </CardContent>
-        <CardFooter className="justify-center">
-          <p className="text-sm text-muted-foreground">Don&apos;t have an account? <button onClick={() => navigate('/register')} className="text-emerald-400 hover:underline">Sign up</button></p>
+        <CardFooter className="justify-center border-t border-white/10 pt-4 mt-2">
+          <p className="text-xs text-zinc-500 font-mono">NO ACCOUNT? <button onClick={() => navigate('/register')} className="text-white hover:underline uppercase">INITIATE REGISTRATION</button></p>
         </CardFooter>
       </Card>
     </div>
   );
 }
 
-// ============ REGISTER ============
 function RegisterView({ navigate, session }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -360,24 +443,25 @@ function RegisterView({ navigate, session }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
-      <Card className="w-full max-w-md bg-card/80 backdrop-blur-sm">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <div className="w-12 h-12 rounded-xl bg-emerald-500 flex items-center justify-center"><Zap className="w-6 h-6 text-white" /></div>
+    <div className="min-h-screen flex items-center justify-center p-6 bg-black relative overflow-hidden">
+      <div className="absolute inset-0 grid-bg opacity-20" />
+      <Card className="w-full max-w-md bg-black border border-white/20 relative z-10 rounded-none">
+        <CardHeader className="text-center pb-2">
+          <div className="flex justify-center mb-6">
+            <div className="w-12 h-12 bg-white flex items-center justify-center"><Zap className="w-6 h-6 text-black fill-black" /></div>
           </div>
-          <CardTitle className="text-2xl">Create your account</CardTitle>
-          <CardDescription>Start managing your AI agent fleet for free</CardDescription>
+          <CardTitle className="text-2xl font-bold tracking-tight text-white">NEW OPERATOR</CardTitle>
+          <CardDescription className="font-mono text-zinc-500 uppercase text-xs tracking-widest">Initialize Account</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleRegister} className="space-y-4">
-            <div><Label htmlFor="reg-email">Email</Label><Input id="reg-email" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} required /></div>
-            <div><Label htmlFor="reg-password">Password</Label><Input id="reg-password" type="password" placeholder="Min 6 characters" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} /></div>
-            <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700" disabled={loading}>{loading ? 'Creating account...' : 'Create Account'}</Button>
+          <form onSubmit={handleRegister} className="space-y-6">
+            <div className="space-y-2"><Label htmlFor="reg-email" className="font-mono text-xs uppercase text-zinc-400">Email Address</Label><Input id="reg-email" type="email" className="bg-zinc-900 border-white/10 text-white rounded-none h-10 focus:border-white/40" placeholder="USER@EXAMPLE.COM" value={email} onChange={e => setEmail(e.target.value)} required /></div>
+            <div className="space-y-2"><Label htmlFor="reg-password" className="font-mono text-xs uppercase text-zinc-400">Password</Label><Input id="reg-password" type="password" className="bg-zinc-900 border-white/10 text-white rounded-none h-10 focus:border-white/40" placeholder="MIN 6 CHARACTERS" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} /></div>
+            <Button type="submit" className="w-full bg-white text-black hover:bg-zinc-200 rounded-none font-bold uppercase tracking-widest h-10" disabled={loading}>{loading ? 'CREATING PROFILE...' : 'ESTABLISH ACCOUNT'}</Button>
           </form>
         </CardContent>
-        <CardFooter className="justify-center">
-          <p className="text-sm text-muted-foreground">Already have an account? <button onClick={() => navigate('/login')} className="text-emerald-400 hover:underline">Sign in</button></p>
+        <CardFooter className="justify-center border-t border-white/10 pt-4 mt-2">
+          <p className="text-xs text-zinc-500 font-mono">ALREADY REGISTERED? <button onClick={() => navigate('/login')} className="text-white hover:underline uppercase">LOGIN</button></p>
         </CardFooter>
       </Card>
     </div>
@@ -499,29 +583,25 @@ function DashboardView({ navigate, session, api }) {
         {stats && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             {[
-              { label: 'Total Agents', value: stats.total_agents, icon: Server, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-              { label: 'Healthy', value: stats.healthy, icon: CheckCircle, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-              { label: 'Errors', value: stats.error, icon: XCircle, color: 'text-red-400', bg: 'bg-red-500/10' },
-              { label: 'Total Tasks', value: stats.total_tasks?.toLocaleString(), icon: BarChart3, color: 'text-purple-400', bg: 'bg-purple-500/10' },
+              { label: 'TOTAL AGENTS', value: stats.total_agents, icon: Server },
+              { label: 'OPERATIONAL', value: stats.healthy, icon: CheckCircle },
+              { label: 'ERRORS', value: stats.error, icon: XCircle },
+              { label: 'TASKS EXECUTED', value: stats.total_tasks?.toLocaleString(), icon: BarChart3 },
             ].map(s => (
-              <Card key={s.label} className="bg-card/60 border-border/40">
-                <CardContent className="pt-5 pb-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${s.bg}`}><s.icon className={`w-5 h-5 ${s.color}`} /></div>
-                    <div>
-                      <p className="text-2xl font-bold">{s.value}</p>
-                      <p className="text-xs text-muted-foreground">{s.label}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <div key={s.label} className="bg-black border border-white/10 p-6 flex items-start justify-between group hover:border-white/30 transition-colors">
+                <div>
+                  <div className="text-3xl font-black text-white mb-1 tracking-tighter">{s.value}</div>
+                  <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">{s.label}</div>
+                </div>
+                <s.icon className="w-5 h-5 text-zinc-700 group-hover:text-white transition-colors" />
+              </div>
             ))}
           </div>
         )}
 
         {/* Empty State */}
         {agents.length === 0 && (
-          <Card className="bg-card/60 border-border/40 border-dashed">
+          <Card className="glass-card border-dashed">
             <CardContent className="py-16 text-center">
               <Server className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">No agents yet</h3>
@@ -547,7 +627,7 @@ function DashboardView({ navigate, session, api }) {
 
         {/* Agent Table */}
         {agents.length > 0 && (
-          <Card className="bg-card/60 border-border/40 mb-8">
+          <Card className="glass-card mb-8">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Agents ({agents.length})</CardTitle>
             </CardHeader>
@@ -567,22 +647,22 @@ function DashboardView({ navigate, session, api }) {
                     {agents.map(agent => {
                       const sc = STATUS_CONFIG[agent.status] || STATUS_CONFIG.offline;
                       return (
-                        <tr key={agent.id} className="border-b border-border/20 hover:bg-muted/30 cursor-pointer transition" onClick={() => navigate(`/agent/${agent.id}`)}>
+                        <tr key={agent.id} className="border-b border-white/5 hover:bg-white/5 cursor-pointer transition" onClick={() => navigate(`/agent/${agent.id}`)}>
                           <td className="p-3">
-                            <div className="flex items-center gap-2">
-                              <div className={`w-2 h-2 rounded-full ${sc.color} ${agent.status === 'healthy' || agent.status === 'error' ? 'animate-pulse-dot' : ''}`} />
-                              <span className="font-medium text-sm">{agent.name}</span>
+                            <div className="flex items-center gap-3">
+                              <div className={`w-1.5 h-1.5 rounded-full ${agent.status === 'healthy' ? 'bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]' : agent.status === 'error' ? 'bg-red-500 animate-pulse' : 'bg-zinc-600'}`} />
+                              <span className="font-bold text-sm tracking-tight">{agent.name}</span>
                             </div>
                           </td>
-                          <td className="p-3"><Badge variant="outline" className={`${sc.text} ${sc.border} text-xs`}>{sc.label}</Badge></td>
-                          <td className="p-3 text-muted-foreground hidden md:table-cell font-mono text-xs">{agent.gateway_url}</td>
-                          <td className="p-3 text-sm text-muted-foreground hidden md:table-cell">{agent.model}</td>
-                          <td className="p-3 text-sm text-muted-foreground hidden lg:table-cell">{agent.location || '-'}</td>
-                          <td className="p-3 text-sm text-muted-foreground">{timeAgo(agent.last_heartbeat)}</td>
+                          <td className="p-3"><Badge variant="outline" className={`${sc.text} ${sc.border} bg-transparent rounded-none text-[10px] font-mono uppercase tracking-wider`}>{sc.label}</Badge></td>
+                          <td className="p-3 text-zinc-500 hidden md:table-cell font-mono text-xs uppercase">{agent.gateway_url}</td>
+                          <td className="p-3 text-sm text-zinc-400 hidden md:table-cell">{agent.model}</td>
+                          <td className="p-3 text-sm text-zinc-400 hidden lg:table-cell">{agent.location || 'UNKNOWN'}</td>
+                          <td className="p-3 text-sm text-zinc-500 font-mono">{timeAgo(agent.last_heartbeat)}</td>
                           <td className="p-3 text-right" onClick={e => e.stopPropagation()}>
                             <div className="flex items-center justify-end gap-1">
-                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => navigate(`/agent/${agent.id}`)}><Eye className="w-3.5 h-3.5" /></Button>
-                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-400 hover:text-red-300" onClick={() => handleDeleteAgent(agent.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-zinc-400 hover:text-white" onClick={() => navigate(`/agent/${agent.id}`)}><Eye className="w-3.5 h-3.5" /></Button>
+                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-zinc-600 hover:text-red-500 hover:bg-transparent" onClick={() => handleDeleteAgent(agent.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
                             </div>
                           </td>
                         </tr>
@@ -597,7 +677,7 @@ function DashboardView({ navigate, session, api }) {
 
         {/* Alerts */}
         {alerts.length > 0 && (
-          <Card className="bg-card/60 border-border/40">
+          <Card className="glass-card">
             <CardHeader className="pb-3"><CardTitle className="text-base">Recent Alerts</CardTitle></CardHeader>
             <CardContent className="space-y-2">
               {alerts.slice(0, 5).map(alert => (
@@ -753,26 +833,27 @@ function AgentDetailView({ navigate, session, api, agentId }) {
           <TabsContent value="overview">
             <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
               {[
-                { label: 'Latency', value: `${m.latency_ms || 0}ms`, icon: Activity, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
-                { label: 'Tasks Done', value: m.tasks_completed || 0, icon: CheckCircle, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-                { label: 'Errors', value: m.errors_count || 0, icon: XCircle, color: 'text-red-400', bg: 'bg-red-500/10' },
-                { label: 'Uptime', value: `${m.uptime_hours || 0}h`, icon: Clock, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-                { label: 'Cost', value: `$${(m.cost_usd || 0).toFixed(2)}`, icon: DollarSign, color: 'text-amber-400', bg: 'bg-amber-500/10' },
-                { label: 'CPU', value: `${m.cpu_usage || 0}%`, icon: Cpu, color: 'text-purple-400', bg: 'bg-purple-500/10' },
-                { label: 'Memory', value: `${m.memory_usage || 0}%`, icon: HardDrive, color: 'text-pink-400', bg: 'bg-pink-500/10' },
-                { label: 'Last Heartbeat', value: timeAgo(agent.last_heartbeat), icon: Wifi, color: 'text-slate-400', bg: 'bg-slate-500/10' },
+                { label: 'LATENCY', value: `${m.latency_ms || 0}ms`, icon: Activity },
+                { label: 'COMPLETED', value: m.tasks_completed || 0, icon: CheckCircle },
+                { label: 'ERRORS', value: m.errors_count || 0, icon: XCircle },
+                { label: 'UPTIME', value: `${m.uptime_hours || 0}h`, icon: Clock },
+                { label: 'COST', value: `$${(m.cost_usd || 0).toFixed(2)}`, icon: DollarSign },
+                { label: 'CPU', value: `${m.cpu_usage || 0}%`, icon: Cpu },
+                { label: 'MEMORY', value: `${m.memory_usage || 0}%`, icon: HardDrive },
+                { label: 'LAST SEEN', value: timeAgo(agent.last_heartbeat), icon: Wifi },
               ].map(s => (
-                <Card key={s.label} className="bg-card/60 border-border/40">
-                  <CardContent className="pt-4 pb-3">
-                    <div className="flex items-center gap-2 mb-1"><div className={`p-1.5 rounded ${s.bg}`}><s.icon className={`w-3.5 h-3.5 ${s.color}`} /></div><span className="text-xs text-muted-foreground">{s.label}</span></div>
-                    <p className="text-xl font-bold pl-8">{s.value}</p>
-                  </CardContent>
-                </Card>
+                <div key={s.label} className="bg-black border border-white/10 p-4 hover:border-white/30 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-mono uppercase text-zinc-500 tracking-widest">{s.label}</span>
+                    <s.icon className="w-3 h-3 text-zinc-600" />
+                  </div>
+                  <p className="text-xl font-bold text-white tracking-tight">{s.value}</p>
+                </div>
               ))}
             </div>
 
             <div className="grid md:grid-cols-2 gap-4">
-              <Card className="bg-card/60 border-border/40">
+              <Card className="glass-card">
                 <CardHeader className="pb-2"><CardTitle className="text-sm">Agent Info</CardTitle></CardHeader>
                 <CardContent className="space-y-3 text-sm">
                   {[['Machine ID', agent.machine_id || '-'], ['Location', agent.location || '-'], ['Model', agent.model], ['Profile', agent.config_json?.profile || '-'], ['Skills', (agent.config_json?.skills || []).join(', ')], ['Data Scope', agent.config_json?.data_scope || '-'], ['Created', new Date(agent.created_at).toLocaleDateString()]].map(([k, v]) => (
@@ -780,7 +861,7 @@ function AgentDetailView({ navigate, session, api, agentId }) {
                   ))}
                 </CardContent>
               </Card>
-              <Card className="bg-card/60 border-border/40">
+              <Card className="glass-card">
                 <CardHeader className="pb-2"><CardTitle className="text-sm">Resource Usage</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                   <div><div className="flex justify-between text-sm mb-1"><span className="text-muted-foreground">CPU</span><span>{m.cpu_usage || 0}%</span></div><Progress value={m.cpu_usage || 0} className="h-2" /></div>
@@ -793,7 +874,7 @@ function AgentDetailView({ navigate, session, api, agentId }) {
 
           <TabsContent value="setup">
             <div className="space-y-6">
-              <Card className="bg-card/60 border-border/40">
+              <Card className="glass-card">
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2"><Terminal className="w-4 h-4 text-emerald-400" />Connect This Agent</CardTitle>
                   <CardDescription>Run one of these commands on the machine where your OpenClaw agent is running. Pick your OS below.</CardDescription>
@@ -803,7 +884,7 @@ function AgentDetailView({ navigate, session, api, agentId }) {
                 </CardContent>
               </Card>
 
-              <Card className="bg-card/60 border-border/40">
+              <Card className="glass-card">
                 <CardHeader className="pb-2"><CardTitle className="text-sm">Agent ID</CardTitle></CardHeader>
                 <CardContent>
                   <div className="flex items-center gap-2">
@@ -816,7 +897,7 @@ function AgentDetailView({ navigate, session, api, agentId }) {
           </TabsContent>
 
           <TabsContent value="config">
-            <Card className="bg-card/60 border-border/40">
+            <Card className="glass-card">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base">Agent Configuration</CardTitle>
@@ -839,7 +920,7 @@ function AgentDetailView({ navigate, session, api, agentId }) {
 
           <TabsContent value="metrics">
             <div className="grid md:grid-cols-2 gap-4">
-              <Card className="bg-card/60 border-border/40">
+              <Card className="glass-card">
                 <CardHeader className="pb-2"><CardTitle className="text-sm">Latency (24h)</CardTitle></CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={200}>
@@ -854,21 +935,36 @@ function AgentDetailView({ navigate, session, api, agentId }) {
                   </ResponsiveContainer>
                 </CardContent>
               </Card>
-              <Card className="bg-card/60 border-border/40">
-                <CardHeader className="pb-2"><CardTitle className="text-sm">Tasks & Errors (24h)</CardTitle></CardHeader>
+              <div className="bg-black border border-white/10 p-1">
+                <CardHeader className="pb-2"><CardTitle className="text-xs font-mono uppercase tracking-widest text-zinc-500">Latency (24h)</CardTitle></CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <AreaChart data={metricsData}>
+                      <defs><linearGradient id="latGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#ffffff" stopOpacity={0.3} /><stop offset="95%" stopColor="#ffffff" stopOpacity={0} /></linearGradient></defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                      <XAxis dataKey="hour" tick={{ fontSize: 10, fill: '#666', fontFamily: 'monospace' }} interval={5} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: '#666', fontFamily: 'monospace' }} axisLine={false} tickLine={false} />
+                      <Tooltip contentStyle={{ background: '#000', border: '1px solid #333', borderRadius: 0 }} itemStyle={{ color: '#fff', fontSize: '12px', fontFamily: 'monospace' }} />
+                      <Area type="monotone" dataKey="latency" stroke="#fff" fill="url(#latGrad)" strokeWidth={1} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </div>
+              <div className="bg-black border border-white/10 p-1">
+                <CardHeader className="pb-2"><CardTitle className="text-xs font-mono uppercase tracking-widest text-zinc-500">Tasks & Errors (24h)</CardTitle></CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={200}>
                     <BarChart data={metricsData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                      <XAxis dataKey="hour" tick={{ fontSize: 10, fill: '#64748b' }} interval={5} />
-                      <YAxis tick={{ fontSize: 10, fill: '#64748b' }} />
-                      <Tooltip contentStyle={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 8, fontSize: 12 }} />
-                      <Bar dataKey="tasks" fill="#10b981" radius={[2, 2, 0, 0]} />
-                      <Bar dataKey="errors" fill="#ef4444" radius={[2, 2, 0, 0]} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                      <XAxis dataKey="hour" tick={{ fontSize: 10, fill: '#666', fontFamily: 'monospace' }} interval={5} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: '#666', fontFamily: 'monospace' }} axisLine={false} tickLine={false} />
+                      <Tooltip contentStyle={{ background: '#000', border: '1px solid #333', borderRadius: 0 }} itemStyle={{ color: '#fff', fontSize: '12px', fontFamily: 'monospace' }} />
+                      <Bar dataKey="tasks" fill="#333" radius={[0, 0, 0, 0]} />
+                      <Bar dataKey="errors" fill="#fff" radius={[0, 0, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
-              </Card>
+              </div>
             </div>
           </TabsContent>
         </Tabs>
@@ -922,105 +1018,83 @@ function SetupInstructions({ agentId, agentSecret }) {
 
       {/* Windows / PowerShell */}
       {platform === 'windows' && (
-        <div className="space-y-5">
+        <div className="space-y-6">
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Recommended</Badge>
-              <span className="text-sm font-medium">PowerShell — continuous monitor</span>
+            <div className="flex items-center gap-3 mb-3">
+              <Badge className="bg-white text-black font-bold border-white rounded-none">RECOMMENDED</Badge>
+              <span className="text-sm font-mono uppercase text-zinc-400">PowerShell — Continuous Monitor</span>
             </div>
-            <div className="relative">
-              <pre className="bg-background border border-border rounded-lg p-4 text-sm font-mono overflow-x-auto text-emerald-400 whitespace-pre-wrap">{psOneLiner}</pre>
-              <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-7 text-xs" onClick={() => copyText(psOneLiner)}><Copy className="w-3 h-3 mr-1" />Copy</Button>
+            <div className="relative group">
+              <pre className="bg-zinc-950 border border-white/10 p-4 text-xs font-mono overflow-x-auto text-zinc-300 whitespace-pre-wrap selection:bg-white selection:text-black">{psOneLiner}</pre>
+              <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-6 text-[10px] uppercase font-bold bg-white text-black hover:bg-zinc-200 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => copyText(psOneLiner)}>COPY COMMAND</Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Downloads a PowerShell script and runs it. Collects real CPU & memory via <code className="text-emerald-400">Get-CimInstance</code>. Sends heartbeats every 5 minutes.</p>
+            <p className="text-[10px] text-zinc-500 mt-2 font-mono uppercase">COLLECTS CPU/MEM VIA <code className="text-white">Get-CimInstance</code>. HEARTBEAT: 5 MIN.</p>
           </div>
-          <Separator />
+          <Separator className="bg-white/10" />
           <div>
-            <span className="text-sm font-medium">PowerShell — single heartbeat (test connectivity)</span>
-            <div className="relative mt-2">
-              <pre className="bg-background border border-border rounded-lg p-4 text-sm font-mono overflow-x-auto text-cyan-400 whitespace-pre-wrap">{psSingle}</pre>
-              <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-7 text-xs" onClick={() => copyText(psSingle)}><Copy className="w-3 h-3 mr-1" />Copy</Button>
+            <span className="text-sm font-mono uppercase text-zinc-400">PowerShell — Single Heartbeat (Test)</span>
+            <div className="relative mt-2 group">
+              <pre className="bg-zinc-950 border border-white/10 p-4 text-xs font-mono overflow-x-auto text-zinc-400 whitespace-pre-wrap">{psSingle}</pre>
+              <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-6 text-[10px] uppercase font-bold bg-white text-black hover:bg-zinc-200 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => copyText(psSingle)}>COPY</Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Send a single heartbeat to verify your agent connects. Use Task Scheduler for recurring runs.</p>
           </div>
-          <Separator />
+          <Separator className="bg-white/10" />
           <div>
-            <span className="text-sm font-medium">Python — cross-platform alternative</span>
-            <div className="relative mt-2">
-              <pre className="bg-background border border-border rounded-lg p-4 text-sm font-mono overflow-x-auto text-amber-400 whitespace-pre-wrap">{pyOneLiner}</pre>
-              <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-7 text-xs" onClick={() => copyText(pyOneLiner)}><Copy className="w-3 h-3 mr-1" />Copy</Button>
+            <span className="text-sm font-mono uppercase text-zinc-400">Python — Cross-Platform</span>
+            <div className="relative mt-2 group">
+              <pre className="bg-zinc-950 border border-white/10 p-4 text-xs font-mono overflow-x-auto text-zinc-400 whitespace-pre-wrap">{pyOneLiner}</pre>
+              <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-6 text-[10px] uppercase font-bold bg-white text-black hover:bg-zinc-200 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => copyText(pyOneLiner)}>COPY</Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Requires Python 3. Uses <code className="text-emerald-400">wmic</code> for metrics on Windows. No extra dependencies.</p>
           </div>
         </div>
       )}
 
       {/* macOS */}
       {platform === 'mac' && (
-        <div className="space-y-5">
+        <div className="space-y-6">
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Recommended</Badge>
-              <span className="text-sm font-medium">Bash — continuous monitor</span>
+            <div className="flex items-center gap-3 mb-3">
+              <Badge className="bg-white text-black font-bold border-white rounded-none">RECOMMENDED</Badge>
+              <span className="text-sm font-mono uppercase text-zinc-400">Bash — Continuous Monitor</span>
             </div>
-            <div className="relative">
-              <pre className="bg-background border border-border rounded-lg p-4 text-sm font-mono overflow-x-auto text-emerald-400 whitespace-pre-wrap">{bashOneLiner}</pre>
-              <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-7 text-xs" onClick={() => copyText(bashOneLiner)}><Copy className="w-3 h-3 mr-1" />Copy</Button>
+            <div className="relative group">
+              <pre className="bg-zinc-950 border border-white/10 p-4 text-xs font-mono overflow-x-auto text-zinc-300 whitespace-pre-wrap selection:bg-white selection:text-black">{bashOneLiner}</pre>
+              <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-6 text-[10px] uppercase font-bold bg-white text-black hover:bg-zinc-200 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => copyText(bashOneLiner)}>COPY COMMAND</Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Downloads and runs a bash script. Uses <code className="text-emerald-400">vm_stat</code> for memory, <code className="text-emerald-400">ps</code> for CPU, <code className="text-emerald-400">sysctl</code> for uptime. Heartbeats every 5 min.</p>
+            <p className="text-[10px] text-zinc-500 mt-2 font-mono uppercase">USES <code className="text-white">vm_stat</code> / <code className="text-white">sysctl</code>. HEARTBEAT: 5 MIN.</p>
           </div>
-          <Separator />
+          <Separator className="bg-white/10" />
           <div>
-            <span className="text-sm font-medium">Single heartbeat (curl)</span>
-            <div className="relative mt-2">
-              <pre className="bg-background border border-border rounded-lg p-4 text-sm font-mono overflow-x-auto text-cyan-400 whitespace-pre-wrap">{bashSingle}</pre>
-              <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-7 text-xs" onClick={() => copyText(bashSingle)}><Copy className="w-3 h-3 mr-1" />Copy</Button>
+            <span className="text-sm font-mono uppercase text-zinc-400">Single Heartbeat (Curl)</span>
+            <div className="relative mt-2 group">
+              <pre className="bg-zinc-950 border border-white/10 p-4 text-xs font-mono overflow-x-auto text-zinc-400 whitespace-pre-wrap">{bashSingle}</pre>
+              <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-6 text-[10px] uppercase font-bold bg-white text-black hover:bg-zinc-200 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => copyText(bashSingle)}>COPY</Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Test connectivity with a single heartbeat. Add to crontab: <code className="text-emerald-400">*/5 * * * * curl ...</code></p>
-          </div>
-          <Separator />
-          <div>
-            <span className="text-sm font-medium">Python — cross-platform alternative</span>
-            <div className="relative mt-2">
-              <pre className="bg-background border border-border rounded-lg p-4 text-sm font-mono overflow-x-auto text-amber-400 whitespace-pre-wrap">{pyOneLiner}</pre>
-              <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-7 text-xs" onClick={() => copyText(pyOneLiner)}><Copy className="w-3 h-3 mr-1" />Copy</Button>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">Requires Python 3 (pre-installed on macOS). Uses native APIs for metrics. No extra dependencies.</p>
           </div>
         </div>
       )}
 
       {/* Linux */}
       {platform === 'linux' && (
-        <div className="space-y-5">
+        <div className="space-y-6">
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Recommended</Badge>
-              <span className="text-sm font-medium">Bash — continuous monitor</span>
+            <div className="flex items-center gap-3 mb-3">
+              <Badge className="bg-white text-black font-bold border-white rounded-none">RECOMMENDED</Badge>
+              <span className="text-sm font-mono uppercase text-zinc-400">Bash — Continuous Monitor</span>
             </div>
-            <div className="relative">
-              <pre className="bg-background border border-border rounded-lg p-4 text-sm font-mono overflow-x-auto text-emerald-400 whitespace-pre-wrap">{bashOneLiner}</pre>
-              <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-7 text-xs" onClick={() => copyText(bashOneLiner)}><Copy className="w-3 h-3 mr-1" />Copy</Button>
+            <div className="relative group">
+              <pre className="bg-zinc-950 border border-white/10 p-4 text-xs font-mono overflow-x-auto text-zinc-300 whitespace-pre-wrap selection:bg-white selection:text-black">{bashOneLiner}</pre>
+              <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-6 text-[10px] uppercase font-bold bg-white text-black hover:bg-zinc-200 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => copyText(bashOneLiner)}>COPY COMMAND</Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Downloads and runs a bash script. Uses <code className="text-emerald-400">/proc/stat</code> for CPU, <code className="text-emerald-400">free</code> for memory. Heartbeats every 5 min.</p>
+            <p className="text-[10px] text-zinc-500 mt-2 font-mono uppercase">USES <code className="text-white">/proc/stat</code>. HEARTBEAT: 5 MIN.</p>
           </div>
-          <Separator />
+          <Separator className="bg-white/10" />
           <div>
-            <span className="text-sm font-medium">Run as background daemon</span>
-            <div className="relative mt-2">
-              <pre className="bg-background border border-border rounded-lg p-4 text-sm font-mono overflow-x-auto text-cyan-400 whitespace-pre-wrap">{bashDaemon}</pre>
-              <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-7 text-xs" onClick={() => copyText(bashDaemon)}><Copy className="w-3 h-3 mr-1" />Copy</Button>
+            <span className="text-sm font-mono uppercase text-zinc-400">Run as Background Daemon</span>
+            <div className="relative mt-2 group">
+              <pre className="bg-zinc-950 border border-white/10 p-4 text-xs font-mono overflow-x-auto text-zinc-400 whitespace-pre-wrap">{bashDaemon}</pre>
+              <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-6 text-[10px] uppercase font-bold bg-white text-black hover:bg-zinc-200 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => copyText(bashDaemon)}>COPY</Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Save and run as background process. Logs to <code className="text-emerald-400">/var/log/openclaw-heartbeat.log</code>.</p>
-          </div>
-          <Separator />
-          <div>
-            <span className="text-sm font-medium">Python — cross-platform alternative</span>
-            <div className="relative mt-2">
-              <pre className="bg-background border border-border rounded-lg p-4 text-sm font-mono overflow-x-auto text-amber-400 whitespace-pre-wrap">{pyOneLiner}</pre>
-              <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-7 text-xs" onClick={() => copyText(pyOneLiner)}><Copy className="w-3 h-3 mr-1" />Copy</Button>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">Requires Python 3. Reads <code className="text-emerald-400">/proc/stat</code> and <code className="text-emerald-400">/proc/meminfo</code>. No extra dependencies.</p>
           </div>
         </div>
       )}
@@ -1032,38 +1106,36 @@ function SetupInstructions({ agentId, agentSecret }) {
 // ============ PRICING ============
 function PricingView({ navigate, session }) {
   const tiers = [
-    { name: 'Free', price: '$0', period: '/mo', desc: 'Perfect for solo indie testers', features: ['1 agent', 'Basic metrics dashboard', 'Community support', '5-minute heartbeat interval'], cta: 'Start Free', popular: false },
-    { name: 'Pro', price: '$19', period: '/mo', desc: 'For dev teams scaling their fleets', features: ['Unlimited agents', 'Real-time monitoring', 'Slack & email alerts', 'Team collaboration', 'Policy profiles (Dev/Ops/Exec)', 'Priority support', '1-minute heartbeat interval'], cta: 'Start Pro Trial', popular: true },
-    { name: 'Enterprise', price: '$99', period: '/mo', desc: 'For agencies & large teams', features: ['Everything in Pro', 'Custom policy profiles', 'SSO / SAML auth', 'Dedicated account manager', 'SLA guarantee (99.99%)', 'Custom integrations', 'On-premise deployment option'], cta: 'Contact Sales', popular: false },
+    { name: 'FREE', price: '$0', period: '/mo', desc: 'For solo indie operators', features: ['1 Agent Node', 'Basic Metrics', 'Community Support', '5-min Heartbeat'], cta: 'INITIALIZE', popular: false },
+    { name: 'PRO', price: '$19', period: '/mo', desc: 'For scaling fleet commanders', features: ['Unlimited Nodes', 'Real-time Monitoring', 'Slack & Email Alerts', 'Team Access', 'Policy Engine', 'Priority Ops', '1-min Heartbeat'], cta: 'UPGRADE TO PRO', popular: true },
+    { name: 'ENTERPRISE', price: '$99', period: '/mo', desc: 'For agencies & large systems', features: ['Everything in Pro', 'Custom Policies', 'SSO / SAML', 'Dedicated Ops', '99.99% SLA', 'Custom Integrations', 'On-Premise Option'], cta: 'CONTACT SALES', popular: false },
   ];
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-black text-white selection:bg-white selection:text-black">
       <Navbar navigate={navigate} session={session} />
-      <div className="pt-28 pb-20 container mx-auto px-6">
+      <div className="pt-32 pb-20 container mx-auto px-6">
         <div className="text-center mb-16">
-          <Badge className="mb-4 bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Pricing</Badge>
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">Simple, transparent pricing</h1>
-          <p className="text-lg text-muted-foreground max-w-xl mx-auto">Start free. Scale when you&apos;re ready. No hidden fees.</p>
+          <Badge className="mb-6 bg-white/10 text-white border-white/20 hover:bg-white/20 cursor-default rounded-none px-3 py-1 font-mono tracking-widest text-xs uppercase">Pricing Protocols</Badge>
+          <h1 className="text-5xl md:text-6xl font-black mb-6 tracking-tighter">TRANSPARENT SCALING</h1>
+          <p className="text-lg text-zinc-400 max-w-xl mx-auto font-light">Start free. Scale when you're ready. No hidden fees.</p>
         </div>
         <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
           {tiers.map(t => (
-            <Card key={t.name} className={`bg-card/60 border-border/40 relative ${t.popular ? 'border-emerald-500/50 shadow-xl shadow-emerald-500/5 scale-105' : ''}`}>
-              {t.popular && <div className="absolute -top-3 left-1/2 -translate-x-1/2"><Badge className="bg-emerald-600 text-white"><Star className="w-3 h-3 mr-1" />Most Popular</Badge></div>}
-              <CardHeader className="text-center pb-2">
-                <CardTitle className="text-xl">{t.name}</CardTitle>
-                <CardDescription>{t.desc}</CardDescription>
-                <div className="mt-4"><span className="text-5xl font-bold">{t.price}</span><span className="text-muted-foreground">{t.period}</span></div>
-              </CardHeader>
-              <CardContent>
-                <Separator className="mb-6" />
-                <ul className="space-y-3">
-                  {t.features.map(f => (<li key={f} className="flex items-start gap-2 text-sm"><Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />{f}</li>))}
-                </ul>
-              </CardContent>
-              <CardFooter>
-                <Button className={`w-full ${t.popular ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`} variant={t.popular ? 'default' : 'outline'} size="lg" onClick={() => navigate(session ? '/dashboard' : '/register')}>{t.cta}</Button>
-              </CardFooter>
-            </Card>
+            <div key={t.name} className={`relative p-8 border ${t.popular ? 'border-white bg-white/5' : 'border-white/10 bg-black'} flex flex-col transition-all hover:border-white/30`}>
+              {t.popular && <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-white text-black text-[10px] font-bold uppercase tracking-widest px-3 py-1">Recommended</div>}
+              <div className="text-center mb-8">
+                <h3 className="text-xl font-bold tracking-tight mb-2 uppercase">{t.name}</h3>
+                <p className="text-xs text-zinc-500 font-mono uppercase tracking-wide mb-6">{t.desc}</p>
+                <div className="flex items-baseline justify-center gap-1">
+                  <span className="text-5xl font-black tracking-tighter">{t.price}</span>
+                  <span className="text-zinc-500 font-mono">{t.period}</span>
+                </div>
+              </div>
+              <ul className="space-y-4 mb-8 flex-1">
+                {t.features.map(f => (<li key={f} className="flex items-start gap-3 text-sm text-zinc-300"><div className="w-1.5 h-1.5 bg-white rounded-full mt-1.5 shrink-0" />{f}</li>))}
+              </ul>
+              <Button className={`w-full rounded-none h-12 font-bold tracking-tight ${t.popular ? 'bg-white text-black hover:bg-zinc-200' : 'bg-transparent border border-white/20 hover:bg-white/5 text-white'}`} onClick={() => navigate(session ? '/dashboard' : '/register')}>{t.cta}</Button>
+            </div>
           ))}
         </div>
       </div>
@@ -1074,12 +1146,19 @@ function PricingView({ navigate, session }) {
 // ============ LOADING ============
 function LoadingScreen() {
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="flex flex-col items-center gap-4">
-        <div className="w-12 h-12 rounded-xl bg-emerald-500 flex items-center justify-center animate-pulse">
-          <Zap className="w-6 h-6 text-white" />
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4">
+      <div className="flex flex-col items-center gap-6">
+        <div className="w-16 h-16 border border-white/20 flex items-center justify-center animate-pulse">
+          <Zap className="w-6 h-6 text-white fill-white" />
         </div>
-        <p className="text-sm text-muted-foreground">Loading OpenClaw Fleet...</p>
+        <div className="flex flex-col items-center gap-2">
+          <p className="text-lg font-bold tracking-widest text-white">SYSTEM INITIALIZING</p>
+          <div className="flex gap-1">
+            <div className="w-2 h-2 bg-white animate-bounce" style={{ animationDelay: '0ms' }} />
+            <div className="w-2 h-2 bg-white animate-bounce" style={{ animationDelay: '150ms' }} />
+            <div className="w-2 h-2 bg-white animate-bounce" style={{ animationDelay: '300ms' }} />
+          </div>
+        </div>
       </div>
     </div>
   );
