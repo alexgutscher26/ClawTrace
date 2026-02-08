@@ -178,6 +178,12 @@ function Navbar({ navigate, session, transparent = false }) {
 
 // ============ LANDING ============
 // ============ LANDING ============
+/**
+ * Renders the landing view of the application, displaying features and navigation.
+ * @param {Object} props - The component props.
+ * @param {Function} props.navigate - Function to navigate to different routes.
+ * @param {Object} props.session - The current user session.
+ */
 function LandingView({ navigate, session }) {
   const features = [
     { icon: Server, title: 'FLEET DASHBOARD', desc: 'Real-time overview of all your agents with status, health, and performance at a glance.' },
