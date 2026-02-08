@@ -146,6 +146,16 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
 }
 
+/**
+ * Handles GET requests for various API endpoints and returns appropriate responses.
+ *
+ * This function processes the incoming request, checks the rate limit, and serves different responses based on the requested path. It includes health checks, agent installation scripts, user authentication, and data retrieval from the database. The function also manages session tokens and handles errors gracefully, ensuring that the user is authenticated before accessing sensitive data.
+ *
+ * @param request - The incoming request object.
+ * @param context - The context object containing parameters and other relevant data.
+ * @returns A JSON response based on the requested path and processed data.
+ * @throws Error If an internal error occurs during processing.
+ */
 export async function GET(request, context) {
   const params = await context.params;
   const path = getPath(params);
@@ -815,6 +825,19 @@ done
   }
 }
 
+/**
+ * Handles POST requests for various endpoints related to fleets, agents, alerts, billing, and team management.
+ *
+ * The function processes the request based on the path, performing actions such as creating fleets and agents,
+ * updating agent statuses, handling heartbeats, managing subscriptions, and inviting or removing team members.
+ * It also includes rate limiting and error handling for various operations, ensuring that only authorized users can
+ * perform certain actions. The function returns appropriate JSON responses based on the outcome of each operation.
+ *
+ * @param request - The incoming request object containing headers and body data.
+ * @param context - The context object providing parameters and other contextual information.
+ * @returns A JSON response indicating the result of the operation.
+ * @throws Error If an internal error occurs during processing.
+ */
 export async function POST(request, context) {
   const params = await context.params;
   const path = getPath(params);
