@@ -5,6 +5,17 @@ import { isValidCronRequest, unauthorizedResponse } from '@/lib/cron-auth';
 // Force dynamic to prevent static caching of the cron checks
 export const dynamic = 'force-dynamic';
 
+/**
+ * Handles the GET request to check and update stale agents.
+ *
+ * This function performs a security check to validate the request. It then calculates the threshold time for stale agents,
+ * updates the status of agents that are online but have not sent a heartbeat since five minutes ago, and logs the action.
+ * If any errors occur during the update process, it returns an appropriate error response.
+ *
+ * @param request - The incoming request object.
+ * @returns A JSON response indicating the success of the operation, the count of updated agents, and their details.
+ * @throws Error If an internal error occurs during the execution of the function.
+ */
 export async function GET(request) {
     // 1. Security Check
     if (!isValidCronRequest(request)) {
