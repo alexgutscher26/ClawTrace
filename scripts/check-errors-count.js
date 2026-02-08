@@ -2,6 +2,14 @@ const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const path = require('path');
 
+/**
+ * Loads environment variables from a .env file.
+ *
+ * This function resolves the path to the .env file, checks if it exists, and reads its content.
+ * It splits the content by lines and processes each line to extract key-value pairs,
+ * which are then assigned to the process.env object if valid.
+ * This allows for dynamic configuration of environment variables in the application.
+ */
 function loadEnv() {
     const envPath = path.resolve(__dirname, '../.env');
     if (!fs.existsSync(envPath)) return;
@@ -17,6 +25,15 @@ loadEnv();
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
+/**
+ * Check and log the errors count for a specific agent.
+ *
+ * This function retrieves the agent's details from the 'agents' table in Supabase using the agentId.
+ * It logs the agent's name, status, last heartbeat, and error metrics.
+ * It also calculates and logs the error rate if tasks have been completed, and provides feedback on the errors count.
+ *
+ * @returns {Promise<void>} A promise that resolves when the operation is complete.
+ */
 async function checkErrorsCount() {
     const agentId = '79a68826-b5af-49a3-b9db-6c322c858f17';
 
