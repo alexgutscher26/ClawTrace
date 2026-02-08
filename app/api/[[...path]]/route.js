@@ -1183,8 +1183,24 @@ export async function PUT(request, context) {
   try {
     const agentMatch = path.match(/^\/agents\/([^/]+)$/);
     if (agentMatch) {
-      const user = await getUser(request);
-      if (!user) return json({ error: 'Unauthorized' }, 401);
+      const agentId = agentMatch[1];
+      let user = await getUser(request);
+      let isAgent = false;
+
+      // If not user session, check if it's the agent itself updating
+      if (!user) {
+        const authHeader = request.headers.get('authorization');
+        if (authHeader?.startsWith('Bearer ')) {
+          const token = authHeader.split(' ')[1];
+          const payload = await verifyAgentToken(token);
+          if (payload && payload.agent_id === agentId) {
+            isAgent = true;
+          }
+        }
+      }
+
+      if (!user && !isAgent) return json({ error: 'Unauthorized' }, 401);
+
       const body = await request.json();
       const updateFields = { updated_at: new Date().toISOString() };
       if (body.name !== undefined) updateFields.name = body.name;
@@ -1195,13 +1211,14 @@ export async function PUT(request, context) {
       if (body.model !== undefined) updateFields.model = body.model;
       if (body.status !== undefined) updateFields.status = body.status;
 
-      const { data: agent, error } = await supabaseAdmin
-        .from('agents')
-        .update(updateFields)
-        .eq('id', agentMatch[1])
-        .eq('user_id', user.id)
-        .select()
-        .maybeSingle();
+      let query = supabaseAdmin.from('agents').update(updateFields).eq('id', agentId);
+
+      // If user, ensure ownership
+      if (user) {
+        query = query.eq('user_id', user.id);
+      }
+
+      const { data: agent, error } = await query.select().single();
 
       if (error) throw error;
       if (!agent) return json({ error: 'Agent not found' }, 404);

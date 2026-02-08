@@ -911,8 +911,32 @@ function AgentDetailView({ navigate, session, api, agentId }) {
                   value={configEdit}
                   onChange={e => setConfigEdit(e.target.value)}
                 />
-                <div className="mt-3 p-3 bg-muted/30 rounded-lg">
-                  <p className="text-xs text-muted-foreground flex items-center gap-1"><Terminal className="w-3 h-3" />CLI: <code className="text-emerald-400">openclaw config push --agent-id={agent.id}</code></p>
+                <div className="mt-4 p-4 bg-muted/30 rounded-lg space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground font-medium flex items-center gap-2"><Terminal className="w-3 h-3" />CLI Command</p>
+                    <Button variant="ghost" size="xs" onClick={() => {
+                      try {
+                        const c = JSON.parse(configEdit);
+                        const skills = Array.isArray(c.skills) ? c.skills.join(',') : '';
+                        const cmd = `fleet-monitor config push --agent-id=${agent.id} --saas-url=${window.location.origin} --agent-secret=${agent.agent_secret} --model=${c.model} --skills=${skills} --profile=${c.profile} --data-scope=${c.data_scope}`;
+                        navigator.clipboard.writeText(cmd);
+                        toast.success('Command copied');
+                      } catch {
+                        toast.error('Fix JSON to generate command');
+                      }
+                    }} className="h-6 text-xs text-muted-foreground hover:text-foreground">Copy</Button>
+                  </div>
+                  <code className="block w-full p-3 bg-black/40 rounded border border-white/10 text-xs font-mono text-emerald-400 break-all">
+                    {(() => {
+                      try {
+                        const c = JSON.parse(configEdit);
+                        const skills = Array.isArray(c.skills) ? c.skills.join(',') : '';
+                        return `fleet-monitor config push --agent-id=${agent.id} --saas-url=${typeof window !== 'undefined' ? window.location.origin : ''} --agent-secret=${agent.agent_secret} --model=${c.model} --skills=${skills} --profile=${c.profile} --data-scope=${c.data_scope}`;
+                      } catch (e) {
+                        return `fleet-monitor config push --agent-id=${agent.id} --config-file=./config.json (Fix JSON to see full command)`;
+                      }
+                    })()}
+                  </code>
                 </div>
               </CardContent>
             </Card>

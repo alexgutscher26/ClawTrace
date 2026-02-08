@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const os = require('os');
+const fs = require('fs');
 const https = require('https');
 const http = require('http');
 
@@ -119,7 +120,7 @@ function log(msg) {
 
 function printBanner() {
   console.log(`
-${COLORS.green}${COLORS.bold}  ⚡ OpenClaw Fleet Monitor${COLORS.reset}`);
+${COLORS.green}${COLORS.bold}  ⚡ Fleet Monitor${COLORS.reset}`);
   console.log(`${COLORS.dim}  ─────────────────────────────${COLORS.reset}`);
 }
 
@@ -145,9 +146,9 @@ async function monitorCommand(args) {
   if (!saasUrl || !agentId || !agentSecret) {
     console.error(`${COLORS.red}Error: --saas-url, --agent-id, and --agent-secret are required${COLORS.reset}`);
     console.log(`\nUsage:`);
-    console.log(`  openclaw monitor --saas-url=https://your-app.com --agent-id=<UUID> --agent-secret=<SECRET>`);
+    console.log(`  fleet-monitor monitor --saas-url=https://your-app.com --agent-id=<UUID> --agent-secret=<SECRET>`);
     console.log(`\nOptions:`);
-    console.log(`  --saas-url     Your OpenClaw Fleet SaaS URL (required)`);
+    console.log(`  --saas-url     Your Fleet SaaS URL (required)`);
     console.log(`  --agent-id     Agent UUID from your dashboard (required)`);
     console.log(`  --agent-secret Agent Secret from your dashboard (required)`);
     console.log(`  --interval     Heartbeat interval in seconds (default: 300)`);
@@ -227,42 +228,203 @@ function statusCommand(args) {
   console.log();
 }
 
+async function configCommand(args) {
+  const subcommand = args._subcommand || args.subcommand;
+
+  if (subcommand === 'push') {
+    await configPushCommand(args);
+  } else {
+    console.error(`${COLORS.red}Unknown config subcommand: ${subcommand || '(none)'}${COLORS.reset}`);
+    console.log(`\nUsage:`);
+    console.log(`  fleet-monitor config push --agent-id=<UUID> --saas-url=<URL> [--config=<JSON> | --config-file=<PATH>]`);
+    console.log(`\nExample:`);
+    console.log(`  fleet-monitor config push --agent-id=... --config-file=./config.json`);
+    process.exit(1);
+  }
+}
+
+async function configPushCommand(args) {
+  const saasUrl = args.saas_url;
+  const agentId = args.agent_id;
+  const agentSecret = args.agent_secret;
+
+  // Config sources
+  const configJson = args.config;
+  const configFile = args.config_file;
+
+  // Individual flags
+  const flagModel = args.model;
+  const flagSkills = args.skills;
+  const flagProfile = args.profile;
+  const flagDataScope = args.data_scope || args.dataScope; // handle snake_case or camelCase arg parsing
+
+  if (!saasUrl || !agentId) {
+    console.error(`${COLORS.red}Error: --saas-url and --agent-id are required${COLORS.reset}`);
+    console.log(`\nUsage:`);
+    console.log(`  fleet-monitor config push --agent-id=<UUID> --saas-url=<URL> --agent-secret=<SECRET> [options]`);
+    console.log(`\nOptions:`);
+    console.log(`  --saas-url      Your Fleet SaaS URL (required)`);
+    console.log(`  --agent-id      Agent UUID from your dashboard (required)`);
+    console.log(`  --agent-secret  Agent Secret for authentication (required)`);
+    console.log(`\nConfiguration Options (choose one method):`);
+    console.log(`  1. Individual Flags (Recommended):`);
+    console.log(`     --model <name>       e.g. claude-sonnet-4`);
+    console.log(`     --skills <list>      Comma-separated, e.g. code,search`);
+    console.log(`     --profile <name>     e.g. dev, prod`);
+    console.log(`     --data-scope <scope> e.g. full, read-only`);
+    console.log(`\n  2. File:`);
+    console.log(`     --config-file <path> Path to JSON config file`);
+    console.log(`\n  3. JSON String:`);
+    console.log(`     --config <json>      Raw JSON string`);
+    console.log(`\nExample:`);
+    console.log(`  fleet-monitor config push --agent-id=... --model=claude-sonnet-4 --skills=code,search`);
+    process.exit(1);
+  }
+
+  printBanner();
+  log(`${COLORS.green}Pushing configuration for agent ${COLORS.bold}${agentId}${COLORS.reset}`);
+  console.log();
+
+  let config = {};
+
+  // Priority 1: Config File
+  if (configFile) {
+    try {
+      const fileContent = fs.readFileSync(configFile, 'utf8');
+      config = JSON.parse(fileContent);
+      log(`${COLORS.green}Loaded configuration from ${configFile}${COLORS.reset}`);
+    } catch (err) {
+      console.error(`${COLORS.red}Error: Failed to read or parse config file${COLORS.reset}`);
+      console.error(err.message);
+      process.exit(1);
+    }
+  }
+  // Priority 2: JSON String
+  else if (configJson) {
+    try {
+      config = JSON.parse(configJson);
+    } catch (err) {
+      console.error(`${COLORS.red}Error: Invalid JSON in --config${COLORS.reset}`);
+      console.error(err.message);
+      process.exit(1);
+    }
+  }
+  // Priority 3: Individual Flags (Merged into default or creating new)
+  else if (flagModel || flagSkills || flagProfile || flagDataScope) {
+    // If we have flags, we start with what's provided
+    if (flagModel) config.model = flagModel;
+    if (flagProfile) config.profile = flagProfile;
+    if (flagDataScope) config.data_scope = flagDataScope;
+
+    if (flagSkills) {
+      config.skills = typeof flagSkills === 'string' ? flagSkills.split(',').map(s => s.trim()) : flagSkills;
+    }
+  }
+  // Priority 4: Default Fallback
+  else {
+    console.log(`${COLORS.yellow}No configuration provided. Using default template.${COLORS.reset}`);
+    config = {
+      model: 'gpt-4',
+      skills: ['code', 'search'],
+      profile: 'dev',
+      data_scope: 'full'
+    };
+  }
+
+  console.log(`${COLORS.cyan}Configuration to push:${COLORS.reset}`);
+  console.log(JSON.stringify(config, null, 2));
+  console.log();
+
+  // Perform handshake first
+  log(`${COLORS.yellow}Authenticating...${COLORS.reset}`);
+  let sessionToken = null;
+  try {
+    const handshakeResult = await postHandshake(saasUrl, agentId, agentSecret);
+    if (handshakeResult.status === 200 && handshakeResult.body.token) {
+      sessionToken = handshakeResult.body.token;
+      log(`${COLORS.green}✓ Authentication successful${COLORS.reset}`);
+    } else {
+      console.error(`${COLORS.red}✗ Authentication failed (${handshakeResult.status}): ${JSON.stringify(handshakeResult.body)}${COLORS.reset}`);
+      process.exit(1);
+    }
+  } catch (err) {
+    console.error(`${COLORS.red}✗ Connection error: ${err.message}${COLORS.reset}`);
+    process.exit(1);
+  }
+
+  // Push config
+  log(`${COLORS.yellow}Pushing configuration...${COLORS.reset}`);
+  try {
+    const result = await apiRequest('PUT', `${saasUrl}/api/agents/${agentId}`, {
+      config_json: config
+    }, sessionToken);
+
+    if (result.status === 200) {
+      log(`${COLORS.green}✓ Configuration pushed successfully!${COLORS.reset}`);
+      console.log();
+      console.log(`${COLORS.dim}Updated configuration:${COLORS.reset}`);
+      console.log(JSON.stringify(result.body.agent.config_json, null, 2));
+    } else {
+      console.error(`${COLORS.red}✗ Failed to push configuration (${result.status}): ${JSON.stringify(result.body)}${COLORS.reset}`);
+      process.exit(1);
+    }
+  } catch (err) {
+    console.error(`${COLORS.red}✗ Connection error: ${err.message}${COLORS.reset}`);
+    process.exit(1);
+  }
+}
+
 function helpCommand() {
   printBanner();
   console.log(`
   ${COLORS.bold}Commands:${COLORS.reset}`);
   console.log(`    ${COLORS.green}monitor${COLORS.reset}    Start sending heartbeats to your Fleet dashboard`);
+  console.log(`    ${COLORS.green}config${COLORS.reset}     Manage agent configuration`);
   console.log(`    ${COLORS.green}status${COLORS.reset}     Show local system metrics`);
   console.log(`    ${COLORS.green}help${COLORS.reset}       Show this help message`);
   console.log(`
   ${COLORS.bold}Monitor Usage:${COLORS.reset}`);
-  console.log(`  openclaw monitor --saas-url=https://your-app.com --agent-id=<UUID> --agent-secret=<SECRET>`);
+  console.log(`  fleet-monitor monitor --saas-url=https://your-app.com --agent-id=<UUID> --agent-secret=<SECRET>`);
+  console.log(`
+  ${COLORS.bold}Config Usage:${COLORS.reset}`);
+  console.log(`  fleet-monitor config push --agent-id=<UUID> --saas-url=<URL> --agent-secret=<SECRET> [options]`);
   console.log(`
   ${COLORS.bold}Options:${COLORS.reset}`);
-  console.log(`    --saas-url     Your OpenClaw Fleet SaaS URL ${COLORS.red}(required)${COLORS.reset}`);
+  console.log(`    --saas-url     Your Fleet SaaS URL ${COLORS.red}(required)${COLORS.reset}`);
   console.log(`    --agent-id     Agent UUID from dashboard ${COLORS.red}(required)${COLORS.reset}`);
   console.log(`    --agent-secret Agent Secret from dashboard ${COLORS.red}(required)${COLORS.reset}`);
   console.log(`    --interval     Heartbeat interval in seconds (default: 300)`);
   console.log(`    --status       Agent status to report (default: healthy)`);
+  console.log(`    --model        AI Model (e.g. claude-sonnet-4)`);
+  console.log(`    --skills       Comma-separated skills (e.g. code,search)`);
+  console.log(`    --config-file  Path to JSON configuration file`);
   console.log(`
   ${COLORS.bold}Examples:${COLORS.reset}`);
   console.log(`    ${COLORS.dim}# Start monitoring with 5-minute heartbeat${COLORS.reset}`);
-  console.log(`    openclaw monitor --saas-url=https://fleet.openclaw.dev --agent-id=abc-123`);
+  console.log(`    fleet-monitor monitor --saas-url=https://fleet-monitor.dev --agent-id=abc-123 --agent-secret=secret-123`);
   console.log(``);
-  console.log(`    ${COLORS.dim}# Custom interval (60 seconds)${COLORS.reset}`);
-  console.log(`    openclaw monitor --saas-url=https://fleet.openclaw.dev --agent-id=abc-123 --interval=60`);
+  console.log(`    ${COLORS.dim}# Push configuration${COLORS.reset}`);
+  console.log(`    fleet-monitor config push --agent-id=abc-123 --saas-url=https://fleet-monitor.dev --agent-secret=secret-123 --config='{"model":"claude-sonnet-4"}'`);
   console.log(``);
   console.log(`    ${COLORS.dim}# Check local system status${COLORS.reset}`);
-  console.log(`    openclaw status`);
+  console.log(`    fleet-monitor status`);
   console.log();
 }
 
 // ============ MAIN ============
 const { command, args } = parseArgs(process.argv);
 
+// Handle subcommands for 'config'
+if (command === 'config' && process.argv[3]) {
+  args._subcommand = process.argv[3];
+}
+
 switch (command) {
   case 'monitor':
     monitorCommand(args);
+    break;
+  case 'config':
+    configCommand(args);
     break;
   case 'status':
     statusCommand(args);
