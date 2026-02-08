@@ -39,7 +39,8 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
 }
 
-export async function GET(request, { params }) {
+export async function GET(request, context) {
+  const params = await context.params;
   const path = getPath(params);
   try {
     if (path === '/health') {
@@ -546,7 +547,8 @@ done
   }
 }
 
-export async function POST(request, { params }) {
+export async function POST(request, context) {
+  const params = await context.params;
   const path = getPath(params);
   try {
     if (path === '/fleets') {
@@ -804,7 +806,8 @@ export async function POST(request, { params }) {
   }
 }
 
-export async function PUT(request, { params }) {
+export async function PUT(request, context) {
+  const params = await context.params;
   const path = getPath(params);
   try {
     const agentMatch = path.match(/^\/agents\/([^/]+)$/);
@@ -859,7 +862,8 @@ export async function PUT(request, { params }) {
   }
 }
 
-export async function DELETE(request, { params }) {
+export async function DELETE(request, context) {
+  const params = await context.params;
   const path = getPath(params);
   try {
     const agentMatch = path.match(/^\/agents\/([^/]+)$/);
