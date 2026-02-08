@@ -42,26 +42,29 @@ function collectMetrics() {
   };
 }
 
-// ============ HTTP POST HELPER ============
-function postHeartbeat(saasUrl, agentId, status, metrics) {
+// ============ HTTP REQUEST HELPER ============
+function apiRequest(method, urlStr, payloadObj, token = null) {
   return new Promise((resolve, reject) => {
-    const url = new URL(`${saasUrl}/api/heartbeat`);
-    const payload = JSON.stringify({
-      agent_id: agentId,
-      status: status,
-      metrics: metrics,
-    });
+    const url = new URL(urlStr);
+    const payload = payloadObj ? JSON.stringify(payloadObj) : null;
 
     const options = {
       hostname: url.hostname,
       port: url.port || (url.protocol === 'https:' ? 443 : 80),
-      path: url.pathname,
-      method: 'POST',
+      path: url.pathname + url.search,
+      method: method,
       headers: {
         'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(payload),
       },
     };
+
+    if (payload) {
+      options.headers['Content-Length'] = Buffer.byteLength(payload);
+    }
+
+    if (token) {
+      options.headers['Authorization'] = `Bearer ${token}`;
+    }
 
     const client = url.protocol === 'https:' ? https : http;
     const req = client.request(options, (res) => {
@@ -77,9 +80,24 @@ function postHeartbeat(saasUrl, agentId, status, metrics) {
     });
 
     req.on('error', reject);
-    req.write(payload);
+    if (payload) req.write(payload);
     req.end();
   });
+}
+
+function postHandshake(saasUrl, agentId, agentSecret) {
+  return apiRequest('POST', `${saasUrl}/api/agents/handshake`, {
+    agent_id: agentId,
+    agent_secret: agentSecret,
+  });
+}
+
+function postHeartbeat(saasUrl, agentId, status, metrics, token) {
+  return apiRequest('POST', `${saasUrl}/api/heartbeat`, {
+    agent_id: agentId,
+    status: status,
+    metrics: metrics,
+  }, token);
 }
 
 // ============ DISPLAY HELPERS ============
@@ -118,16 +136,20 @@ function printStatus(metrics) {
 async function monitorCommand(args) {
   const saasUrl = args.saas_url;
   const agentId = args.agent_id;
+  const agentSecret = args.agent_secret;
   const interval = parseInt(args.interval || '300', 10); // default 5 min (300s)
   const status = args.status || 'healthy';
 
-  if (!saasUrl || !agentId) {
-    console.error(`${COLORS.red}Error: --saas-url and --agent-id are required${COLORS.reset}`);
+  let sessionToken = null;
+
+  if (!saasUrl || !agentId || !agentSecret) {
+    console.error(`${COLORS.red}Error: --saas-url, --agent-id, and --agent-secret are required${COLORS.reset}`);
     console.log(`\nUsage:`);
-    console.log(`  openclaw monitor --saas-url=https://your-app.com --agent-id=<UUID>`);
+    console.log(`  openclaw monitor --saas-url=https://your-app.com --agent-id=<UUID> --agent-secret=<SECRET>`);
     console.log(`\nOptions:`);
     console.log(`  --saas-url     Your OpenClaw Fleet SaaS URL (required)`);
     console.log(`  --agent-id     Agent UUID from your dashboard (required)`);
+    console.log(`  --agent-secret Agent Secret from your dashboard (required)`);
     console.log(`  --interval     Heartbeat interval in seconds (default: 300)`);
     console.log(`  --status       Agent status: healthy, idle, error (default: healthy)`);
     process.exit(1);
@@ -139,13 +161,40 @@ async function monitorCommand(args) {
   log(`${COLORS.dim}Interval: ${interval}s${COLORS.reset}`);
   console.log();
 
+  async function performHandshake() {
+    log(`${COLORS.yellow}Performing secret handshake...${COLORS.reset}`);
+    try {
+      const result = await postHandshake(saasUrl, agentId, agentSecret);
+      if (result.status === 200 && result.body.token) {
+        sessionToken = result.body.token;
+        log(`${COLORS.green}✓ Handshake successful (Session token received)${COLORS.reset}`);
+        return true;
+      } else {
+        log(`${COLORS.red}✗ Handshake failed (${result.status}): ${JSON.stringify(result.body)}${COLORS.reset}`);
+        return false;
+      }
+    } catch (err) {
+      log(`${COLORS.red}✗ Handshake connection error: ${err.message}${COLORS.reset}`);
+      return false;
+    }
+  }
+
   async function sendHeartbeat() {
+    if (!sessionToken) {
+      const ok = await performHandshake();
+      if (!ok) return;
+    }
+
     const metrics = collectMetrics();
     try {
-      const result = await postHeartbeat(saasUrl, agentId, status, metrics);
+      const result = await postHeartbeat(saasUrl, agentId, status, metrics, sessionToken);
       if (result.status === 200) {
         log(`${COLORS.green}✓ Heartbeat sent${COLORS.reset}`);
         printStatus(metrics);
+      } else if (result.status === 401) {
+        log(`${COLORS.yellow}! Session expired, retrying handshake...${COLORS.reset}`);
+        sessionToken = null;
+        await sendHeartbeat(); // recursive retry once
       } else {
         log(`${COLORS.red}✗ Heartbeat failed (${result.status}): ${JSON.stringify(result.body)}${COLORS.reset}`);
       }
@@ -154,11 +203,16 @@ async function monitorCommand(args) {
     }
   }
 
-  // Send immediately, then on interval
-  await sendHeartbeat();
-  setInterval(sendHeartbeat, interval * 1000);
-
-  log(`${COLORS.dim}Press Ctrl+C to stop${COLORS.reset}`);
+  // Initial handshake and start loop
+  const initialized = await performHandshake();
+  if (initialized) {
+    await sendHeartbeat();
+    setInterval(sendHeartbeat, interval * 1000);
+    log(`${COLORS.dim}Press Ctrl+C to stop${COLORS.reset}`);
+  } else {
+    log(`${COLORS.red}Fatal: Failed to initialize agent session. Exiting.${COLORS.reset}`);
+    process.exit(1);
+  }
 }
 
 function statusCommand(args) {
@@ -182,11 +236,12 @@ function helpCommand() {
   console.log(`    ${COLORS.green}help${COLORS.reset}       Show this help message`);
   console.log(`
   ${COLORS.bold}Monitor Usage:${COLORS.reset}`);
-  console.log(`    openclaw monitor --saas-url=https://your-app.com --agent-id=<UUID>`);
+  console.log(`  openclaw monitor --saas-url=https://your-app.com --agent-id=<UUID> --agent-secret=<SECRET>`);
   console.log(`
   ${COLORS.bold}Options:${COLORS.reset}`);
   console.log(`    --saas-url     Your OpenClaw Fleet SaaS URL ${COLORS.red}(required)${COLORS.reset}`);
   console.log(`    --agent-id     Agent UUID from dashboard ${COLORS.red}(required)${COLORS.reset}`);
+  console.log(`    --agent-secret Agent Secret from dashboard ${COLORS.red}(required)${COLORS.reset}`);
   console.log(`    --interval     Heartbeat interval in seconds (default: 300)`);
   console.log(`    --status       Agent status to report (default: healthy)`);
   console.log(`

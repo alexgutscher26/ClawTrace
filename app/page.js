@@ -575,7 +575,7 @@ function DashboardView({ navigate, session, api }) {
                             </div>
                           </td>
                           <td className="p-3"><Badge variant="outline" className={`${sc.text} ${sc.border} text-xs`}>{sc.label}</Badge></td>
-                          <td className="p-3 text-sm text-muted-foreground hidden md:table-cell font-mono text-xs">{agent.gateway_url}</td>
+                          <td className="p-3 text-muted-foreground hidden md:table-cell font-mono text-xs">{agent.gateway_url}</td>
                           <td className="p-3 text-sm text-muted-foreground hidden md:table-cell">{agent.model}</td>
                           <td className="p-3 text-sm text-muted-foreground hidden lg:table-cell">{agent.location || '-'}</td>
                           <td className="p-3 text-sm text-muted-foreground">{timeAgo(agent.last_heartbeat)}</td>
@@ -799,7 +799,7 @@ function AgentDetailView({ navigate, session, api, agentId }) {
                   <CardDescription>Run one of these commands on the machine where your OpenClaw agent is running. Pick your OS below.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <SetupInstructions agentId={agent.id} />
+                  <SetupInstructions agentId={agent.id} agentSecret={agent.agent_secret} />
                 </CardContent>
               </Card>
 
@@ -878,7 +878,7 @@ function AgentDetailView({ navigate, session, api, agentId }) {
 }
 
 // ============ SETUP INSTRUCTIONS ============
-function SetupInstructions({ agentId }) {
+function SetupInstructions({ agentId, agentSecret }) {
   const [platform, setPlatform] = useState('windows');
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
 
@@ -888,18 +888,18 @@ function SetupInstructions({ agentId }) {
   };
 
   // Windows commands
-  const psOneLiner = `irm "${origin}/api/install-agent-ps?agent_id=${agentId}" -OutFile openclaw-monitor.ps1; powershell -ExecutionPolicy Bypass -File openclaw-monitor.ps1`;
+  const psOneLiner = `irm "${origin}/api/install-agent-ps?agent_id=${agentId}&agent_secret=${agentSecret}" -OutFile openclaw-monitor.ps1; powershell -ExecutionPolicy Bypass -File openclaw-monitor.ps1`;
   const psSingle = `Invoke-RestMethod -Uri "${origin}/api/heartbeat" -Method POST -ContentType "application/json" -Body '{"agent_id":"${agentId}","status":"healthy","metrics":{"cpu_usage":50,"memory_usage":60}}'`;
 
   // macOS / Linux commands
-  const bashOneLiner = `curl -sL "${origin}/api/install-agent?agent_id=${agentId}" | bash`;
+  const bashOneLiner = `curl -sL "${origin}/api/install-agent?agent_id=${agentId}&agent_secret=${agentSecret}" | bash`;
   const bashSingle = `curl -X POST ${origin}/api/heartbeat \\\n  -H "Content-Type: application/json" \\\n  -d '{"agent_id":"${agentId}","status":"healthy","metrics":{"cpu_usage":50,"memory_usage":60}}'`;
-  const bashDaemon = `curl -sL "${origin}/api/install-agent?agent_id=${agentId}" > openclaw-monitor.sh\nchmod +x openclaw-monitor.sh\nnohup ./openclaw-monitor.sh > /var/log/openclaw-heartbeat.log 2>&1 &`;
+  const bashDaemon = `curl -sL "${origin}/api/install-agent?agent_id=${agentId}&agent_secret=${agentSecret}" > openclaw-monitor.sh\nchmod +x openclaw-monitor.sh\nnohup ./openclaw-monitor.sh > /var/log/openclaw-heartbeat.log 2>&1 &`;
 
   // Python cross-platform
   const pyOneLiner = platform === 'windows'
-    ? `irm "${origin}/api/install-agent-py?agent_id=${agentId}" -OutFile openclaw-monitor.py; python openclaw-monitor.py`
-    : `curl -sL "${origin}/api/install-agent-py?agent_id=${agentId}" -o openclaw-monitor.py && python3 openclaw-monitor.py`;
+    ? `irm "${origin}/api/install-agent-py?agent_id=${agentId}&agent_secret=${agentSecret}" -OutFile openclaw-monitor.py; python openclaw-monitor.py`
+    : `curl -sL "${origin}/api/install-agent-py?agent_id=${agentId}&agent_secret=${agentSecret}" -o openclaw-monitor.py && python3 openclaw-monitor.py`;
 
   return (
     <div className="space-y-5">

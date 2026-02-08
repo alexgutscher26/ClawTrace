@@ -1,6 +1,26 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
+import { SignJWT, jwtVerify } from 'jose';
+
+const JWT_SECRET = new TextEncoder().encode(process.env.SUPABASE_SERVICE_ROLE_KEY || 'default-secret-for-development-only');
+
+async function createAgentToken(agentId, fleetId) {
+  return await new SignJWT({ agent_id: agentId, fleet_id: fleetId })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('24h') // Tokens expire in 24 hours
+    .sign(JWT_SECRET);
+}
+
+async function verifyAgentToken(token) {
+  try {
+    const { payload } = await jwtVerify(token, JWT_SECRET);
+    return payload;
+  } catch (e) {
+    return null;
+  }
+}
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -50,18 +70,26 @@ export async function GET(request, context) {
     // Serve a shell-based heartbeat script for easy install (Linux + macOS)
     if (path === '/install-agent') {
       const { searchParams } = new URL(request.url);
-      const agentId = searchParams.get('agent_id') || 'YOUR_AGENT_ID';
+      const agentId = searchParams.get('agent_id');
+      const agentSecret = searchParams.get('agent_secret');
+
+      if (!agentId || !agentSecret) {
+        return json({ error: 'Missing agent_id or agent_secret parameter' }, 400);
+      }
+
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.headers.get('origin') || 'http://localhost:3000';
       const interval = searchParams.get('interval') || '300';
 
       const script = `#!/bin/bash
 # OpenClaw Fleet Monitor - Heartbeat Agent (Linux & macOS)
 # Auto-generated for agent: ${agentId}
-# Usage: curl -sL "${baseUrl}/api/install-agent?agent_id=${agentId}" | bash
+# Usage: curl -sL "${baseUrl}/api/install-agent?agent_id=${agentId}&agent_secret=${agentSecret}" | bash
 
 SAAS_URL="${baseUrl}"
 AGENT_ID="${agentId}"
+AGENT_SECRET="${agentSecret}"
 INTERVAL=${interval}
+SESSION_TOKEN=""
 
 echo ""
 echo "  OpenClaw Fleet Monitor"
@@ -71,6 +99,24 @@ echo "  SaaS:     $SAAS_URL"
 echo "  Interval: \${INTERVAL}s"
 echo "  OS:       $(uname -s) $(uname -m)"
 echo ""
+
+perform_handshake() {
+  echo "[$(date +%H:%M:%S)] Performing handshake..."
+  RESPONSE=$(curl -s -X POST "\${SAAS_URL}/api/agents/handshake" \\
+    -H "Content-Type: application/json" \\
+    -d "{\\"agent_id\\":\\"$AGENT_ID\\",\\"agent_secret\\":\\"$AGENT_SECRET\\"}")
+  
+  # Extract token using simple grep/cut
+  SESSION_TOKEN=$(echo "$RESPONSE" | grep -o '"token":"[^"]*' | cut -d'"' -f4)
+  
+  if [ -n "$SESSION_TOKEN" ]; then
+    echo "[$(date +%H:%M:%S)] Handshake successful"
+    return 0
+  else
+    echo "[$(date +%H:%M:%S)] Handshake failed: $RESPONSE"
+    return 1
+  fi
+}
 
 get_cpu() {
   if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -132,7 +178,10 @@ get_uptime_hours() {
   fi
 }
 
-send_heartbeat() {
+  if [ -z "$SESSION_TOKEN" ]; then
+    perform_handshake || return 1
+  fi
+
   CPU=$(get_cpu)
   MEM=$(get_mem)
   UPTIME_H=$(get_uptime_hours)
@@ -142,9 +191,10 @@ send_heartbeat() {
   MEM=\${MEM:-0}
   UPTIME_H=\${UPTIME_H:-0}
 
-  # Update URL to use /api/heartbeat
+  # Update URL to use /api/heartbeat with token
   RESPONSE=$(curl -s -w "\\n%{http_code}" -X POST "\${SAAS_URL}/api/heartbeat" \\
     -H "Content-Type: application/json" \\
+    -H "Authorization: Bearer $SESSION_TOKEN" \\
     -d "{\\"agent_id\\":\\"$AGENT_ID\\",\\"status\\":\\"healthy\\",\\"metrics\\":{\\"cpu_usage\\":$CPU,\\"memory_usage\\":$MEM,\\"uptime_hours\\":$UPTIME_H}}")
 
   HTTP_CODE=$(echo "$RESPONSE" | tail -1)
@@ -152,11 +202,17 @@ send_heartbeat() {
 
   if [ "$HTTP_CODE" = "200" ]; then
     echo "[$(date +%H:%M:%S)] Heartbeat sent  CPU: \${CPU}%  MEM: \${MEM}%  Uptime: \${UPTIME_H}h"
+  elif [ "$HTTP_CODE" = "401" ]; then
+    echo "[$(date +%H:%M:%S)] Session expired, retrying..."
+    SESSION_TOKEN=""
+    send_heartbeat
   else
     echo "[$(date +%H:%M:%S)] Failed ($HTTP_CODE): $BODY"
   fi
 }
 
+echo "Initializing agent session..."
+perform_handshake || exit 1
 echo "Starting heartbeat loop (Ctrl+C to stop)..."
 echo ""
 
@@ -174,7 +230,13 @@ done
     // PowerShell heartbeat script for Windows users
     if (path === '/install-agent-ps') {
       const { searchParams } = new URL(request.url);
-      const agentId = searchParams.get('agent_id') || 'YOUR_AGENT_ID';
+      const agentId = searchParams.get('agent_id');
+      const agentSecret = searchParams.get('agent_secret');
+
+      if (!agentId || !agentSecret) {
+        return json({ error: 'Missing agent_id or agent_secret parameter' }, 400);
+      }
+
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.headers.get('origin') || 'http://localhost:3000';
       const interval = searchParams.get('interval') || '300';
 
@@ -185,7 +247,9 @@ done
         '',
         '$SaasUrl = "' + baseUrl + '"',
         '$AgentId = "' + agentId + '"',
+        '$AgentSecret = "' + agentSecret + '"',
         '$Interval = ' + interval,
+        '$SessionToken = $null',
         '',
         'Write-Host ""',
         'Write-Host "  OpenClaw Fleet Monitor" -ForegroundColor Green',
@@ -195,7 +259,26 @@ done
         'Write-Host "  Interval: $($Interval)s"',
         'Write-Host ""',
         '',
+        'function Perform-Handshake {',
+        '    Write-Host "[$(Get-Date -Format "HH:mm:ss")] Performing handshake..."',
+        '    $body = @{ agent_id = $AgentId; agent_secret = $AgentSecret } | ConvertTo-Json',
+        '    try {',
+        '        $res = Invoke-RestMethod -Uri "$SaasUrl/api/agents/handshake" -Method POST -Body $body -ContentType "application/json"',
+        '        if ($res.token) {',
+        '            $script:SessionToken = $res.token',
+        '            Write-Host "[$(Get-Date -Format "HH:mm:ss")] Handshake successful" -ForegroundColor Green',
+        '            return $true',
+        '        }',
+        '    } catch {',
+        '        Write-Host "[$(Get-Date -Format "HH:mm:ss")] Handshake failed: $($_.Exception.Message)" -ForegroundColor Red',
+        '    }',
+        '    return $false',
+        '}',
+        '',
         'function Send-Heartbeat {',
+        '    if (-not $SessionToken) {',
+        '        if (-not (Perform-Handshake)) { return }',
+        '    }',
         '    $cpuVal = 0',
         '    try {',
         '        $cpuVal = [math]::Round((Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average)',
@@ -224,21 +307,29 @@ done
         '    } | ConvertTo-Json -Depth 3',
         '',
         '    try {',
-        '        $null = Invoke-RestMethod -Uri "$SaasUrl/api/heartbeat" -Method POST -ContentType "application/json" -Body $body',
+        '        $headers = @{ Authorization = "Bearer $SessionToken" }',
+        '        $null = Invoke-RestMethod -Uri "$SaasUrl/api/heartbeat" -Method POST -ContentType "application/json" -Body $body -Headers $headers',
         '        $time = Get-Date -Format "HH:mm:ss"',
         '        Write-Host "[$time] Heartbeat sent  CPU: $($cpuVal)%  MEM: $($memVal)%" -ForegroundColor Green',
         '    } catch {',
         '        $time = Get-Date -Format "HH:mm:ss"',
-        '        Write-Host "[$time] FAIL: $($_.Exception.Message)" -ForegroundColor Red',
+        '        if ($_.Exception.Response.StatusCode -eq 401) {',
+        '            Write-Host "[$time] Session expired, retrying..." -ForegroundColor Yellow',
+        '            $script:SessionToken = $null',
+        '            Send-Heartbeat',
+        '        } else {',
+        '            Write-Host "[$time] FAIL: $($_.Exception.Message)" -ForegroundColor Red',
+        '        }',
         '    }',
         '}',
         '',
-        'Write-Host "Starting heartbeat loop (Ctrl+C to stop)..." -ForegroundColor Yellow',
-        'Write-Host ""',
-        '',
-        'while ($true) {',
-        '    Send-Heartbeat',
-        '    Start-Sleep -Seconds $Interval',
+        'if (Perform-Handshake) {',
+        '    Write-Host "Starting heartbeat loop (Ctrl+C to stop)..." -ForegroundColor Yellow',
+        '    Write-Host ""',
+        '    while ($true) {',
+        '        Send-Heartbeat',
+        '        Start-Sleep -Seconds $Interval',
+        '    }',
         '}',
       ].join('\n');
 
@@ -251,7 +342,13 @@ done
     // Python heartbeat script - cross-platform (Windows, macOS, Linux)
     if (path === '/install-agent-py') {
       const { searchParams } = new URL(request.url);
-      const agentId = searchParams.get('agent_id') || 'YOUR_AGENT_ID';
+      const agentId = searchParams.get('agent_id');
+      const agentSecret = searchParams.get('agent_secret');
+
+      if (!agentId || !agentSecret) {
+        return json({ error: 'Missing agent_id or agent_secret parameter' }, 400);
+      }
+
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.headers.get('origin') || 'http://localhost:3000';
       const interval = searchParams.get('interval') || '300';
 
@@ -265,7 +362,22 @@ done
         '',
         'SAAS_URL = "' + baseUrl + '"',
         'AGENT_ID = "' + agentId + '"',
+        'AGENT_SECRET = "' + agentSecret + '"',
         'INTERVAL = ' + interval,
+        'SESSION_TOKEN = None',
+        '',
+        'def perform_handshake():',
+        '    global SESSION_TOKEN',
+        '    data = json.dumps({"agent_id": AGENT_ID, "agent_secret": AGENT_SECRET}).encode()',
+        '    req = urllib.request.Request(f"{SAAS_URL}/api/agents/handshake", data=data, headers={"Content-Type": "application/json"}, method="POST")',
+        '    try:',
+        '        with urllib.request.urlopen(req, timeout=10) as resp:',
+        '            res = json.loads(resp.read().decode())',
+        '            SESSION_TOKEN = res.get("token")',
+        '            return True',
+        '    except Exception as e:',
+        '        print(f"[{time.strftime(\'%H:%M:%S\')}] Handshake failed: {e}")',
+        '        return False',
         '',
         'def get_cpu():',
         '    try:',
@@ -334,16 +446,26 @@ done
         '    return 0',
         '',
         'def send_heartbeat():',
+        '    global SESSION_TOKEN',
+        '    if not SESSION_TOKEN:',
+        '        if not perform_handshake(): return',
+        '',
         '    cpu, mem, uptime = get_cpu(), get_mem(), get_uptime()',
         '    data = json.dumps({"agent_id": AGENT_ID, "status": "healthy", "metrics": {"cpu_usage": cpu, "memory_usage": mem, "uptime_hours": uptime}}).encode()',
-        '    req = urllib.request.Request(f"{SAAS_URL}/api/heartbeat", data=data, headers={"Content-Type": "application/json"}, method="POST")',
+        '    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {SESSION_TOKEN}"}',
+        '    req = urllib.request.Request(f"{SAAS_URL}/api/heartbeat", data=data, headers=headers, method="POST")',
         '    try:',
         '        with urllib.request.urlopen(req, timeout=10) as resp:',
         '            t = time.strftime("%H:%M:%S")',
         '            print(f"[{t}] Heartbeat sent  CPU: {cpu}%  MEM: {mem}%  Uptime: {uptime}h")',
+        '    except urllib.error.HTTPError as e:',
+        '        if e.code == 401:',
+        '            print(f"[{time.strftime(\'%H:%M:%S\')}] Session expired, retrying...")',
+        '            SESSION_TOKEN = None',
+        '            send_heartbeat()',
+        '        else: print(f"[{time.strftime(\'%H:%M:%S\')}] FAIL: {e}")',
         '    except Exception as e:',
-        '        t = time.strftime("%H:%M:%S")',
-        '        print(f"[{t}] FAIL: {e}")',
+        '        print(f"[{time.strftime(\'%H:%M:%S\')}] FAIL: {e}")',
         '',
         'if __name__ == "__main__":',
         '    print()',
@@ -354,11 +476,14 @@ done
         '    print(f"  Interval: {INTERVAL}s")',
         '    print(f"  OS:       {platform.system()} {platform.machine()}")',
         '    print()',
-        '    print("Starting heartbeat loop (Ctrl+C to stop)...")',
-        '    print()',
-        '    while True:',
-        '        send_heartbeat()',
-        '        time.sleep(INTERVAL)',
+        '    if perform_handshake():',
+        '        print("Starting heartbeat loop (Ctrl+C to stop)...")',
+        '        print()',
+        '        while True:',
+        '            send_heartbeat()',
+        '            time.sleep(INTERVAL)',
+        '    else:',
+        '        print("Fatal: Initial handshake failed. Exiting.")',
       ].join('\n');
 
       return new NextResponse(pyLines, {
@@ -584,6 +709,7 @@ export async function POST(request, context) {
         machine_id: body.machine_id || '',
         location: body.location || '',
         model: body.model || 'gpt-4',
+        agent_secret: uuidv4(), // Secure auto-generated secret
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -608,8 +734,42 @@ export async function POST(request, context) {
       return json({ agent, message: 'Agent restart initiated' });
     }
 
+    if (path === '/agents/handshake') {
+      const body = await request.json();
+      const { data: agent, error } = await supabaseAdmin
+        .from('agents')
+        .select('id, fleet_id, agent_secret')
+        .eq('id', body.agent_id)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!agent) return json({ error: 'Agent not found' }, 404);
+
+      // Simple secret check (Option B uses secret for handshake)
+      if (!agent.agent_secret || agent.agent_secret !== body.agent_secret) {
+        return json({ error: 'Invalid agent secret' }, 401);
+      }
+
+      const token = await createAgentToken(agent.id, agent.fleet_id);
+      return json({ token, expires_in: 86400 });
+    }
+
     if (path === '/heartbeat') {
       const body = await request.json();
+
+      // Verify JWT
+      const authHeader = request.headers.get('authorization');
+      if (!authHeader?.startsWith('Bearer ')) {
+        return json({ error: 'Missing or invalid session token' }, 401);
+      }
+
+      const token = authHeader.split(' ')[1];
+      const payload = await verifyAgentToken(token);
+
+      if (!payload || payload.agent_id !== body.agent_id) {
+        return json({ error: 'Invalid or expired session' }, 401);
+      }
+
       const { data: agent, error: fetchError } = await supabaseAdmin
         .from('agents')
         .select('*')
