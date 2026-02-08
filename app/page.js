@@ -181,7 +181,7 @@ function Navbar({ navigate, session, transparent = false }) {
 function LandingView({ navigate, session }) {
   const features = [
     { icon: Server, title: 'FLEET DASHBOARD', desc: 'Real-time overview of all your agents with status, health, and performance at a glance.' },
-    { icon: Activity, title: 'LIVE MONITORING', desc: 'Track latency, errors, tasks, and resource usage with real-time charts and metrics.' },
+    { icon: Activity, title: 'LIVE MONITORING', desc: 'Track latency, errors, tasks, and resource usage.' },
     { icon: Shield, title: 'POLICY PROFILES', desc: 'Pre-built roles (Dev, Ops, Exec) to control agent skills, tools, and data access.' },
     { icon: Zap, title: 'EASY ONBOARDING', desc: 'Add agents in seconds. Paste a gateway URL or use our CLI tool to register.' },
     { icon: AlertTriangle, title: 'SMART ALERTS', desc: 'Get notified via Slack or email when agents go down or exceed thresholds.' },
@@ -340,7 +340,7 @@ function LandingView({ navigate, session }) {
             </p>
           </div>
           <div className="text-right">
-            <p>&copy; 2025 OPENCLAW SYSTEMS INC.</p>
+            <p>&copy; 2026 OPENCLAW SYSTEMS INC.</p>
             <div className="flex gap-4 justify-end mt-2 text-zinc-400">
               <a href="#" className="hover:text-white">GITHUB</a>
               <a href="#" className="hover:text-white">DOCS</a>
