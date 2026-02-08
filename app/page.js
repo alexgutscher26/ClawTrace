@@ -20,10 +20,7 @@ import {
   Check, Star, Rocket, CheckCircle, XCircle, Wifi, WifiOff,
   BarChart3, TrendingUp, Eye, Copy, Database
 } from 'lucide-react';
-import {
-  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, AreaChart, Area
-} from 'recharts';
+
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -741,7 +738,7 @@ function AgentDetailView({ navigate, session, api, agentId }) {
   const [restarting, setRestarting] = useState(false);
   const [configEdit, setConfigEdit] = useState('');
   const [savingConfig, setSavingConfig] = useState(false);
-  const [metricsHistory, setMetricsHistory] = useState([]);
+
 
   const loadAgent = useCallback(async () => {
     try {
@@ -749,10 +746,7 @@ function AgentDetailView({ navigate, session, api, agentId }) {
       setAgent(res.agent);
       setConfigEdit(JSON.stringify(res.agent.config_json, null, 2));
 
-      try {
-        const mRes = await api(`/api/agents/${agentId}/metrics`);
-        if (mRes?.metrics) setMetricsHistory(mRes.metrics);
-      } catch (e) { console.error('Metrics fetch error', e); }
+
     } catch (err) {
       toast.error('Failed to load agent');
       navigate('/dashboard');
@@ -790,36 +784,6 @@ function AgentDetailView({ navigate, session, api, agentId }) {
     }
   };
 
-  const metricsData = useMemo(() => {
-    if (!metricsHistory || metricsHistory.length === 0) {
-      // Return empty 24h placeholders if no history
-      return Array.from({ length: 24 }, (_, i) => ({
-        hour: `${String(i).padStart(2, '0')}:00`,
-        latency: 0,
-        errors: 0,
-        tasks: 0
-      }));
-    }
-
-    // Sort just in case, though API should return sorted
-    const sorted = [...metricsHistory].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-
-    return sorted.map((m, i) => {
-      const prev = i > 0 ? sorted[i - 1] : null;
-      // Calculate deltas for cumulative metrics
-      const tasksDelta = prev ? Math.max(0, (m.tasks_completed || 0) - (prev.tasks_completed || 0)) : 0;
-      const errorsDelta = prev ? Math.max(0, (m.errors_count || 0) - (prev.errors_count || 0)) : 0;
-
-      return {
-        hour: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        latency: m.latency_ms || 0,
-        errors: errorsDelta,
-        tasks: tasksDelta,
-        cpu: m.cpu_usage || 0,
-        memory: m.memory_usage || 0
-      };
-    });
-  }, [metricsHistory]);
   if (loading) return <div className="min-h-screen flex items-center justify-center"><RefreshCw className="w-6 h-6 animate-spin text-emerald-400" /></div>;
   if (!agent) return null;
 
@@ -857,7 +821,7 @@ function AgentDetailView({ navigate, session, api, agentId }) {
         </div>
 
         <Tabs defaultValue="overview">
-          <TabsList className="mb-6"><TabsTrigger value="overview">Overview</TabsTrigger><TabsTrigger value="setup">Setup</TabsTrigger><TabsTrigger value="config">Config</TabsTrigger><TabsTrigger value="metrics">Metrics</TabsTrigger></TabsList>
+          <TabsList className="mb-6"><TabsTrigger value="overview">Overview</TabsTrigger><TabsTrigger value="setup">Setup</TabsTrigger><TabsTrigger value="config">Config</TabsTrigger></TabsList>
 
           <TabsContent value="overview">
             <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
@@ -971,55 +935,7 @@ function AgentDetailView({ navigate, session, api, agentId }) {
             </Card>
           </TabsContent>
 
-          <TabsContent value="metrics">
-            <div className="grid md:grid-cols-2 gap-4">
-              <Card className="glass-card">
-                <CardHeader className="pb-2"><CardTitle className="text-sm">Latency (24h)</CardTitle></CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <AreaChart data={metricsData}>
-                      <defs><linearGradient id="latGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.3} /><stop offset="95%" stopColor="#10b981" stopOpacity={0} /></linearGradient></defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                      <XAxis dataKey="hour" tick={{ fontSize: 10, fill: '#64748b' }} interval={5} />
-                      <YAxis tick={{ fontSize: 10, fill: '#64748b' }} />
-                      <Tooltip contentStyle={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 8, fontSize: 12 }} />
-                      <Area type="monotone" dataKey="latency" stroke="#10b981" fill="url(#latGrad)" strokeWidth={2} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-              <div className="bg-black border border-white/10 p-1">
-                <CardHeader className="pb-2"><CardTitle className="text-xs font-mono uppercase tracking-widest text-zinc-500">Latency (24h)</CardTitle></CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <AreaChart data={metricsData}>
-                      <defs><linearGradient id="latGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#ffffff" stopOpacity={0.3} /><stop offset="95%" stopColor="#ffffff" stopOpacity={0} /></linearGradient></defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-                      <XAxis dataKey="hour" tick={{ fontSize: 10, fill: '#666', fontFamily: 'monospace' }} interval={5} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 10, fill: '#666', fontFamily: 'monospace' }} axisLine={false} tickLine={false} />
-                      <Tooltip contentStyle={{ background: '#000', border: '1px solid #333', borderRadius: 0 }} itemStyle={{ color: '#fff', fontSize: '12px', fontFamily: 'monospace' }} />
-                      <Area type="monotone" dataKey="latency" stroke="#fff" fill="url(#latGrad)" strokeWidth={1} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </div>
-              <div className="bg-black border border-white/10 p-1">
-                <CardHeader className="pb-2"><CardTitle className="text-xs font-mono uppercase tracking-widest text-zinc-500">Tasks & Errors (24h)</CardTitle></CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <BarChart data={metricsData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-                      <XAxis dataKey="hour" tick={{ fontSize: 10, fill: '#666', fontFamily: 'monospace' }} interval={5} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 10, fill: '#666', fontFamily: 'monospace' }} axisLine={false} tickLine={false} />
-                      <Tooltip contentStyle={{ background: '#000', border: '1px solid #333', borderRadius: 0 }} itemStyle={{ color: '#fff', fontSize: '12px', fontFamily: 'monospace' }} />
-                      <Bar dataKey="tasks" fill="#333" radius={[0, 0, 0, 0]} />
-                      <Bar dataKey="errors" fill="#fff" radius={[0, 0, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </div>
-            </div>
-          </TabsContent>
+
         </Tabs>
       </div>
     </div>
