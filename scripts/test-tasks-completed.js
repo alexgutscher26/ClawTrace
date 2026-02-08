@@ -2,6 +2,13 @@ const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const path = require('path');
 
+/**
+ * Loads environment variables from a .env file.
+ *
+ * This function resolves the path to the .env file, checks if it exists, and reads its content.
+ * Each line is split into key-value pairs, which are then trimmed and assigned to the process.env object
+ * if the key is valid and the value is present. This allows for dynamic configuration of environment variables.
+ */
 function loadEnv() {
     const envPath = path.resolve(__dirname, '../.env');
     if (!fs.existsSync(envPath)) return;
@@ -17,6 +24,15 @@ loadEnv();
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
+/**
+ * Test the tasks_completed metric for a specific agent.
+ *
+ * This function retrieves the current metrics for an agent from the Supabase database, simulates an incoming metrics update,
+ * and logs the before and after states of the metrics. It highlights the issue that the tasks_completed metric is not incremented
+ * as expected and demonstrates what the correct behavior should be.
+ *
+ * @returns {Promise<void>} A promise that resolves when the test is complete.
+ */
 async function testTasksCompleted() {
     const agentId = '79a68826-b5af-49a3-b9db-6c322c858f17';
 
