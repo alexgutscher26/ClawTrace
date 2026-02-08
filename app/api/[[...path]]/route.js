@@ -5,6 +5,12 @@ import { SignJWT, jwtVerify } from 'jose';
 
 const JWT_SECRET = new TextEncoder().encode(process.env.SUPABASE_SERVICE_ROLE_KEY || 'default-secret-for-development-only');
 
+/**
+ * Creates a JWT token for the specified agent and fleet.
+ * @param {string} agentId - The ID of the agent.
+ * @param {string} fleetId - The ID of the fleet.
+ * @returns {Promise<string>} The signed JWT token.
+ */
 async function createAgentToken(agentId, fleetId) {
   return await new SignJWT({ agent_id: agentId, fleet_id: fleetId })
     .setProtectedHeader({ alg: 'HS256' })
@@ -59,6 +65,19 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
 }
 
+/**
+ * Handles GET requests for various API endpoints and returns appropriate responses.
+ *
+ * This function processes the request based on the provided path, performing actions such as returning health status,
+ * generating installation scripts for agents, and managing user-related data. It utilizes helper functions like getUser
+ * and interacts with the Supabase database to fetch or update data as needed. Error handling is implemented to manage
+ * unauthorized access and other potential issues.
+ *
+ * @param request - The incoming request object.
+ * @param context - The context object containing parameters and other relevant data.
+ * @returns A JSON response based on the requested path and processed data.
+ * @throws Error If an internal error occurs during processing.
+ */
 export async function GET(request, context) {
   const params = await context.params;
   const path = getPath(params);
@@ -672,6 +691,16 @@ done
   }
 }
 
+/**
+ * Handles various POST requests for fleet and agent management.
+ *
+ * This function processes incoming requests based on the specified path, performing actions such as creating fleets and agents, handling agent heartbeats, resolving alerts, seeding demo data, managing subscriptions, and team invitations. It verifies user authorization and interacts with the Supabase database to perform CRUD operations. Error handling is implemented to manage various failure scenarios, returning appropriate responses based on the outcome of each operation.
+ *
+ * @param request - The incoming request object containing the request data.
+ * @param context - The context object providing access to parameters and other contextual information.
+ * @returns A JSON response indicating the result of the operation.
+ * @throws Error If an internal error occurs during processing.
+ */
 export async function POST(request, context) {
   const params = await context.params;
   const path = getPath(params);
