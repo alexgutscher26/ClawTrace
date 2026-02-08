@@ -735,6 +735,18 @@ function DashboardView({ navigate, session, api }) {
 }
 
 // ============ AGENT DETAIL ============
+/**
+ * Renders the agent detail view, displaying agent information and metrics.
+ *
+ * This component fetches agent details and metrics from the API based on the provided agentId. It manages loading states, handles configuration saving, and restarts the agent. The metrics are processed to display latency, tasks, and errors over a 24-hour period. The component also provides navigation and interaction options for the user.
+ *
+ * @param {Object} props - The component props.
+ * @param {Function} props.navigate - Function to navigate to different routes.
+ * @param {Object} props.session - The current user session.
+ * @param {Function} props.api - Function to make API calls.
+ * @param {string} props.agentId - The ID of the agent to display.
+ * @returns {JSX.Element|null} The rendered component or null if the agent is not found.
+ */
 function AgentDetailView({ navigate, session, api, agentId }) {
   const [agent, setAgent] = useState(null);
   const [loading, setLoading] = useState(true);
