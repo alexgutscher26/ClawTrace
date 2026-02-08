@@ -856,7 +856,7 @@ function AgentDetailView({ navigate, session, api, agentId }) {
               <Card className="glass-card">
                 <CardHeader className="pb-2"><CardTitle className="text-sm">Agent Info</CardTitle></CardHeader>
                 <CardContent className="space-y-3 text-sm">
-                  {[['Machine ID', agent.machine_id || '-'], ['Location', agent.location || '-'], ['Model', agent.model], ['Profile', agent.config_json?.profile || '-'], ['Skills', (agent.config_json?.skills || []).join(', ')], ['Data Scope', agent.config_json?.data_scope || '-'], ['Created', new Date(agent.created_at).toLocaleDateString()]].map(([k, v]) => (
+                  {[['Machine ID', agent.machine_id || '-'], ['Location', agent.location || '-'], ['Model', agent.config_json?.model || agent.model || '-'], ['Profile', agent.config_json?.profile || '-'], ['Skills', (agent.config_json?.skills || []).join(', ')], ['Data Scope', agent.config_json?.data_scope || '-'], ['Created', new Date(agent.created_at).toLocaleDateString()]].map(([k, v]) => (
                     <div key={k} className="flex justify-between"><span className="text-muted-foreground">{k}</span><span className="font-medium">{v}</span></div>
                   ))}
                 </CardContent>

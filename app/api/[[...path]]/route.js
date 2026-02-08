@@ -433,10 +433,28 @@ done
         '        $uptimeVal = [math]::Round((New-TimeSpan -Start $osInfo.LastBootUpTime -End (Get-Date)).TotalHours)',
         '    } catch { $uptimeVal = 0 }',
         '',
+        '    # Get machine ID (hostname)',
+        '    $machineId = $env:COMPUTERNAME',
+        '',
+        '    # Guess location from timezone',
+        '    $location = "unknown"',
+        '    try {',
+        '        $tz = [System.TimeZoneInfo]::Local.Id',
+        '        if ($tz -match "Pacific") { $location = "us-west" }',
+        '        elseif ($tz -match "Mountain") { $location = "us-mountain" }',
+        '        elseif ($tz -match "Central") { $location = "us-central" }',
+        '        elseif ($tz -match "Eastern") { $location = "us-east" }',
+        '        elseif ($tz -match "GMT|UTC") { $location = "eu-west" }',
+        '        elseif ($tz -match "Europe") { $location = "eu-central" }',
+        '        elseif ($tz -match "Asia") { $location = "ap-southeast" }',
+        '    } catch { }',
+        '',
         '    $body = @{',
-        '        agent_id = $AgentId',
-        '        status   = $status',
-        '        metrics  = @{',
+        '        agent_id   = $AgentId',
+        '        status     = $status',
+        '        machine_id = $machineId',
+        '        location   = $location',
+        '        metrics    = @{',
         '            cpu_usage    = [int]$cpuVal',
         '            memory_usage = [int]$memVal',
         '            uptime_hours = [int]$uptimeVal',
@@ -975,6 +993,11 @@ export async function POST(request, context) {
           cost_usd: totalCost
         };
       }
+
+      // Update machine_id and location if provided
+      if (body.machine_id) update.machine_id = body.machine_id;
+      if (body.location) update.location = body.location;
+
       const { error } = await supabaseAdmin.from('agents').update(update).eq('id', body.agent_id);
       if (error) throw error;
       return json({ message: 'Heartbeat received', status: update.status });
