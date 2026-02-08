@@ -7,6 +7,7 @@ $AgentId = "79a68826-b5af-49a3-b9db-6c322c858f17"
 $AgentSecret = "4721c562-21eb-4b65-ae77-dcd6ec94f710"
 $Interval = 300
 $SessionToken = $null
+$GatewayUrl = $null
 
 Write-Host ""
 Write-Host "  OpenClaw Fleet Monitor" -ForegroundColor Green
@@ -23,6 +24,7 @@ function Perform-Handshake {
         $res = Invoke-RestMethod -Uri "$SaasUrl/api/agents/handshake" -Method POST -Body $body -ContentType "application/json"
         if ($res.token) {
             $script:SessionToken = $res.token
+            $script:GatewayUrl = $res.gateway_url
             Write-Host "[$(Get-Date -Format "HH:mm:ss")] Handshake successful" -ForegroundColor Green
             return $true
         }
@@ -36,6 +38,20 @@ function Send-Heartbeat {
     if (-not $SessionToken) {
         if (-not (Perform-Handshake)) { return }
     }
+    
+    $status = "healthy"
+    $latency = 0
+    if ($GatewayUrl) {
+        try {
+            $start = Get-Date
+            $test = Invoke-WebRequest -Uri $GatewayUrl -Method GET -TimeoutSec 5 -UseBasicParsing -ErrorAction Ignore
+            if ($test.StatusCode -ge 400) { $status = "healthy" } # Service is up but returns error
+            $latency = [math]::Round(((Get-Date) - $start).TotalMilliseconds)
+        } catch {
+            $status = "error"
+        }
+    }
+
     $cpuVal = 0
     try {
         $cpuVal = [math]::Round((Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average)
@@ -55,11 +71,12 @@ function Send-Heartbeat {
 
     $body = @{
         agent_id = $AgentId
-        status   = "healthy"
+        status   = $status
         metrics  = @{
             cpu_usage    = [int]$cpuVal
             memory_usage = [int]$memVal
             uptime_hours = [int]$uptimeVal
+            latency_ms   = [int]$latency
         }
     } | ConvertTo-Json -Depth 3
 

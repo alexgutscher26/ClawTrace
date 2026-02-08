@@ -5,6 +5,77 @@ import { SignJWT, jwtVerify } from 'jose';
 
 const JWT_SECRET = new TextEncoder().encode(process.env.SUPABASE_SERVICE_ROLE_KEY || 'default-secret-for-development-only');
 
+const RATE_LIMIT_CONFIG = {
+  free: {
+    global: { capacity: 60, refillRate: 1 }, // 60 req / min
+    handshake: { capacity: 5, refillRate: 5 / 600 }, // 5 req / 10 min
+    heartbeat: { capacity: 3, refillRate: 1 / 300 }, // 1 req / 5 min
+  },
+  pro: {
+    global: { capacity: 600, refillRate: 10 }, // 600 req / min
+    handshake: { capacity: 50, refillRate: 50 / 600 }, // 50 req / 10 min
+    heartbeat: { capacity: 10, refillRate: 1 / 60 }, // 1 req / min
+  }
+};
+
+async function getTier(userId) {
+  if (!userId) return 'free';
+  const { data } = await supabaseAdmin
+    .from('subscriptions')
+    .select('plan')
+    .eq('user_id', userId)
+    .neq('status', 'cancelled')
+    .maybeSingle();
+  return data?.plan || 'free';
+}
+
+async function checkRateLimit(request, identifier, type = 'global', userId = null) {
+  const tier = await getTier(userId);
+  const config = RATE_LIMIT_CONFIG[tier][type] || RATE_LIMIT_CONFIG.free[type];
+  const now = Date.now() / 1000; // seconds
+
+  const { data, error } = await supabaseAdmin
+    .from('rate_limits')
+    .select('*')
+    .eq('identifier', identifier)
+    .eq('path', type)
+    .maybeSingle();
+
+  let bucket = data?.bucket || { tokens: config.capacity, last_refill: now };
+
+  if (data) {
+    const elapsed = now - bucket.last_refill;
+    bucket.tokens = Math.min(config.capacity, bucket.tokens + (elapsed * config.refillRate));
+    bucket.last_refill = now;
+  }
+
+  if (bucket.tokens < 1) {
+    return {
+      allowed: false,
+      response: json({
+        error: 'Too many requests',
+        type,
+        retry_after: Math.ceil((1 - bucket.tokens) / config.refillRate)
+      }, 429)
+    };
+  }
+
+  bucket.tokens -= 1;
+
+  if (data) {
+    await supabaseAdmin
+      .from('rate_limits')
+      .update({ bucket, updated_at: new Date().toISOString() })
+      .eq('id', data.id);
+  } else {
+    await supabaseAdmin
+      .from('rate_limits')
+      .insert({ identifier, path: type, bucket });
+  }
+
+  return { allowed: true };
+}
+
 async function createAgentToken(agentId, fleetId) {
   return await new SignJWT({ agent_id: agentId, fleet_id: fleetId })
     .setProtectedHeader({ alg: 'HS256' })
@@ -62,7 +133,13 @@ export async function OPTIONS() {
 export async function GET(request, context) {
   const params = await context.params;
   const path = getPath(params);
+  const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
+
   try {
+    // Global IP Rate Limit
+    const globalLimit = await checkRateLimit(request, ip, 'global');
+    if (!globalLimit.allowed) return globalLimit.response;
+
     if (path === '/health') {
       return json({ status: 'ok', timestamp: new Date().toISOString() });
     }
@@ -90,6 +167,7 @@ AGENT_ID="${agentId}"
 AGENT_SECRET="${agentSecret}"
 INTERVAL=${interval}
 SESSION_TOKEN=""
+GATEWAY_URL=""
 
 echo ""
 echo "  OpenClaw Fleet Monitor"
@@ -106,8 +184,9 @@ perform_handshake() {
     -H "Content-Type: application/json" \\
     -d "{\\"agent_id\\":\\"$AGENT_ID\\",\\"agent_secret\\":\\"$AGENT_SECRET\\"}")
   
-  # Extract token using simple grep/cut
+  # Extract token and gateway_url using simple grep/cut
   SESSION_TOKEN=$(echo "$RESPONSE" | grep -o '"token":"[^"]*' | cut -d'"' -f4)
+  GATEWAY_URL=$(echo "$RESPONSE" | grep -o '"gateway_url":"[^"]*' | cut -d'"' -f4)
   
   if [ -n "$SESSION_TOKEN" ]; then
     echo "[$(date +%H:%M:%S)] Handshake successful"
@@ -182,6 +261,18 @@ get_uptime_hours() {
     perform_handshake || return 1
   fi
 
+  STATUS="healthy"
+  LATENCY=0
+  if [ -n "$GATEWAY_URL" ]; then
+    START=$(date +%s%3N)
+    if curl -s -f -I -m 5 "$GATEWAY_URL" > /dev/null; then
+      END=$(date +%s%3N)
+      LATENCY=$((END - START))
+    else
+      STATUS="error"
+    fi
+  fi
+
   CPU=$(get_cpu)
   MEM=$(get_mem)
   UPTIME_H=$(get_uptime_hours)
@@ -195,7 +286,7 @@ get_uptime_hours() {
   RESPONSE=$(curl -s -w "\\n%{http_code}" -X POST "\${SAAS_URL}/api/heartbeat" \\
     -H "Content-Type: application/json" \\
     -H "Authorization: Bearer $SESSION_TOKEN" \\
-    -d "{\\"agent_id\\":\\"$AGENT_ID\\",\\"status\\":\\"healthy\\",\\"metrics\\":{\\"cpu_usage\\":$CPU,\\"memory_usage\\":$MEM,\\"uptime_hours\\":$UPTIME_H}}")
+    -d "{\\"agent_id\\":\\"$AGENT_ID\\",\\"status\\":\\"$STATUS\\",\\"metrics\\":{\\"cpu_usage\\":$CPU,\\"memory_usage\\":$MEM,\\"uptime_hours\\":$UPTIME_H,\\"latency_ms\\":$LATENCY}}")
 
   HTTP_CODE=$(echo "$RESPONSE" | tail -1)
   BODY=$(echo "$RESPONSE" | head -1)
@@ -250,6 +341,7 @@ done
         '$AgentSecret = "' + agentSecret + '"',
         '$Interval = ' + interval,
         '$SessionToken = $null',
+        '$GatewayUrl = $null',
         '',
         'Write-Host ""',
         'Write-Host "  OpenClaw Fleet Monitor" -ForegroundColor Green',
@@ -257,6 +349,7 @@ done
         'Write-Host "  Agent:    $AgentId"',
         'Write-Host "  SaaS:     $SaasUrl"',
         'Write-Host "  Interval: $($Interval)s"',
+        'Write-Host "  Gateway:  $($GatewayUrl ?? "N/A (Probing Disabled)")"',
         'Write-Host ""',
         '',
         'function Perform-Handshake {',
@@ -266,6 +359,7 @@ done
         '        $res = Invoke-RestMethod -Uri "$SaasUrl/api/agents/handshake" -Method POST -Body $body -ContentType "application/json"',
         '        if ($res.token) {',
         '            $script:SessionToken = $res.token',
+        '            $script:GatewayUrl = $res.gateway_url',
         '            Write-Host "[$(Get-Date -Format "HH:mm:ss")] Handshake successful" -ForegroundColor Green',
         '            return $true',
         '        }',
@@ -279,6 +373,20 @@ done
         '    if (-not $SessionToken) {',
         '        if (-not (Perform-Handshake)) { return }',
         '    }',
+        '    ',
+        '    $status = "healthy"',
+        '    $latency = 0',
+        '    if ($GatewayUrl) {',
+        '        try {',
+        '            $start = Get-Date',
+        '            $test = Invoke-WebRequest -Uri $GatewayUrl -Method GET -TimeoutSec 5 -UseBasicParsing -ErrorAction Ignore',
+        '            if ($test.StatusCode -ge 400) { $status = "healthy" } # Service is up but returns error',
+        '            $latency = [math]::Round(((Get-Date) - $start).TotalMilliseconds)',
+        '        } catch {',
+        '            $status = "error"',
+        '        }',
+        '    }',
+        '',
         '    $cpuVal = 0',
         '    try {',
         '        $cpuVal = [math]::Round((Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average)',
@@ -298,11 +406,12 @@ done
         '',
         '    $body = @{',
         '        agent_id = $AgentId',
-        '        status   = "healthy"',
+        '        status   = $status',
         '        metrics  = @{',
         '            cpu_usage    = [int]$cpuVal',
         '            memory_usage = [int]$memVal',
         '            uptime_hours = [int]$uptimeVal',
+        '            latency_ms   = [int]$latency',
         '        }',
         '    } | ConvertTo-Json -Depth 3',
         '',
@@ -310,7 +419,8 @@ done
         '        $headers = @{ Authorization = "Bearer $SessionToken" }',
         '        $null = Invoke-RestMethod -Uri "$SaasUrl/api/heartbeat" -Method POST -ContentType "application/json" -Body $body -Headers $headers',
         '        $time = Get-Date -Format "HH:mm:ss"',
-        '        Write-Host "[$time] Heartbeat sent  CPU: $($cpuVal)%  MEM: $($memVal)%" -ForegroundColor Green',
+        '        $statusColor = if ($status -eq "healthy") { "Green" } else { "Red" }',
+        '        Write-Host "[$time] Heartbeat sent ($($status.ToUpper()))  CPU: $($cpuVal)%  MEM: $($memVal)%  Latency: $($latency)ms" -ForegroundColor $statusColor',
         '    } catch {',
         '        $time = Get-Date -Format "HH:mm:ss"',
         '        if ($_.Exception.Response.StatusCode -eq 401) {',
@@ -363,18 +473,14 @@ done
         'SAAS_URL = "' + baseUrl + '"',
         'AGENT_ID = "' + agentId + '"',
         'AGENT_SECRET = "' + agentSecret + '"',
-        'INTERVAL = ' + interval,
-        'SESSION_TOKEN = None',
+        'INTERVAL = ' + interval + '\nSESSION_TOKEN = None\nGATEWAY_URL = None\n',
         '',
         'def perform_handshake():',
-        '    global SESSION_TOKEN',
+        '    global SESSION_TOKEN, GATEWAY_URL',
         '    data = json.dumps({"agent_id": AGENT_ID, "agent_secret": AGENT_SECRET}).encode()',
         '    req = urllib.request.Request(f"{SAAS_URL}/api/agents/handshake", data=data, headers={"Content-Type": "application/json"}, method="POST")',
         '    try:',
-        '        with urllib.request.urlopen(req, timeout=10) as resp:',
-        '            res = json.loads(resp.read().decode())',
-        '            SESSION_TOKEN = res.get("token")',
-        '            return True',
+        '        with urllib.request.urlopen(req, timeout=10) as resp:\n            res = json.loads(resp.read().decode())\n            SESSION_TOKEN = res.get("token")\n            GATEWAY_URL = res.get("gateway_url")\n            return True',
         '    except Exception as e:',
         '        print(f"[{time.strftime(\'%H:%M:%S\')}] Handshake failed: {e}")',
         '        return False',
@@ -447,11 +553,7 @@ done
         '',
         'def send_heartbeat():',
         '    global SESSION_TOKEN',
-        '    if not SESSION_TOKEN:',
-        '        if not perform_handshake(): return',
-        '',
-        '    cpu, mem, uptime = get_cpu(), get_mem(), get_uptime()',
-        '    data = json.dumps({"agent_id": AGENT_ID, "status": "healthy", "metrics": {"cpu_usage": cpu, "memory_usage": mem, "uptime_hours": uptime}}).encode()',
+        '    if not SESSION_TOKEN:\n        if not perform_handshake(): return\n\n    status = "healthy"\n    latency = 0\n    if GATEWAY_URL:\n        try:\n            start = time.time()\n            urllib.request.urlopen(GATEWAY_URL, timeout=5)\n            latency = int((time.time() - start) * 1000)\n        except:\n            status = "error"\n\n    cpu, mem, uptime = get_cpu(), get_mem(), get_uptime()\n    data = json.dumps({"agent_id": AGENT_ID, "status": status, "metrics": {"cpu_usage": cpu, "memory_usage": mem, "uptime_hours": uptime, "latency_ms": latency}}).encode()\n',
         '    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {SESSION_TOKEN}"}',
         '    req = urllib.request.Request(f"{SAAS_URL}/api/heartbeat", data=data, headers=headers, method="POST")',
         '    try:',
@@ -675,7 +777,13 @@ done
 export async function POST(request, context) {
   const params = await context.params;
   const path = getPath(params);
+  const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
+
   try {
+    // Global IP Rate Limit
+    const globalLimit = await checkRateLimit(request, ip, 'global');
+    if (!globalLimit.allowed) return globalLimit.response;
+
     if (path === '/fleets') {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
@@ -736,14 +844,20 @@ export async function POST(request, context) {
 
     if (path === '/agents/handshake') {
       const body = await request.json();
+
+      // Get agent's owner for tier-based handshake limit
       const { data: agent, error } = await supabaseAdmin
         .from('agents')
-        .select('id, fleet_id, agent_secret')
+        .select('id, fleet_id, agent_secret, user_id, gateway_url')
         .eq('id', body.agent_id)
         .maybeSingle();
 
       if (error) throw error;
       if (!agent) return json({ error: 'Agent not found' }, 404);
+
+      // Route-specific handshake limit
+      const handshakeLimit = await checkRateLimit(request, agent.id, 'handshake', agent.user_id);
+      if (!handshakeLimit.allowed) return handshakeLimit.response;
 
       // Simple secret check (Option B uses secret for handshake)
       if (!agent.agent_secret || agent.agent_secret !== body.agent_secret) {
@@ -751,7 +865,7 @@ export async function POST(request, context) {
       }
 
       const token = await createAgentToken(agent.id, agent.fleet_id);
-      return json({ token, expires_in: 86400 });
+      return json({ token, expires_in: 86400, gateway_url: agent.gateway_url });
     }
 
     if (path === '/heartbeat') {
@@ -769,6 +883,10 @@ export async function POST(request, context) {
       if (!payload || payload.agent_id !== body.agent_id) {
         return json({ error: 'Invalid or expired session' }, 401);
       }
+
+      // Route-specific heartbeat limit
+      const heartbeatLimit = await checkRateLimit(request, payload.agent_id, 'heartbeat');
+      if (!heartbeatLimit.allowed) return heartbeatLimit.response;
 
       const { data: agent, error: fetchError } = await supabaseAdmin
         .from('agents')
