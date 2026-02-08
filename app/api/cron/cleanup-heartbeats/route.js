@@ -5,6 +5,13 @@ import { isValidCronRequest, unauthorizedResponse } from '@/lib/cron-auth';
 // Force dynamic to prevent caching
 export const dynamic = 'force-dynamic';
 
+/**
+ * Handles the GET request to clean up old heartbeat records.
+ *
+ * This function performs a security check to validate the incoming request. If the request is valid, it calculates a cutoff date for records older than 30 days and attempts to delete those records from the 'heartbeats' table in the Supabase database. It logs the number of deleted records and returns a JSON response indicating the success of the operation or any errors encountered during the process.
+ *
+ * @param {Request} request - The incoming request object to be validated and processed.
+ */
 export async function GET(request) {
     // 1. Security Check
     if (!isValidCronRequest(request)) {
