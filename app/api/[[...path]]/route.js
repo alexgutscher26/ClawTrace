@@ -916,7 +916,12 @@ export async function POST(request, context) {
         updated_at: new Date().toISOString(),
       };
       if (body.metrics) {
-        update.metrics_json = { ...agent.metrics_json, ...body.metrics };
+        // Merge incoming metrics and increment tasks_completed
+        update.metrics_json = {
+          ...agent.metrics_json,
+          ...body.metrics,
+          tasks_completed: (agent.metrics_json?.tasks_completed || 0) + 1
+        };
       }
       const { error } = await supabaseAdmin.from('agents').update(update).eq('id', body.agent_id);
       if (error) throw error;
