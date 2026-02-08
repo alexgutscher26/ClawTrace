@@ -1100,6 +1100,41 @@ export async function POST(request, context) {
       }));
       await supabaseAdmin.from('alerts').insert(alertDocs);
 
+      // Seed metrics history for charts
+      const metricsDocs = [];
+      const historyHours = 24;
+
+      agentDocs.forEach(agent => {
+        const baseLatency = agent.metrics_json?.latency_ms || 100;
+        const baseErrors = agent.metrics_json?.errors_count || 0;
+        const baseTasks = agent.metrics_json?.tasks_completed || 0;
+
+        for (let i = 0; i < historyHours; i++) {
+          const timeOffset = (historyHours - i) * 3600000;
+          const timestamp = new Date(now - timeOffset).toISOString();
+          const progress = (i + 1) / historyHours;
+
+          metricsDocs.push({
+            agent_id: agent.id,
+            user_id: user.id,
+            cpu_usage: Math.floor(Math.random() * 60) + 10,
+            memory_usage: Math.floor(Math.random() * 50) + 20,
+            latency_ms: Math.floor(Math.max(20, baseLatency + (Math.random() - 0.5) * 50)),
+            uptime_hours: Math.floor((agent.metrics_json?.uptime_hours || 0) * progress),
+            tasks_completed: Math.floor(baseTasks * progress),
+            errors_count: Math.floor(baseErrors * progress),
+            created_at: timestamp
+          });
+        }
+      });
+
+      try {
+        await supabaseAdmin.from('agent_metrics').delete().eq('user_id', user.id); // Clear old metrics
+        await supabaseAdmin.from('agent_metrics').insert(metricsDocs);
+      } catch (e) {
+        console.error('Demo metrics seed error (table likely missing):', e);
+      }
+
       return json({ message: 'Demo data loaded', agents: agentDocs.length, alerts: alertDocs.length });
     }
 
