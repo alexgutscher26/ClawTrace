@@ -1017,6 +1017,7 @@ export async function POST(request, context) {
       // Update machine_id and location if provided
       if (body.machine_id) update.machine_id = body.machine_id;
       if (body.location) update.location = body.location;
+      if (body.model) update.model = body.model; // Auto-detect model from agent
 
       const { error } = await supabaseAdmin.from('agents').update(update).eq('id', body.agent_id);
       if (error) throw error;

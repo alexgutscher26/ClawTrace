@@ -474,7 +474,7 @@ function DashboardView({ navigate, session, api }) {
   const [selectedFleet, setSelectedFleet] = useState(null);
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
-  const [newAgent, setNewAgent] = useState({ name: '', gateway_url: '', model: 'gpt-4', location: '', machine_id: '' });
+  const [newAgent, setNewAgent] = useState({ name: '', gateway_url: '' });
   const [seeding, setSeeding] = useState(false);
 
   const loadData = useCallback(async () => {
@@ -529,7 +529,7 @@ function DashboardView({ navigate, session, api }) {
       await api('/api/agents', { method: 'POST', body: JSON.stringify({ ...newAgent, fleet_id: selectedFleet }) });
       toast.success('Agent registered!');
       setAddOpen(false);
-      setNewAgent({ name: '', gateway_url: '', model: 'gpt-4', location: '', machine_id: '' });
+      setNewAgent({ name: '', gateway_url: '' });
       loadAgents();
       loadData();
     } catch (err) {
@@ -708,21 +708,8 @@ function DashboardView({ navigate, session, api }) {
           <form onSubmit={handleAddAgent} className="space-y-4">
             <div><Label>Agent Name</Label><Input placeholder="alpha-coder" value={newAgent.name} onChange={e => setNewAgent(p => ({ ...p, name: e.target.value }))} required /></div>
             <div><Label>Gateway URL</Label><Input placeholder="http://192.168.1.100:8080" value={newAgent.gateway_url} onChange={e => setNewAgent(p => ({ ...p, gateway_url: e.target.value }))} required /></div>
-            <div><Label>Model</Label>
-              <Select value={newAgent.model} onValueChange={v => setNewAgent(p => ({ ...p, model: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="gpt-4">GPT-4</SelectItem>
-                  <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
-                  <SelectItem value="claude-3">Claude 3</SelectItem>
-                  <SelectItem value="llama-3">LLaMA 3</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>Location</Label><Input placeholder="us-east-1" value={newAgent.location} onChange={e => setNewAgent(p => ({ ...p, location: e.target.value }))} /></div>
-              <div><Label>Machine ID</Label><Input placeholder="droplet-001" value={newAgent.machine_id} onChange={e => setNewAgent(p => ({ ...p, machine_id: e.target.value }))} /></div>
-            </div>
+
+
             <DialogFooter><Button type="submit" className="bg-emerald-600 hover:bg-emerald-700">Register Agent</Button></DialogFooter>
           </form>
         </DialogContent>
