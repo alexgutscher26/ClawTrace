@@ -916,6 +916,11 @@ export async function POST(request, context) {
         updated_at: new Date().toISOString(),
       };
       if (body.metrics) {
+        // Calculate uptime based on agent creation time (not machine uptime)
+        const createdAt = new Date(agent.created_at);
+        const now = new Date();
+        const uptimeHours = Math.floor((now - createdAt) / (1000 * 60 * 60));
+
         // Merge incoming metrics and increment tasks_completed
         update.metrics_json = {
           ...agent.metrics_json,
@@ -924,7 +929,9 @@ export async function POST(request, context) {
           // Increment errors_count if status is 'error'
           errors_count: (body.status === 'error')
             ? (agent.metrics_json?.errors_count || 0) + 1
-            : (agent.metrics_json?.errors_count || 0)
+            : (agent.metrics_json?.errors_count || 0),
+          // Override uptime_hours with calculated value
+          uptime_hours: uptimeHours
         };
       }
       const { error } = await supabaseAdmin.from('agents').update(update).eq('id', body.agent_id);
