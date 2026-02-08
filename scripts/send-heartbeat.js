@@ -3,6 +3,13 @@ const baseUrl = 'http://localhost:3000';
 const agentId = '79a68826-b5af-49a3-b9db-6c322c858f17';
 const agentSecret = '4721c562-21eb-4b65-ae77-dcd6ec94f710';
 
+/**
+ * Sends a single heartbeat to test the increment.
+ *
+ * This function performs a handshake with the server to obtain an authorization token using the agent's credentials.
+ * If the handshake is successful, it sends a heartbeat containing the agent's status and metrics.
+ * The function logs the results of both the handshake and the heartbeat transmission, handling errors appropriately.
+ */
 async function sendOneHeartbeat() {
     console.log('🚀 Sending single heartbeat to test increment...\n');
 
