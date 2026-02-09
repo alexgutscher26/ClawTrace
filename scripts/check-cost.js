@@ -2,6 +2,14 @@ const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const path = require('path');
 
+/**
+ * Loads environment variables from a .env file.
+ *
+ * This function resolves the path to the .env file, checks if it exists, and reads its content.
+ * It splits the content by lines and processes each line to extract key-value pairs,
+ * which are then assigned to the process.env object if valid.
+ * This allows for dynamic configuration of environment variables in the application.
+ */
 function loadEnv() {
     const envPath = path.resolve(__dirname, '../.env');
     if (!fs.existsSync(envPath)) return;
@@ -17,6 +25,13 @@ loadEnv();
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
+/**
+ * Check the cost associated with a specific agent based on its model and metrics.
+ *
+ * This function retrieves the agent's details from the Supabase database using the agentId. It calculates the expected cost based on the model pricing and compares it with the stored cost in the agent's metrics. It logs the results, including any discrepancies between the expected and stored costs, and provides a pricing table for reference.
+ *
+ * @returns {Promise<void>} A promise that resolves when the cost check is complete.
+ */
 async function checkCost() {
     const agentId = '79a68826-b5af-49a3-b9db-6c322c858f17';
 
