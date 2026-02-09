@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { SignJWT, jwtVerify } from 'jose';
 import { encrypt, decrypt } from '@/lib/encryption';
 import { getPolicy } from '@/lib/policies';
+import { processSmartAlerts } from '@/lib/alerts';
 
 const decryptAgent = (a) => {
   if (!a) return a;
@@ -715,6 +716,30 @@ done
       return json({ metrics });
     }
 
+    if (path === '/alert-channels') {
+      const user = await getUser(request);
+      if (!user) return json({ error: 'Unauthorized' }, 401);
+      const { data: channels, error } = await supabaseAdmin
+        .from('alert_channels')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return json({ channels });
+    }
+
+    if (path === '/alert-configs') {
+      const user = await getUser(request);
+      if (!user) return json({ error: 'Unauthorized' }, 401);
+      const { searchParams } = new URL(request.url);
+      const agent_id = searchParams.get('agent_id');
+      let query = supabaseAdmin.from('alert_configs').select('*, channel:alert_channels(*)').eq('user_id', user.id);
+      if (agent_id) query = query.eq('agent_id', agent_id);
+      const { data: configs, error } = await query.order('created_at', { ascending: false });
+      if (error) throw error;
+      return json({ configs });
+    }
+
     if (path === '/alerts') {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
@@ -1057,6 +1082,11 @@ export async function POST(request, context) {
         }
       }
 
+      // Trigger smart alerts
+      if (body.metrics) {
+        processSmartAlerts(body.agent_id, update.status, body.metrics).catch(e => console.error('Alert processing error:', e));
+      }
+
       return json({
         message: 'Heartbeat received',
         status: update.status,
@@ -1248,7 +1278,52 @@ export async function POST(request, context) {
       const newMembers = [...(team.members || []), { user_id: null, email: body.email, role: body.role || 'member', invited_by: user.id, joined_at: new Date().toISOString() }];
       await supabaseAdmin.from('teams').update({ members: newMembers }).eq('id', team.id);
 
-      return json({ message: `Invited ${body.email}` }, 201);
+      return json({ message: 'Invite sent' });
+    }
+
+    // ============ ALERT CHANNELS ============
+    if (path === '/alert-channels') {
+      const user = await getUser(request);
+      if (!user) return json({ error: 'Unauthorized' }, 401);
+      const body = await request.json();
+      const channel = {
+        id: uuidv4(),
+        user_id: user.id,
+        name: body.name,
+        type: body.type,
+        config: body.config || {},
+        active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      const { error } = await supabaseAdmin.from('alert_channels').insert(channel);
+      if (error) throw error;
+      return json({ channel }, 201);
+    }
+
+    // ============ ALERT CONFIGS ============
+    if (path === '/alert-configs') {
+      const user = await getUser(request);
+      if (!user) return json({ error: 'Unauthorized' }, 401);
+      const body = await request.json();
+      const config = {
+        id: uuidv4(),
+        user_id: user.id,
+        agent_id: body.agent_id,
+        fleet_id: body.fleet_id,
+        channel_id: body.channel_id,
+        cpu_threshold: body.cpu_threshold || 90,
+        mem_threshold: body.mem_threshold || 90,
+        latency_threshold: body.latency_threshold || 1000,
+        offline_alert: body.offline_alert !== undefined ? body.offline_alert : true,
+        error_alert: body.error_alert !== undefined ? body.error_alert : true,
+        cooldown_minutes: body.cooldown_minutes || 60,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      const { error } = await supabaseAdmin.from('alert_configs').insert(config);
+      if (error) throw error;
+      return json({ config }, 201);
     }
 
     // ============ TEAM REMOVE MEMBER ============

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { isValidCronRequest, unauthorizedResponse } from '@/lib/cron-auth';
+import { processSmartAlerts } from '@/lib/alerts';
 
 // Force dynamic to prevent static caching of the cron checks
 export const dynamic = 'force-dynamic';
@@ -31,9 +32,18 @@ export async function GET(request) {
 
         const count = data ? data.length : 0;
 
-        // Log the action if agents were updated
+        // Log the action and trigger alerts if agents were updated
         if (count > 0) {
             console.log(`[Cron] Marked ${count} agents as offline:`, data.map(a => a.name));
+
+            // Trigger Smart Alerts for each offline agent
+            for (const agent of data) {
+                // Since this is a cron and we don't have current metrics, we pass empty metrics
+                // processSmartAlerts will check the offline_alert flag
+                processSmartAlerts(agent.id, 'offline', {}).catch(e =>
+                    console.error(`Alert processing error for ${agent.name}:`, e)
+                );
+            }
         }
 
         return NextResponse.json({

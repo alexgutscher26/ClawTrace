@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,11 +14,12 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Toaster, toast } from 'sonner';
 import {
-  Server, Activity, AlertTriangle, Shield, Users, Settings,
-  ChevronRight, Plus, RefreshCw, Trash2, Terminal, Zap, Globe,
-  Clock, DollarSign, Cpu, HardDrive, ArrowLeft, LogOut, Menu, X,
-  Check, Star, Rocket, CheckCircle, XCircle, Wifi, WifiOff,
-  BarChart3, TrendingUp, Eye, Copy, Database
+  Server, Activity, AlertTriangle, Shield,
+  Plus, RefreshCw, Trash2, Terminal, Zap,
+  Clock, DollarSign, Cpu, HardDrive, ArrowLeft, Menu, X,
+  CheckCircle, XCircle, Wifi,
+  BarChart3, Eye, Copy, Database,
+  Bell, Slack, Webhook
 } from 'lucide-react';
 
 
@@ -27,7 +28,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
-import { getPolicy, POLICY_PROFILES } from '@/lib/policies';
+import { getPolicy } from '@/lib/policies';
 
 const STATUS_CONFIG = {
   healthy: { color: 'bg-white', text: 'text-white', border: 'border-white/20', label: 'OPERATIONAL', bgLight: 'bg-white/10' },
@@ -55,6 +56,8 @@ function useHashRouter() {
       if (hash === '/register') return { view: 'register', params: {} };
       if (hash === '/dashboard') return { view: 'dashboard', params: {} };
       if (hash === '/pricing') return { view: 'pricing', params: {} };
+      if (hash === '/settings') return { view: 'settings', params: {} };
+      if (hash === '/changelog') return { view: 'changelog', params: {} };
       const m = hash.match(/^\/agent\/(.+)$/);
       if (m) return { view: 'agent-detail', params: { id: m[1] } };
       return { view: 'landing', params: {} };
@@ -66,6 +69,376 @@ function useHashRouter() {
   }, []);
   const navigate = useCallback((p) => { window.location.hash = p; }, []);
   return { ...route, navigate };
+}
+
+const CHANGELOG_DATA = [
+  {
+    date: 'February 2026',
+    version: 'v1.4.0',
+    title: 'Deep Intelligence & Smart Alerts',
+    items: [
+      { type: 'feature', text: 'Implemented real-time threshold monitoring for CPU, Memory, and Latency.' },
+      { type: 'feature', text: 'Added integration for Slack, Discord, and Custom Webhooks.' },
+      { type: 'improvement', text: 'Built-in alert fatigue prevention (Squelch logic) for high-frequency events.' },
+      { type: 'feature', text: 'New Settings panel for managing notification channels globally.' }
+    ]
+  },
+  {
+    date: 'January 2026',
+    version: 'v1.3.0',
+    title: 'Policy Engine v2',
+    items: [
+      { type: 'feature', text: 'Revamped Policy profiles with deep hardware enforcement rules.' },
+      { type: 'feature', text: 'Added real-time cost calculation based on agent token usage.' },
+      { type: 'improvement', text: 'Optimized heartbeat frequency for large-scale fleets (10k+ agents).' }
+    ]
+  },
+  {
+    date: 'December 2025',
+    version: 'v1.2.0',
+    title: 'Security Hardening',
+    items: [
+      { type: 'feature', text: 'AES-256-GCM encryption for all sensitive agent configurations.' },
+      { type: 'improvement', text: 'Implemented Row Level Security (RLS) across all core database tables.' },
+      { type: 'feature', text: 'New Team Management system with invite-only access control.' }
+    ]
+  }
+];
+
+function ChangelogView({ navigate, session }) {
+  return (
+    <div className="min-h-screen bg-background text-white">
+      <Navbar navigate={navigate} session={session} />
+
+      <div className="pt-32 pb-20 container mx-auto max-w-4xl px-6">
+        <div className="mb-16">
+          <Badge variant="outline" className="mb-4 border-emerald-500/30 text-emerald-400 bg-emerald-500/5 px-3 py-1 text-[10px] font-mono tracking-widest uppercase">Platform Updates</Badge>
+          <h1 className="text-5xl font-black tracking-tight uppercase italic flex items-center gap-4">
+            Changelog <div className="h-1 flex-1 bg-white/10" />
+          </h1>
+          <p className="text-zinc-500 font-mono mt-4 uppercase tracking-widest text-sm italic">Tracking the evolution of deep fleet orchestration.</p>
+        </div>
+
+        <div className="relative space-y-16">
+          {/* Timeline Line */}
+          <div className="absolute left-0 top-0 bottom-0 w-[1px] bg-gradient-to-b from-emerald-500/50 via-white/10 to-transparent ml-[18px] md:ml-[34px] hidden sm:block" />
+
+          {CHANGELOG_DATA.map((release, idx) => (
+            <div key={idx} className="relative pl-12 sm:pl-24">
+              {/* Point */}
+              <div className="absolute left-0 sm:left-4 top-1.5 w-10 h-10 bg-black border border-white/20 rounded-none flex items-center justify-center z-10 sm:ml-4">
+                <div className="w-2 h-2 bg-emerald-500 rotate-45" />
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                  <span className="font-mono text-emerald-400 text-xs font-bold tracking-tighter bg-emerald-500/10 px-2 py-0.5 border border-emerald-500/20">{release.version}</span>
+                  <span className="text-zinc-500 font-mono text-[10px] uppercase tracking-widest">{release.date}</span>
+                </div>
+
+                <h2 className="text-2xl font-bold italic uppercase tracking-tight">{release.title}</h2>
+
+                <Card className="glass-card border-white/5 bg-white/2">
+                  <CardContent className="pt-6 space-y-4">
+                    {release.items.map((item, i) => (
+                      <div key={i} className="flex gap-4 group">
+                        <div className={`text-[9px] font-mono font-bold uppercase tracking-tighter px-2 py-1 rounded-sm h-fit mt-0.5 flex-shrink-0 ${item.type === 'feature' ? 'bg-white text-black' : 'bg-zinc-800 text-zinc-400'
+                          }`}>
+                          {item.type}
+                        </div>
+                        <p className="text-zinc-300 text-sm leading-relaxed group-hover:text-white transition-colors">{item.text}</p>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-24 pt-12 border-t border-white/5 text-center">
+          <p className="text-zinc-500 text-xs font-mono uppercase tracking-widest leading-loose">
+            Want to see a specific feature? <br />
+            <button className="text-white hover:underline underline-offset-4 font-bold">Request it on GitHub</button>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SettingsView({ navigate, api, session }) {
+  const [channels, setChannels] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [addOpen, setAddOpen] = useState(false);
+  const [newChannel, setNewChannel] = useState({ name: '', type: 'slack', webhook_url: '' });
+
+  const loadChannels = useCallback(async () => {
+    try {
+      const res = await api('/api/alert-channels');
+      setChannels(res.channels || []);
+    } catch (err) { toast.error(err.message); }
+    finally { setLoading(false); }
+  }, [api]);
+
+  useEffect(() => { loadChannels(); }, [loadChannels]);
+
+  const handleAddChannel = async () => {
+    try {
+      await api('/api/alert-channels', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: newChannel.name,
+          type: newChannel.type,
+          config: { webhook_url: newChannel.webhook_url }
+        })
+      });
+      toast.success('Channel added!');
+      setAddOpen(false);
+      setNewChannel({ name: '', type: 'slack', webhook_url: '' });
+      loadChannels();
+    } catch (err) { toast.error(err.message); }
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Navbar navigate={navigate} session={session} />
+      <div className="pt-24 pb-20 container mx-auto px-6">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-white uppercase italic">Settings</h1>
+            <p className="text-muted-foreground text-sm font-mono mt-1">CONFIGURE YOUR FLEET ORCHESTRATOR</p>
+          </div>
+          <Button className="bg-white text-black font-bold h-9 text-xs rounded-none hover:bg-zinc-200" onClick={() => setAddOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" /> ADD NOTIFICATION CHANNEL
+          </Button>
+        </div>
+
+        <Tabs defaultValue="alert-channels" className="w-full">
+          <TabsList className="bg-zinc-950 border border-white/10 rounded-none h-10 p-0 mb-8">
+            <TabsTrigger value="alert-channels" className="h-full rounded-none px-8 font-mono text-[10px] uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:text-black">Alert Channels</TabsTrigger>
+            <TabsTrigger value="general" className="h-full rounded-none px-8 font-mono text-[10px] uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:text-black">General</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="alert-channels">
+            <div className="grid gap-4">
+              {loading ? <LoadingScreen /> : channels.length === 0 ? (
+                <Card className="glass-card p-12 text-center border-dashed border-white/10">
+                  <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Slack className="w-6 h-6 text-zinc-500" />
+                  </div>
+                  <h3 className="text-sm font-bold text-white uppercase mb-1">No channels yet</h3>
+                  <p className="text-muted-foreground text-xs font-mono max-w-xs mx-auto mb-6">Create a Slack or Discord webhook to receive deep intelligence alerts from your agents.</p>
+                  <Button variant="outline" size="sm" className="rounded-none border-white/20 text-[10px] font-bold h-8" onClick={() => setAddOpen(true)}>CREATE FIRST CHANNEL</Button>
+                </Card>
+              ) : (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {channels.map(c => (
+                    <Card key={c.id} className="glass-card border-white/5 hover:border-white/10 transition-colors">
+                      <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                        <div>
+                          <CardTitle className="text-sm font-bold text-white">{c.name}</CardTitle>
+                          <CardDescription className="text-[10px] font-mono text-emerald-400 mt-1 uppercase tracking-tighter">{c.type}</CardDescription>
+                        </div>
+                        <div className={`p-2 rounded-sm ${c.type === 'slack' ? 'bg-emerald-500/10' : 'bg-indigo-500/10'}`}>
+                          {c.type === 'slack' ? <Slack className="w-4 h-4 text-emerald-400" /> : <MoreVertical className="w-4 h-4 text-indigo-400" />}
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex items-center gap-2 mt-2">
+                          <code className="flex-1 bg-black/50 border border-white/5 px-2 py-1 text-[9px] font-mono text-zinc-500 rounded truncate">
+                            {c.config?.webhook_url || '••••••••••••••••'}
+                          </code>
+                          <Badge className="bg-emerald-500 text-black text-[9px] font-bold rounded-none">ACTIVE</Badge>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="general">
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="text-sm font-bold text-white">Project Identity</CardTitle>
+                <CardDescription className="text-xs">General settings for your OpenClaw account.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-2">
+                  <Label className="text-[10px] uppercase text-zinc-500">User ID</Label>
+                  <Input readOnly value={session.user.id} className="bg-zinc-900 border-white/5 h-9 text-xs font-mono" />
+                </div>
+                <div className="grid gap-2">
+                  <Label className="text-[10px] uppercase text-zinc-500">Email</Label>
+                  <Input readOnly value={session.user.email} className="bg-zinc-900 border-white/5 h-9 text-xs font-mono" />
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="sm:max-w-[425px] bg-black border-white/10 text-white rounded-none">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-mono uppercase tracking-widest italic">New Alert Channel</DialogTitle>
+            <DialogDescription className="text-xs text-zinc-500">Configure where your smart alerts should be sent.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label className="text-[10px] uppercase text-zinc-500">Channel Name</Label>
+              <Input placeholder="e.g., #production-alerts" className="bg-zinc-900 border-white/5 h-9 text-xs" value={newChannel.name} onChange={e => setNewChannel(p => ({ ...p, name: e.target.value }))} />
+            </div>
+            <div className="grid gap-2">
+              <Label className="text-[10px] uppercase text-zinc-500">Type</Label>
+              <Select value={newChannel.type} onValueChange={v => setNewChannel(p => ({ ...p, type: v }))}>
+                <SelectTrigger className="bg-zinc-900 border-white/5 h-9 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent className="bg-black border-white/10">
+                  <SelectItem value="slack" className="text-xs">Slack Node</SelectItem>
+                  <SelectItem value="discord" className="text-xs">Discord Webhook</SelectItem>
+                  <SelectItem value="webhook" className="text-xs">Generic Webhook</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label className="text-[10px] uppercase text-zinc-500">Webhook URL</Label>
+              <Input placeholder="https://hooks.slack.com/services/..." className="bg-zinc-900 border-white/5 h-9 text-xs" value={newChannel.webhook_url} onChange={e => setNewChannel(p => ({ ...p, webhook_url: e.target.value }))} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" className="text-xs border-white/10 rounded-none font-bold" onClick={() => setAddOpen(false)}>CANCEL</Button>
+            <Button size="sm" className="text-xs bg-white text-black hover:bg-zinc-200 rounded-none font-black uppercase italic" onClick={handleAddChannel}>ACTIVATE CHANNEL</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function SmartAlertsCard({ agent, api }) {
+  const [configs, setConfigs] = useState([]);
+  const [channels, setChannels] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [addingConfig, setAddingConfig] = useState(false);
+  const [newConfig, setNewConfig] = useState({ channel_id: '', cpu_threshold: 90, mem_threshold: 90, latency_threshold: 1000 });
+
+  const loadAlertData = useCallback(async () => {
+    try {
+      const [confRes, chanRes] = await Promise.all([
+        api(`/api/alert-configs?agent_id=${agent.id}`),
+        api('/api/alert-channels')
+      ]);
+      setConfigs(confRes.configs || []);
+      setChannels(chanRes.channels || []);
+    } catch (err) {
+      console.error('Failed to load alert data:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [api, agent.id]);
+
+  useEffect(() => { loadAlertData(); }, [loadAlertData]);
+
+  const handleAddConfig = async () => {
+    if (!newConfig.channel_id) return toast.error('Select a channel');
+    try {
+      await api('/api/alert-configs', {
+        method: 'POST',
+        body: JSON.stringify({ ...newConfig, agent_id: agent.id })
+      });
+      toast.success('Alert configured!');
+      setAddingConfig(false);
+      loadAlertData();
+    } catch (err) { toast.error(err.message); }
+  };
+
+  return (
+    <Card className="glass-card overflow-hidden">
+      <CardHeader className="pb-3 border-b border-white/5 bg-white/2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Bell className="w-4 h-4 text-emerald-400" />
+            <CardTitle className="text-xs font-mono uppercase tracking-widest text-zinc-400">Smart Alerts</CardTitle>
+          </div>
+          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setAddingConfig(true)}><Plus className="w-3 h-3" /></Button>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-4 px-0">
+        {loading ? (
+          <div className="p-4 text-center text-xs text-muted-foreground">Loading alerts...</div>
+        ) : configs.length === 0 ? (
+          <div className="p-8 text-center space-y-3">
+            <div className="w-10 h-10 bg-white/5 border border-white/10 rounded-full flex items-center justify-center mx-auto">
+              <AlertTriangle className="w-5 h-5 text-zinc-600" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-white uppercase tracking-tight">No alerts active</p>
+              <p className="text-[10px] text-zinc-500 mt-1">Get notified via Slack or email when thresholds are exceeded.</p>
+            </div>
+            <Button variant="outline" size="sm" className="h-7 text-[10px] font-bold border-white/10 hover:bg-white/5" onClick={() => setAddingConfig(true)}>CONFIGURE ALERTS</Button>
+          </div>
+        ) : (
+          <div className="divide-y divide-white/5">
+            {configs.map(c => (
+              <div key={c.id} className="p-3 flex items-center justify-between hover:bg-white/2 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 bg-emerald-500/10 border border-emerald-500/20 rounded-sm flex items-center justify-center">
+                    {c.channel?.type === 'slack' ? <Slack className="w-3.5 h-3.5 text-emerald-400" /> : <Webhook className="w-3.5 h-3.5 text-emerald-400" />}
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-bold text-white">{c.channel?.name}</p>
+                    <p className="text-[9px] text-zinc-500 font-mono uppercase">
+                      CPU &gt; {c.cpu_threshold}% • LAT &gt; {c.latency_threshold}ms
+                    </p>
+                  </div>
+                </div>
+                <Badge variant="outline" className="text-[9px] font-mono border-white/10 text-emerald-400 bg-emerald-400/5">ACTIVE</Badge>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+
+      <Dialog open={addingConfig} onOpenChange={setAddingConfig}>
+        <DialogContent className="sm:max-w-[425px] bg-black border-white/10 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-mono uppercase tracking-widest">New Smart Alert</DialogTitle>
+            <DialogDescription className="text-xs text-zinc-500">Route threshold alerts to a notification channel.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label className="text-[10px] uppercase text-zinc-500">Channel</Label>
+              <Select value={newConfig.channel_id} onValueChange={v => setNewConfig(p => ({ ...p, channel_id: v }))}>
+                <SelectTrigger className="bg-zinc-900 border-white/5 h-9 text-xs"><SelectValue placeholder="Select Channel" /></SelectTrigger>
+                <SelectContent className="bg-black border-white/10">
+                  {channels.map(c => (
+                    <SelectItem key={c.id} value={c.id} className="text-xs">{c.name} ({c.type.toUpperCase()})</SelectItem>
+                  ))}
+                  {channels.length === 0 && <p className="p-2 text-[10px] text-zinc-500">No channels configured. Go to Settings.</p>}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label className="text-[10px] uppercase text-zinc-500">CPU Threshold (%)</Label>
+                <Input type="number" className="bg-zinc-900 border-white/5 h-9 text-xs" value={newConfig.cpu_threshold} onChange={e => setNewConfig(p => ({ ...p, cpu_threshold: parseInt(e.target.value) }))} />
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-[10px] uppercase text-zinc-500">Latency Threshold (ms)</Label>
+                <Input type="number" className="bg-zinc-900 border-white/5 h-9 text-xs" value={newConfig.latency_threshold} onChange={e => setNewConfig(p => ({ ...p, latency_threshold: parseInt(e.target.value) }))} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" className="text-xs border-white/10" onClick={() => setAddingConfig(false)}>Cancel</Button>
+            <Button size="sm" className="text-xs bg-emerald-500 hover:bg-emerald-600 text-black font-bold" onClick={handleAddConfig}>ACTIVATE ALERT</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
 }
 
 export default function App() {
@@ -104,6 +477,8 @@ export default function App() {
       {view === 'register' && <RegisterView navigate={navigate} session={session} />}
       {view === 'dashboard' && <DashboardView navigate={navigate} session={session} api={api} />}
       {view === 'agent-detail' && <AgentDetailView navigate={navigate} session={session} api={api} agentId={params.id} />}
+      {view === 'settings' && <SettingsView navigate={navigate} session={session} api={api} />}
+      {view === 'changelog' && <ChangelogView navigate={navigate} session={session} />}
       {view === 'pricing' && <PricingView navigate={navigate} session={session} />}
     </div>
   );
@@ -131,6 +506,8 @@ function Navbar({ navigate, session, transparent = false }) {
         {/* Center / Spacer */}
         <div className="hidden md:flex col-span-5 items-center px-6 border-r border-white/20">
           <div className="flex gap-6 text-xs font-mono uppercase tracking-widest text-zinc-500">
+            {session && <button onClick={() => navigate('/settings')} className="hover:text-white transition-colors">SETTINGS</button>}
+            <button onClick={() => navigate('/changelog')} className="hover:text-white transition-colors">CHANGELOG</button>
             <button onClick={() => navigate('/pricing')} className="hover:text-white transition-colors">PRICING</button>
             <button onClick={() => window.open('https://github.com/openclaw/fleet', '_blank')} className="hover:text-white transition-colors">GITHUB</button>
           </div>
@@ -916,6 +1293,8 @@ function AgentDetailView({ navigate, session, api, agentId }) {
                   <div><div className="flex justify-between text-sm mb-1"><span className="text-muted-foreground">Error Rate</span><span>{m.tasks_completed > 0 ? ((m.errors_count / m.tasks_completed) * 100).toFixed(1) : 0}%</span></div><Progress value={m.tasks_completed > 0 ? (m.errors_count / m.tasks_completed) * 100 : 0} className="h-2" /></div>
                 </CardContent>
               </Card>
+
+              <SmartAlertsCard agent={agent} api={api} />
             </div>
           </TabsContent>
 
