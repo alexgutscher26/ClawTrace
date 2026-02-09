@@ -190,6 +190,8 @@ function SettingsView({ navigate, api, session }) {
   const [policies, setPolicies] = useState([]);
   const [policyOpen, setPolicyOpen] = useState(false);
   const [newPolicy, setNewPolicy] = useState({ name: '', label: '', description: '', skills: '', tools: '', heartbeat_interval: 300 });
+  const [branding, setBranding] = useState({ domain: '', name: '' });
+  const [savingBranding, setSavingBranding] = useState(false);
 
   useEffect(() => {
     api('/api/billing').then(res => {
@@ -197,6 +199,14 @@ function SettingsView({ navigate, api, session }) {
       setTier(p.toLowerCase());
     }).catch(() => { });
   }, [api]);
+
+  useEffect(() => {
+    if (tier === 'enterprise') {
+      api('/api/enterprise/branding').then(res => {
+        if (res.branding) setBranding(res.branding);
+      }).catch(() => { });
+    }
+  }, [tier, api]);
 
   const loadPolicies = useCallback(async () => {
     try {
@@ -266,6 +276,21 @@ function SettingsView({ navigate, api, session }) {
         }
       }
     });
+  };
+
+  const handleSaveBranding = async () => {
+    setSavingBranding(true);
+    try {
+      await api('/api/enterprise/branding', {
+        method: 'POST',
+        body: JSON.stringify(branding)
+      });
+      toast.success('Branding updated successfully');
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setSavingBranding(false);
+    }
   };
 
   return (
@@ -462,13 +487,29 @@ services:
                     <CardContent className="space-y-4">
                       <div className="grid gap-2">
                         <Label className="text-[10px] uppercase text-zinc-500">Dashboard Domain</Label>
-                        <Input placeholder="fleet.yourcompany.com" className="bg-zinc-900 border-white/5 h-9 text-xs" />
+                        <Input
+                          placeholder="fleet.yourcompany.com"
+                          className="bg-zinc-900 border-white/5 h-9 text-xs"
+                          value={branding.domain}
+                          onChange={e => setBranding(p => ({ ...p, domain: e.target.value }))}
+                        />
                       </div>
                       <div className="grid gap-2">
                         <Label className="text-[10px] uppercase text-zinc-500">Organization Name</Label>
-                        <Input placeholder="Acme Logistics OS" className="bg-zinc-900 border-white/5 h-9 text-xs" />
+                        <Input
+                          placeholder="Acme Logistics OS"
+                          className="bg-zinc-900 border-white/5 h-9 text-xs"
+                          value={branding.name}
+                          onChange={e => setBranding(p => ({ ...p, name: e.target.value }))}
+                        />
                       </div>
-                      <Button className="w-full bg-white/5 border border-white/10 text-white hover:bg-white/10 rounded-none h-10 font-bold uppercase tracking-widest text-xs">SAVE BRANDING</Button>
+                      <Button
+                        className="w-full bg-white text-black hover:bg-zinc-200 rounded-none h-10 font-bold uppercase tracking-widest text-xs disabled:opacity-50"
+                        onClick={handleSaveBranding}
+                        disabled={savingBranding}
+                      >
+                        {savingBranding ? 'SAVING...' : 'SAVE BRANDING'}
+                      </Button>
                     </CardContent>
                   </Card>
                 </div>
@@ -2088,10 +2129,12 @@ function SetupInstructions({ agentId, agentSecret }) {
 
 // ============ PRICING ============
 function PricingView({ navigate, session }) {
+  const [isYearly, setIsYearly] = useState(false);
+
   const tiers = [
     { name: 'FREE', price: '$0', period: '/mo', desc: 'For solo indie operators', features: ['1 Agent Node', 'Community Support', '5-min Heartbeat'], cta: 'INITIALIZE', popular: false },
-    { name: 'PRO', price: '$19', period: '/mo', desc: 'For scaling fleet commanders', features: ['Unlimited Nodes', 'Real-time Monitoring', 'Slack & Email Alerts', 'Policy Engine', 'Priority Ops', '1-min Heartbeat'], cta: 'UPGRADE TO PRO', popular: true },
-    { name: 'ENTERPRISE', price: '$99', period: '/mo', desc: 'For agencies & large systems', features: ['Everything in Pro', 'Custom Policies', 'SSO / SAML', 'Dedicated Ops', '99.99% SLA', 'Custom Integrations', 'On-Premise Option'], cta: 'CONTACT SALES', popular: false },
+    { name: 'PRO', price: isYearly ? '$15' : '$19', period: '/mo', desc: 'For scaling fleet commanders', features: ['Unlimited Nodes', 'Real-time Monitoring', 'Slack & Email Alerts', 'Policy Engine', 'Priority Ops', '1-min Heartbeat'], cta: 'UPGRADE TO PRO', popular: true },
+    { name: 'ENTERPRISE', price: isYearly ? '$79' : '$99', period: '/mo', desc: 'For agencies & large systems', features: ['Everything in Pro', 'Custom Policies', 'SSO / SAML', 'Dedicated Ops', '99.99% SLA', 'Custom Integrations', 'On-Premise Option'], cta: 'CONTACT SALES', popular: false },
   ];
   return (
     <div className="min-h-screen bg-black text-white selection:bg-white selection:text-black">
@@ -2100,7 +2143,21 @@ function PricingView({ navigate, session }) {
         <div className="text-center mb-16">
           <Badge className="mb-6 bg-white/10 text-white border-white/20 hover:bg-white/20 cursor-default rounded-none px-3 py-1 font-mono tracking-widest text-xs uppercase">Pricing Protocols</Badge>
           <h1 className="text-5xl md:text-6xl font-black mb-6 tracking-tighter">TRANSPARENT SCALING</h1>
-          <p className="text-lg text-zinc-400 max-w-xl mx-auto font-light">Start free. Scale when you're ready. No hidden fees.</p>
+          <p className="text-lg text-zinc-400 max-w-xl mx-auto font-light mb-12">Start free. Scale when you're ready. No hidden fees.</p>
+
+          <div className="flex items-center justify-center gap-4">
+            <span className={`text-[10px] uppercase font-mono tracking-[0.2em] transition-colors ${!isYearly ? 'text-white font-bold' : 'text-zinc-500'}`}>Monthly</span>
+            <button
+              onClick={() => setIsYearly(!isYearly)}
+              className="w-11 h-6 bg-zinc-900 border border-white/10 rounded-none relative transition-all hover:border-white/30 group"
+            >
+              <div className={`absolute top-1 bottom-1 w-4 bg-white transition-all duration-300 ${isYearly ? 'left-[26px]' : 'left-1'}`} />
+            </button>
+            <div className="flex items-center gap-2">
+              <span className={`text-[10px] uppercase font-mono tracking-[0.2em] transition-colors ${isYearly ? 'text-white font-bold' : 'text-zinc-500'}`}>Yearly</span>
+              <Badge className="bg-white text-black border-none rounded-none text-[8px] px-1 py-0 font-black animate-pulse">20% OFF</Badge>
+            </div>
+          </div>
         </div>
         <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
           {tiers.map(t => (
@@ -2113,6 +2170,9 @@ function PricingView({ navigate, session }) {
                   <span className="text-5xl font-black tracking-tighter">{t.price}</span>
                   <span className="text-zinc-500 font-mono">{t.period}</span>
                 </div>
+                {isYearly && t.name !== 'FREE' && (
+                  <p className="text-[10px] text-zinc-500 font-mono uppercase mt-2">Billed annually</p>
+                )}
               </div>
               <ul className="space-y-4 mb-8 flex-1">
                 {t.features.map(f => (<li key={f} className="flex items-start gap-3 text-sm text-zinc-300"><div className="w-1.5 h-1.5 bg-white rounded-full mt-1.5 shrink-0" />{f}</li>))}

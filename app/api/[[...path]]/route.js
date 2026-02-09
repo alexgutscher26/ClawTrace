@@ -998,6 +998,18 @@ done
       return json({ policy });
     }
 
+    // ============ ENTERPRISE BRANDING ============
+    if (path === '/enterprise/branding') {
+      const user = await getUser(request);
+      if (!user) return json({ error: 'Unauthorized' }, 401);
+      const { data: branding } = await supabaseAdmin
+        .from('enterprise_branding')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      return json({ branding: branding || { domain: '', name: '' } });
+    }
+
     return json({ error: 'Not found' }, 404);
   } catch (error) {
     console.error('GET Error:', error);
@@ -1589,6 +1601,32 @@ export async function POST(request, context) {
       await supabaseAdmin.from('teams').update({ members: newMembers }).eq('id', team.id);
 
       return json({ message: `Removed ${body.email}` });
+    }
+
+    // ============ ENTERPRISE BRANDING ============
+    if (path === '/enterprise/branding') {
+      const user = await getUser(request);
+      if (!user) return json({ error: 'Unauthorized' }, 401);
+
+      const tier = await getTier(user.id);
+      if (tier !== 'enterprise') {
+        return json({ error: 'Branding requires an ENTERPRISE plan' }, 403);
+      }
+
+      const body = await request.json();
+      const { data: branding, error } = await supabaseAdmin
+        .from('enterprise_branding')
+        .upsert({
+          user_id: user.id,
+          domain: body.domain,
+          name: body.name,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id' })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return json({ branding });
     }
 
     return json({ error: 'Not found' }, 404);
