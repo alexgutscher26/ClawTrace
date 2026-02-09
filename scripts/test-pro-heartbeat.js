@@ -3,6 +3,14 @@
 
 const baseUrl = 'http://localhost:3000';
 
+/**
+ * Test the Pro User Heartbeat Interval by fetching the install script.
+ *
+ * This function retrieves the install script for a specified agent using its ID and secret. It checks the heartbeat interval defined in the script and logs the appropriate messages based on the interval found. If the interval is not found, it logs an error message. Additionally, it displays a snippet of the script containing relevant lines about the interval.
+ *
+ * @returns {Promise<void>} A promise that resolves when the test is complete.
+ * @throws Error If there is an issue fetching the script or processing the response.
+ */
 async function testProHeartbeatInterval() {
     console.log('🧪 Testing Pro User Heartbeat Interval\n');
 
