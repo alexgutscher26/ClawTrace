@@ -18,6 +18,14 @@ loadEnv();
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
+/**
+ * Update the model configuration for a specific agent.
+ *
+ * This function retrieves the current configuration of an agent from the database, decrypts it, and updates the model to a new specified value.
+ * It handles errors during fetching and updating, and provides console logs for the current and new configurations, as well as cost impacts.
+ *
+ * @returns {Promise<void>} A promise that resolves when the model update is complete.
+ */
 async function updateModel() {
     const agentId = '79a68826-b5af-49a3-b9db-6c322c858f17';
     const newModel = 'claude-sonnet-4';
