@@ -149,6 +149,18 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
 }
 
+/**
+ * Handle GET requests for various API endpoints and return appropriate responses.
+ *
+ * This function processes incoming requests, checks rate limits, and serves different responses based on the request path.
+ * It includes health checks, agent installation scripts for different platforms, and user-specific data retrieval from a database.
+ * The function also manages session tokens and handles errors gracefully, ensuring that unauthorized access is restricted.
+ *
+ * @param request - The incoming request object.
+ * @param context - The context object containing parameters and other relevant data.
+ * @returns A JSON response based on the requested path and processed data.
+ * @throws Error If an internal error occurs during processing.
+ */
 export async function GET(request, context) {
   const params = await context.params;
   const path = getPath(params);
@@ -855,6 +867,19 @@ done
   }
 }
 
+/**
+ * Handles POST requests for various API endpoints related to fleets, agents, alerts, and billing.
+ *
+ * The function processes the request based on the path, performing actions such as creating fleets and agents,
+ * managing agent heartbeats, handling billing checkouts, and processing webhook events. It includes rate limiting
+ * checks, user authentication, and error handling for database operations. The function also supports seeding demo
+ * data and managing team invitations and configurations.
+ *
+ * @param request - The incoming request object containing headers and body data.
+ * @param context - The context object providing access to parameters and other utilities.
+ * @returns A JSON response based on the processed request, including success or error messages.
+ * @throws Error If any database operation fails or if the request is unauthorized.
+ */
 export async function POST(request, context) {
   const params = await context.params;
   const path = getPath(params);
