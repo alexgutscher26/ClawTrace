@@ -48,12 +48,29 @@ function timeAgo(dateString) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
+/**
+ * Manages routing based on the current pathname and provides navigation functionality.
+ *
+ * The function uses the useRouter and usePathname hooks to determine the current path and sets the appropriate route state based on predefined paths. It also includes a parsePath function to handle dynamic routes, such as agent IDs. The navigate function allows for programmatic navigation using the router.
+ *
+ * @returns An object containing the current route view, parameters, and a navigate function to change routes.
+ */
 function usePathRouter() {
   const router = useRouter();
   const pathname = usePathname();
   const [route, setRoute] = useState({ view: 'landing', params: {} });
 
   useEffect(() => {
+    /**
+     * Parse the given path and return the corresponding view and parameters.
+     *
+     * The function checks the input path against predefined routes and returns an object containing the view name and any associated parameters.
+     * If the path matches specific routes like '/login', '/register', or '/dashboard', it returns the respective view.
+     * For paths that match the '/agent/:id' pattern, it extracts the agent ID and includes it in the returned parameters.
+     * If no matches are found, it defaults to returning the landing view.
+     *
+     * @returns An object containing the view name and parameters.
+     */
     const parsePath = () => {
       const path = pathname || '/';
       if (path === '/' || path === '') return { view: 'landing', params: {} };
@@ -128,8 +145,24 @@ const CHANGELOG_DATA = [
 ];
 
 // ============ NAVBAR ============
+/**
+ * Renders a responsive navigation bar with authentication options.
+ *
+ * The Navbar component displays branding, navigation links, and authentication actions based on the user's session state.
+ * It includes a mobile menu toggle and handles logout functionality. The component utilizes the `navigate` function for routing
+ * and manages its open/close state for the mobile menu using local state.
+ *
+ * @param {Object} props - The properties for the Navbar component.
+ * @param {Function} props.navigate - Function to navigate to different routes.
+ * @param {Object} props.session - The current user session object.
+ * @param {Object} props.branding - Branding information for the application.
+ * @param {boolean} [props.transparent=false] - Indicates if the navbar should be transparent.
+ */
 function Navbar({ navigate, session, branding, transparent = false }) {
   const [open, setOpen] = useState(false);
+  /**
+   * Logs out the user and navigates to the home page.
+   */
   const handleLogout = async () => { await supabase.auth.signOut(); navigate('/'); };
 
   return (
@@ -887,6 +920,16 @@ function SettingsView({ navigate, api, session, branding: initialBranding, setGl
   );
 }
 
+/**
+ * Renders the Smart Alerts Card component for managing alert configurations.
+ *
+ * This component fetches alert configurations and channels from the API, manages the loading state, and allows users to add new alert configurations. It handles errors during data fetching and provides user feedback through toast notifications. The component also includes a dialog for configuring new alerts with CPU and latency thresholds.
+ *
+ * @param {Object} props - The properties for the SmartAlertsCard component.
+ * @param {Object} props.agent - The agent object containing agent details.
+ * @param {Function} props.api - The API function for making requests.
+ * @returns {JSX.Element} The rendered Smart Alerts Card component.
+ */
 function SmartAlertsCard({ agent, api }) {
   const [configs, setConfigs] = useState([]);
   const [channels, setChannels] = useState([]);
