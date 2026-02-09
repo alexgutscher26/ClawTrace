@@ -179,6 +179,16 @@ function ChangelogView({ navigate, session }) {
   );
 }
 
+/**
+ * Render the SettingsView component for managing alert channels and custom policies.
+ *
+ * This component fetches billing information to determine the user's subscription tier and conditionally loads policies and channels based on that tier. It provides functionality to add, delete, and display alert channels and custom policies, utilizing various hooks for state management and side effects. The component also includes dialogs for creating new channels and policies, ensuring a user-friendly interface for configuration.
+ *
+ * @param {Object} props - The properties for the SettingsView component.
+ * @param {Function} props.navigate - Function to navigate between views.
+ * @param {Function} props.api - Function to make API calls.
+ * @param {Object} props.session - The current user session information.
+ */
 function SettingsView({ navigate, api, session }) {
   const [channels, setChannels] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -234,6 +244,14 @@ function SettingsView({ navigate, api, session }) {
     } catch (err) { toast.error(err.message); }
   };
 
+  /**
+   * Handles the addition of a new custom policy.
+   *
+   * This function sends a POST request to the API to create a new custom policy using the data from `newPolicy`.
+   * It processes the `skills` and `tools` fields by splitting them into arrays, trimming whitespace, and filtering out any empty values.
+   * Upon successful creation, it displays a success message, resets the policy form, and reloads the list of policies.
+   * In case of an error, it displays an error message.
+   */
   const handleAddPolicy = async () => {
     try {
       await api('/api/custom-policies', {
@@ -473,6 +491,16 @@ function SettingsView({ navigate, api, session }) {
   );
 }
 
+/**
+ * Renders the Smart Alerts Card component for managing alert configurations.
+ *
+ * This component fetches alert configurations and channels from the API, manages the state for loading, adding new configurations, and displays the current alerts. It handles user interactions for adding new alert configurations and updates the displayed alerts accordingly. The component also provides feedback to the user through toast notifications for various actions.
+ *
+ * @param {Object} props - The properties for the SmartAlertsCard component.
+ * @param {Object} props.agent - The agent object containing agent details.
+ * @param {Function} props.api - The API function for making requests.
+ * @returns {JSX.Element} The rendered Smart Alerts Card component.
+ */
 function SmartAlertsCard({ agent, api }) {
   const [configs, setConfigs] = useState([]);
   const [channels, setChannels] = useState([]);
@@ -1152,6 +1180,18 @@ function RegisterView({ navigate, session }) {
 }
 
 // ============ DASHBOARD ============
+/**
+ * Dashboard view component for monitoring and managing AI agent fleets.
+ *
+ * This component fetches and displays statistics, fleets, agents, and alerts. It handles the addition and deletion of agents, as well as the resolution of alerts. The component also manages loading states and user interactions, such as seeding demo data and selecting fleets. It utilizes various hooks to manage state and side effects, ensuring that data is loaded and updated appropriately based on user actions and subscription tier.
+ *
+ * @param {Object} props - The component props.
+ * @param {Function} props.navigate - Function to navigate to different routes.
+ * @param {Object} props.session - User session information.
+ * @param {Function} props.api - Function to make API calls.
+ * @param {string} props.masterPassphrase - Master passphrase for encryption.
+ * @returns {JSX.Element} The rendered dashboard view.
+ */
 function DashboardView({ navigate, session, api, masterPassphrase }) {
   const [stats, setStats] = useState(null);
   const [fleets, setFleets] = useState([]);
