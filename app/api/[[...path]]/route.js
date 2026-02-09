@@ -34,6 +34,11 @@ const RATE_LIMIT_CONFIG = {
     global: { capacity: 600, refillRate: 10 }, // 600 req / min
     handshake: { capacity: 50, refillRate: 50 / 600 }, // 50 req / 10 min
     heartbeat: { capacity: 10, refillRate: 1 / 60 }, // 1 req / min
+  },
+  enterprise: {
+    global: { capacity: 1200, refillRate: 20 }, // 1200 req / min
+    handshake: { capacity: 100, refillRate: 100 / 600 }, // 100 req / 10 min
+    heartbeat: { capacity: 20, refillRate: 1 / 30 }, // 1 req / 30s
   }
 };
 
@@ -45,12 +50,13 @@ async function getTier(userId) {
     .eq('user_id', userId)
     .neq('status', 'cancelled')
     .maybeSingle();
-  return data?.plan || 'free';
+  return (data?.plan || 'free').toLowerCase();
 }
 
 async function checkRateLimit(request, identifier, type = 'global', userId = null) {
   const tier = await getTier(userId);
-  const config = RATE_LIMIT_CONFIG[tier][type] || RATE_LIMIT_CONFIG.free[type];
+  const tierConfig = RATE_LIMIT_CONFIG[tier] || RATE_LIMIT_CONFIG.free;
+  const config = tierConfig[type] || RATE_LIMIT_CONFIG.free[type];
   const now = Date.now() / 1000; // seconds
 
   const { data, error } = await supabaseAdmin
@@ -187,9 +193,29 @@ export async function GET(request, context) {
 
         if (agent) {
           const tier = await getTier(agent.user_id);
-          interval = tier === 'pro' ? '60' : '300'; // Pro: 1 min, Free: 5 min
+          const { data: agentFull } = await supabaseAdmin
+            .from('agents')
+            .select('policy_profile')
+            .eq('id', agentId)
+            .single();
+
+          const profile = agentFull?.policy_profile || 'dev';
+          let policyInterval = tier === 'free' ? 300 : 60;
+
+          if (profile === 'ops') policyInterval = 60;
+          else if (profile === 'exec') policyInterval = 600;
+          else if (!['dev', 'ops', 'exec'].includes(profile) && tier === 'enterprise') {
+            const { data: cp } = await supabaseAdmin
+              .from('custom_policies')
+              .select('heartbeat_interval')
+              .eq('user_id', agent.user_id)
+              .eq('name', profile)
+              .maybeSingle();
+            if (cp) policyInterval = cp.heartbeat_interval;
+          }
+          interval = policyInterval.toString();
         } else {
-          interval = '300'; // Default to free tier
+          interval = '300';
         }
       }
 
@@ -389,9 +415,29 @@ done
 
         if (agent) {
           const tier = await getTier(agent.user_id);
-          interval = tier === 'pro' ? '60' : '300'; // Pro: 1 min, Free: 5 min
+          const { data: agentFull } = await supabaseAdmin
+            .from('agents')
+            .select('policy_profile')
+            .eq('id', agentId)
+            .single();
+
+          const profile = agentFull?.policy_profile || 'dev';
+          let policyInterval = tier === 'free' ? 300 : 60;
+
+          if (profile === 'ops') policyInterval = 60;
+          else if (profile === 'exec') policyInterval = 600;
+          else if (!['dev', 'ops', 'exec'].includes(profile) && tier === 'enterprise') {
+            const { data: cp } = await supabaseAdmin
+              .from('custom_policies')
+              .select('heartbeat_interval')
+              .eq('user_id', agent.user_id)
+              .eq('name', profile)
+              .maybeSingle();
+            if (cp) policyInterval = cp.heartbeat_interval;
+          }
+          interval = policyInterval.toString();
         } else {
-          interval = '300'; // Default to free tier
+          interval = '300';
         }
       }
 
@@ -570,9 +616,29 @@ done
 
         if (agent) {
           const tier = await getTier(agent.user_id);
-          interval = tier === 'pro' ? '60' : '300'; // Pro: 1 min, Free: 5 min
+          const { data: agentFull } = await supabaseAdmin
+            .from('agents')
+            .select('policy_profile')
+            .eq('id', agentId)
+            .single();
+
+          const profile = agentFull?.policy_profile || 'dev';
+          let policyInterval = tier === 'free' ? 300 : 60;
+
+          if (profile === 'ops') policyInterval = 60;
+          else if (profile === 'exec') policyInterval = 600;
+          else if (!['dev', 'ops', 'exec'].includes(profile) && tier === 'enterprise') {
+            const { data: cp } = await supabaseAdmin
+              .from('custom_policies')
+              .select('heartbeat_interval')
+              .eq('user_id', agent.user_id)
+              .eq('name', profile)
+              .maybeSingle();
+            if (cp) policyInterval = cp.heartbeat_interval;
+          }
+          interval = policyInterval.toString();
         } else {
-          interval = '300'; // Default to free tier
+          interval = '300';
         }
       }
 
@@ -899,6 +965,38 @@ done
       return json({ team });
     }
 
+    // ============ CUSTOM POLICIES (ENTERPRISE) ============
+    if (path === '/custom-policies') {
+      const user = await getUser(request);
+      if (!user) return json({ error: 'Unauthorized' }, 401);
+
+      const { data: policies, error } = await supabaseAdmin
+        .from('custom_policies')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return json({ policies: policies || [] });
+    }
+
+    const customPolicyMatch = path.match(/^\/custom-policies\/([^/]+)$/);
+    if (customPolicyMatch) {
+      const user = await getUser(request);
+      if (!user) return json({ error: 'Unauthorized' }, 401);
+
+      const { data: policy, error } = await supabaseAdmin
+        .from('custom_policies')
+        .select('*')
+        .eq('id', customPolicyMatch[1])
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!policy) return json({ error: 'Custom policy not found' }, 404);
+      return json({ policy });
+    }
+
     return json({ error: 'Not found' }, 404);
   } catch (error) {
     console.error('GET Error:', error);
@@ -932,13 +1030,65 @@ export async function POST(request, context) {
       return json({ fleet }, 201);
     }
 
+    // ============ CUSTOM POLICIES (ENTERPRISE) ============
+    if (path === '/custom-policies') {
+      const user = await getUser(request);
+      if (!user) return json({ error: 'Unauthorized' }, 401);
+
+      const tier = await getTier(user.id);
+      if (tier !== 'enterprise') {
+        return json({ error: 'Custom policies require an ENTERPRISE plan' }, 403);
+      }
+
+      const body = await request.json();
+      if (!body.name || !body.label) {
+        return json({ error: 'Name and label are required' }, 400);
+      }
+
+      const policy = {
+        id: uuidv4(),
+        user_id: user.id,
+        name: body.name.toLowerCase().replace(/\s+/g, '-'),
+        label: body.label.toUpperCase(),
+        description: body.description || '',
+        color: body.color || 'text-blue-400 border-blue-500/30',
+        bg: body.bg || 'bg-blue-500/10',
+        skills: body.skills || [],
+        tools: body.tools || [],
+        data_access: body.data_access || 'restricted',
+        heartbeat_interval: parseInt(body.heartbeat_interval) || 300,
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      const { error } = await supabaseAdmin.from('custom_policies').insert(policy);
+      if (error) throw error;
+      return json({ policy }, 201);
+    }
+
     if (path === '/agents') {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
       const body = await request.json();
       const plainSecret = uuidv4();
       const policyProfile = body.policy_profile || 'dev';
-      const policy = getPolicy(policyProfile);
+      let policy = getPolicy(policyProfile);
+
+      // Check for custom policy if enterprise user
+      if (!['dev', 'ops', 'exec'].includes(policyProfile)) {
+        const { data: customPolicy } = await supabaseAdmin
+          .from('custom_policies')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('name', policyProfile)
+          .eq('is_active', true)
+          .maybeSingle();
+
+        if (customPolicy) {
+          policy = getPolicy(policyProfile, customPolicy);
+        }
+      }
 
       const agent = {
         id: uuidv4(),
@@ -1520,12 +1670,42 @@ export async function PUT(request, context) {
         .update({ name: body.name, updated_at: new Date().toISOString() })
         .eq('id', fleetMatch[1])
         .eq('user_id', user.id)
-        .select()
         .maybeSingle();
 
       if (error) throw error;
       if (!fleet) return json({ error: 'Fleet not found' }, 404);
       return json({ fleet });
+    }
+
+    const customPolicyMatch = path.match(/^\/custom-policies\/([^/]+)$/);
+    if (customPolicyMatch) {
+      const user = await getUser(request);
+      if (!user) return json({ error: 'Unauthorized' }, 401);
+
+      const body = await request.json();
+      const updateFields = { updated_at: new Date().toISOString() };
+
+      if (body.label !== undefined) updateFields.label = body.label.toUpperCase();
+      if (body.description !== undefined) updateFields.description = body.description;
+      if (body.color !== undefined) updateFields.color = body.color;
+      if (body.bg !== undefined) updateFields.bg = body.bg;
+      if (body.skills !== undefined) updateFields.skills = body.skills;
+      if (body.tools !== undefined) updateFields.tools = body.tools;
+      if (body.data_access !== undefined) updateFields.data_access = body.data_access;
+      if (body.heartbeat_interval !== undefined) updateFields.heartbeat_interval = parseInt(body.heartbeat_interval);
+      if (body.is_active !== undefined) updateFields.is_active = body.is_active;
+
+      const { data: policy, error } = await supabaseAdmin
+        .from('custom_policies')
+        .update(updateFields)
+        .eq('id', customPolicyMatch[1])
+        .eq('user_id', user.id)
+        .select()
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!policy) return json({ error: 'Custom policy not found' }, 404);
+      return json({ policy });
     }
 
     return json({ error: 'Not found' }, 404);

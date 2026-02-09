@@ -184,6 +184,25 @@ function SettingsView({ navigate, api, session }) {
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
   const [newChannel, setNewChannel] = useState({ name: '', type: 'slack', webhook_url: '' });
+  const [tier, setTier] = useState('free');
+  const [policies, setPolicies] = useState([]);
+  const [policyOpen, setPolicyOpen] = useState(false);
+  const [newPolicy, setNewPolicy] = useState({ name: '', label: '', description: '', heartbeat_interval: 300 });
+
+  useEffect(() => {
+    api('/api/billing').then(res => setTier(res.subscription.plan)).catch(() => { });
+  }, [api]);
+
+  const loadPolicies = useCallback(async () => {
+    try {
+      const res = await api('/api/custom-policies');
+      setPolicies(res.policies || []);
+    } catch (err) { console.error(err); }
+  }, [api]);
+
+  useEffect(() => {
+    if (tier === 'enterprise') loadPolicies();
+  }, [tier, loadPolicies]);
 
   const loadChannels = useCallback(async () => {
     try {
@@ -212,6 +231,28 @@ function SettingsView({ navigate, api, session }) {
     } catch (err) { toast.error(err.message); }
   };
 
+  const handleAddPolicy = async () => {
+    try {
+      await api('/api/custom-policies', {
+        method: 'POST',
+        body: JSON.stringify(newPolicy)
+      });
+      toast.success('Custom policy created!');
+      setPolicyOpen(false);
+      setNewPolicy({ name: '', label: '', description: '', heartbeat_interval: 300 });
+      loadPolicies();
+    } catch (err) { toast.error(err.message); }
+  };
+
+  const handleDeletePolicy = async (id) => {
+    if (!confirm('Delete this custom policy?')) return;
+    try {
+      await api(`/api/custom-policies/${id}`, { method: 'DELETE' });
+      toast.success('Policy removed');
+      loadPolicies();
+    } catch (err) { toast.error(err.message); }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar navigate={navigate} session={session} />
@@ -221,14 +262,24 @@ function SettingsView({ navigate, api, session }) {
             <h1 className="text-3xl font-bold tracking-tight text-white uppercase italic">Settings</h1>
             <p className="text-muted-foreground text-sm font-mono mt-1">CONFIGURE YOUR FLEET ORCHESTRATOR</p>
           </div>
-          <Button className="bg-white text-black font-bold h-9 text-xs rounded-none hover:bg-zinc-200" onClick={() => setAddOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" /> ADD NOTIFICATION CHANNEL
-          </Button>
+          <div className="flex gap-2">
+            {tier === 'enterprise' && (
+              <Button variant="outline" className="border-white/10 text-white font-bold h-9 text-xs rounded-none hover:bg-white/5" onClick={() => setPolicyOpen(true)}>
+                <Shield className="w-4 h-4 mr-2" /> CREATE POLICY
+              </Button>
+            )}
+            <Button className="bg-white text-black font-bold h-9 text-xs rounded-none hover:bg-zinc-200" onClick={() => setAddOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" /> ADD NOTIFICATION CHANNEL
+            </Button>
+          </div>
         </div>
 
         <Tabs defaultValue="alert-channels" className="w-full">
           <TabsList className="bg-zinc-950 border border-white/10 rounded-none h-10 p-0 mb-8">
             <TabsTrigger value="alert-channels" className="h-full rounded-none px-8 font-mono text-[10px] uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:text-black">Alert Channels</TabsTrigger>
+            {tier === 'enterprise' && (
+              <TabsTrigger value="policies" className="h-full rounded-none px-8 font-mono text-[10px] uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:text-black">Custom Policies</TabsTrigger>
+            )}
             <TabsTrigger value="general" className="h-full rounded-none px-8 font-mono text-[10px] uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:text-black">General</TabsTrigger>
           </TabsList>
 
@@ -270,6 +321,48 @@ function SettingsView({ navigate, api, session }) {
               )}
             </div>
           </TabsContent>
+
+          {tier === 'enterprise' && (
+            <TabsContent value="policies">
+              <div className="grid gap-4">
+                {policies.length === 0 ? (
+                  <Card className="glass-card p-12 text-center border-dashed border-white/10">
+                    <Shield className="w-12 h-12 text-zinc-700 mx-auto mb-4" />
+                    <h3 className="text-sm font-bold text-white uppercase mb-1">No custom policies</h3>
+                    <p className="text-muted-foreground text-xs font-mono max-w-xs mx-auto mb-6">Create specialized policies for your enterprise agents.</p>
+                    <Button variant="outline" size="sm" className="rounded-none border-white/20 text-[10px] font-bold h-8" onClick={() => setPolicyOpen(true)}>CREATE FIRST POLICY</Button>
+                  </Card>
+                ) : (
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {policies.map(p => (
+                      <Card key={p.id} className="glass-card border-white/5 group relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 hover:text-red-400 hover:bg-red-500/10" onClick={() => handleDeletePolicy(p.id)}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                        <CardHeader className="pb-3">
+                          <Badge variant="outline" className={`w-fit text-[9px] font-mono mb-2 rounded-none ${p.color}`}>{p.label}</Badge>
+                          <CardTitle className="text-sm font-bold text-white uppercase italic">{p.name}</CardTitle>
+                          <CardDescription className="text-[10px] leading-relaxed line-clamp-2 h-8">{p.description}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="flex flex-wrap gap-1">
+                            {p.skills?.slice(0, 3).map(s => <Badge key={s} className="shadow-none bg-white/5 text-zinc-500 border-none text-[8px] font-mono px-1 rounded-none lowercase">{s}</Badge>)}
+                            {p.skills?.length > 3 && <span className="text-[8px] text-zinc-600 font-mono">+{p.skills.length - 3}</span>}
+                          </div>
+                          <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                            <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Interval</span>
+                            <span className="text-[10px] font-mono text-white">{p.heartbeat_interval}s</span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+          )}
 
           <TabsContent value="general">
             <Card className="glass-card">
@@ -322,6 +415,39 @@ function SettingsView({ navigate, api, session }) {
           <DialogFooter>
             <Button variant="outline" size="sm" className="text-xs border-white/10 rounded-none font-bold" onClick={() => setAddOpen(false)}>CANCEL</Button>
             <Button size="sm" className="text-xs bg-white text-black hover:bg-zinc-200 rounded-none font-black uppercase italic" onClick={handleAddChannel}>ACTIVATE CHANNEL</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={policyOpen} onOpenChange={setPolicyOpen}>
+        <DialogContent className="sm:max-w-md bg-black border-white/10 text-white rounded-none">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-mono uppercase tracking-widest italic">New Custom Policy</DialogTitle>
+            <DialogDescription className="text-xs text-zinc-500">Define a specialized profile for your enterprise agents.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label className="text-[10px] uppercase text-zinc-500">Policy Code Name</Label>
+                <Input placeholder="data-analyst" className="bg-zinc-900 border-white/5 h-9 text-xs" value={newPolicy.name} onChange={e => setNewPolicy(p => ({ ...p, name: e.target.value }))} />
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-[10px] uppercase text-zinc-500">Display Label</Label>
+                <Input placeholder="Data Analyst" className="bg-zinc-900 border-white/5 h-9 text-xs" value={newPolicy.label} onChange={e => setNewPolicy(p => ({ ...p, label: e.target.value }))} />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label className="text-[10px] uppercase text-zinc-500">Description</Label>
+              <Input placeholder="Specialized in SQL and Python data processing." className="bg-zinc-900 border-white/5 h-9 text-xs" value={newPolicy.description} onChange={e => setNewPolicy(p => ({ ...p, description: e.target.value }))} />
+            </div>
+            <div className="grid gap-2">
+              <Label className="text-[10px] uppercase text-zinc-500">Heartbeat Interval (Seconds)</Label>
+              <Input type="number" className="bg-zinc-900 border-white/5 h-9 text-xs" value={newPolicy.heartbeat_interval} onChange={e => setNewPolicy(p => ({ ...p, heartbeat_interval: parseInt(e.target.value) }))} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" className="text-xs border-white/10 rounded-none font-bold" onClick={() => setPolicyOpen(false)}>CANCEL</Button>
+            <Button size="sm" className="text-xs bg-white text-black hover:bg-zinc-200 rounded-none font-black uppercase italic" onClick={handleAddPolicy}>CREATE POLICY</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -459,9 +585,14 @@ function MasterKeyModal({ onSetKey }) {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
+    const handleOpen = () => setIsOpen(true);
+    window.addEventListener('open-master-key-modal', handleOpen);
+
     const saved = sessionStorage.getItem('master_passphrase');
     if (!saved) setIsOpen(true);
     else onSetKey(saved);
+
+    return () => window.removeEventListener('open-master-key-modal', handleOpen);
   }, [onSetKey]);
 
   const handleSave = (e) => {
@@ -1010,8 +1141,20 @@ function DashboardView({ navigate, session, api, masterPassphrase }) {
   const [selectedFleet, setSelectedFleet] = useState(null);
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
-  const [newAgent, setNewAgent] = useState({ name: '', gateway_url: '' });
   const [seeding, setSeeding] = useState(false);
+  const [tier, setTier] = useState('free');
+  const [customPolicies, setCustomPolicies] = useState([]);
+  const [newAgent, setNewAgent] = useState({ name: '', gateway_url: '', policy_profile: 'dev' });
+
+  useEffect(() => {
+    api('/api/billing').then(res => setTier(res.subscription.plan)).catch(() => { });
+  }, [api]);
+
+  useEffect(() => {
+    if (tier === 'enterprise') {
+      api('/api/custom-policies').then(res => setCustomPolicies(res.policies || [])).catch(() => { });
+    }
+  }, [api, tier]);
 
   const loadData = useCallback(async () => {
     try {
@@ -1062,11 +1205,15 @@ function DashboardView({ navigate, session, api, masterPassphrase }) {
   const handleAddAgent = async (e) => {
     e.preventDefault();
     try {
+      const policyId = newAgent.policy_profile || 'dev';
+      const customPolicy = customPolicies.find(p => p.name === policyId);
+      const policy = getPolicy(policyId, customPolicy);
+
       let config = {
-        profile: newAgent.policy_profile || 'dev',
-        skills: getPolicy(newAgent.policy_profile || 'dev').skills,
-        model: 'gpt-4',
-        data_scope: (newAgent.policy_profile || 'dev') === 'dev' ? 'full' : 'restricted'
+        profile: policyId,
+        skills: policy.skills,
+        model: 'claude-sonnet-4',
+        data_scope: policyId === 'dev' ? 'full' : 'restricted'
       };
 
       if (masterPassphrase) {
@@ -1272,11 +1419,20 @@ function DashboardView({ navigate, session, api, masterPassphrase }) {
             <div>
               <Label>Policy Profile</Label>
               <Select value={newAgent.policy_profile || 'dev'} onValueChange={v => setNewAgent(p => ({ ...p, policy_profile: v }))}>
-                <SelectTrigger className="w-full"><SelectValue placeholder="Select Policy" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="dev">Developer (Full Access)</SelectItem>
-                  <SelectItem value="ops">Operations (System Only)</SelectItem>
-                  <SelectItem value="exec">Executive (Read Only)</SelectItem>
+                <SelectTrigger className="w-full text-xs rounded-none border-white/20 bg-zinc-900 h-10"><SelectValue placeholder="Select Policy" /></SelectTrigger>
+                <SelectContent className="bg-black border-white/10">
+                  <SelectItem value="dev" className="text-xs">Developer (Full Access)</SelectItem>
+                  <SelectItem value="ops" className="text-xs">Operations (System Only)</SelectItem>
+                  <SelectItem value="exec" className="text-xs">Executive (Read Only)</SelectItem>
+                  {tier === 'enterprise' && customPolicies.length > 0 && (
+                    <>
+                      <Separator className="my-2 bg-white/10" />
+                      <div className="px-2 py-1.5 text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Custom Policies</div>
+                      {customPolicies.map(cp => (
+                        <SelectItem key={cp.id} value={cp.name} className="text-xs">{cp.label}</SelectItem>
+                      ))}
+                    </>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -1295,8 +1451,20 @@ function AgentDetailView({ navigate, session, api, agentId, masterPassphrase }) 
   const [agent, setAgent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [restarting, setRestarting] = useState(false);
-  const [configEdit, setConfigEdit] = useState('');
   const [savingConfig, setSavingConfig] = useState(false);
+  const [tier, setTier] = useState('free');
+  const [customPolicies, setCustomPolicies] = useState([]);
+  const [configEdit, setConfigEdit] = useState('');
+
+  useEffect(() => {
+    api('/api/billing').then(res => setTier(res.subscription.plan)).catch(() => { });
+  }, [api]);
+
+  useEffect(() => {
+    if (tier === 'enterprise') {
+      api('/api/custom-policies').then(res => setCustomPolicies(res.policies || [])).catch(() => { });
+    }
+  }, [api, tier]);
 
 
   const loadAgent = useCallback(async () => {
@@ -1442,10 +1610,13 @@ function AgentDetailView({ navigate, session, api, agentId, masterPassphrase }) 
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="p-3 bg-white/5 border border-white/10 rounded-sm">
-                    <p className="text-[10px] text-muted-foreground mb-3 leading-relaxed">{getPolicy(agent.policy_profile).description}</p>
+                    <p className="text-[10px] text-muted-foreground mb-3 leading-relaxed">
+                      {getPolicy(agent.policy_profile, customPolicies.find(cp => cp.name === agent.policy_profile)).description}
+                    </p>
                     <Select value={agent.policy_profile} onValueChange={async (v) => {
                       try {
-                        const policy = getPolicy(v);
+                        const customPolicy = customPolicies.find(cp => cp.name === v);
+                        const policy = getPolicy(v, customPolicy);
                         const newConfig = {
                           ...agent.config_json,
                           profile: v,
@@ -1459,15 +1630,24 @@ function AgentDetailView({ navigate, session, api, agentId, masterPassphrase }) 
                             config_json: newConfig
                           })
                         });
-                        toast.success(`Policy & Config updated to ${v.toUpperCase()}`);
-                        loadAgent();
+                        setAgent(p => ({ ...p, policy_profile: v, config_json: newConfig }));
+                        toast.success(`Policy updated to ${v}`);
                       } catch (err) { toast.error(err.message); }
                     }}>
-                      <SelectTrigger className="w-full bg-black border-white/20 h-8 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="dev">Developer</SelectItem>
-                        <SelectItem value="ops">Operations</SelectItem>
-                        <SelectItem value="exec">Executive</SelectItem>
+                      <SelectTrigger className="w-full text-xs h-9 rounded-none border-white/10 bg-black"><SelectValue /></SelectTrigger>
+                      <SelectContent className="bg-black border-white/10">
+                        <SelectItem value="dev" className="text-xs">Developer</SelectItem>
+                        <SelectItem value="ops" className="text-xs">Operations</SelectItem>
+                        <SelectItem value="exec" className="text-xs">Executive</SelectItem>
+                        {tier === 'enterprise' && customPolicies.length > 0 && (
+                          <>
+                            <Separator className="my-2 bg-white/10" />
+                            <div className="px-2 py-1.5 text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Custom</div>
+                            {customPolicies.map(cp => (
+                              <SelectItem key={cp.id} value={cp.name} className="text-xs">{cp.label}</SelectItem>
+                            ))}
+                          </>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -1528,8 +1708,13 @@ function AgentDetailView({ navigate, session, api, agentId, masterPassphrase }) 
             <Card className="glass-card">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">Agent Configuration</CardTitle>
-                  <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={handleSaveConfig} disabled={savingConfig}>{savingConfig ? 'Saving...' : 'Save Config'}</Button>
+                  <div className="flex items-center gap-4">
+                    <CardTitle className="text-base">Agent Configuration</CardTitle>
+                    <Button variant="outline" size="xs" className="h-7 text-[10px] font-bold border-white/20 text-zinc-400 hover:text-white" onClick={() => window.dispatchEvent(new CustomEvent('open-master-key-modal'))}>
+                      <Shield className="w-3 h-3 mr-1.5 text-emerald-400" /> {masterPassphrase ? 'UPDATE KEY' : 'UNLOCK E2EE'}
+                    </Button>
+                  </div>
+                  <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 font-bold italic" onClick={handleSaveConfig} disabled={savingConfig}>{savingConfig ? 'Saving...' : 'Save Config'}</Button>
                 </div>
                 <CardDescription>Edit the JSON configuration and push to the agent.</CardDescription>
               </CardHeader>
@@ -1546,7 +1731,10 @@ function AgentDetailView({ navigate, session, api, agentId, masterPassphrase }) 
                       try {
                         const c = JSON.parse(configEdit);
                         const skills = Array.isArray(c.skills) ? c.skills.join(',') : '';
-                        const cmd = `fleet-monitor config push --agent-id=${agent.id} --saas-url=${window.location.origin} --agent-secret=${agent.agent_secret} --model=${c.model} --skills=${skills} --profile=${c.profile} --data-scope=${c.data_scope}`;
+                        const profile = c.profile || agent.policy_profile || 'dev';
+                        const model = c.model || agent.model || 'claude-sonnet-4';
+                        const scope = c.data_scope || (profile === 'dev' ? 'full' : 'restricted');
+                        const cmd = `fleet-monitor config push --agent-id=${agent.id} --saas-url=${window.location.origin} --agent-secret=${agent.agent_secret} --model=${model} --skills=${skills} --profile=${profile} --data-scope=${scope}`;
                         navigator.clipboard.writeText(cmd);
                         toast.success('Command copied');
                       } catch {
@@ -1559,7 +1747,10 @@ function AgentDetailView({ navigate, session, api, agentId, masterPassphrase }) 
                       try {
                         const c = JSON.parse(configEdit);
                         const skills = Array.isArray(c.skills) ? c.skills.join(',') : '';
-                        return `fleet-monitor config push --agent-id=${agent.id} --saas-url=${typeof window !== 'undefined' ? window.location.origin : ''} --agent-secret=${agent.agent_secret} --model=${c.model || agent.model} --skills=${skills} --profile=${agent.policy_profile} --data-scope=${c.data_scope || (agent.policy_profile === 'dev' ? 'full' : 'restricted')}`;
+                        const profile = c.profile || agent.policy_profile || 'dev';
+                        const model = c.model || agent.model || 'claude-sonnet-4';
+                        const scope = c.data_scope || (profile === 'dev' ? 'full' : 'restricted');
+                        return `fleet-monitor config push --agent-id=${agent.id} --saas-url=${typeof window !== 'undefined' ? window.location.origin : ''} --agent-secret=${agent.agent_secret} --model=${model} --skills=${skills} --profile=${profile} --data-scope=${scope}`;
                       } catch (e) {
                         return `fleet-monitor config push --agent-id=${agent.id} --config-file=./config.json (Fix JSON to see full command)`;
                       }
