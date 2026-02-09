@@ -19,7 +19,9 @@ import {
   Clock, DollarSign, Cpu, HardDrive, ArrowLeft, Menu, X,
   CheckCircle, XCircle, Wifi,
   BarChart3, Eye, Copy, Database,
-  Bell, Slack, Webhook
+  Bell, Slack, Webhook, Building2,
+  Box, Globe, Key, Settings2,
+  MoreVertical
 } from 'lucide-react';
 
 
@@ -251,13 +253,19 @@ function SettingsView({ navigate, api, session }) {
     } catch (err) { toast.error(err.message); }
   };
 
-  const handleDeletePolicy = async (id) => {
-    if (!confirm('Delete this custom policy?')) return;
-    try {
-      await api(`/api/custom-policies/${id}`, { method: 'DELETE' });
-      toast.success('Policy removed');
-      loadPolicies();
-    } catch (err) { toast.error(err.message); }
+  const handleDeletePolicy = (id) => {
+    toast('Delete this custom policy?', {
+      action: {
+        label: 'Confirm',
+        onClick: async () => {
+          try {
+            await api(`/api/custom-policies/${id}`, { method: 'DELETE' });
+            toast.success('Policy removed');
+            loadPolicies();
+          } catch (err) { toast.error(err.message); }
+        }
+      }
+    });
   };
 
   return (
@@ -285,6 +293,7 @@ function SettingsView({ navigate, api, session }) {
             <TabsTrigger value="policies" className="h-full rounded-none px-8 font-mono text-[10px] uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:text-black flex items-center gap-2">
               Custom Policies {tier !== 'enterprise' && <Badge className="h-3.5 px-1 py-0 text-[7px] bg-amber-500/20 text-amber-500 border-amber-500/30 rounded-none">{tier === 'pro' ? 'PREMIUM' : 'UPGRADE'}</Badge>}
             </TabsTrigger>
+            <TabsTrigger value="enterprise" className="h-full rounded-none px-8 font-mono text-[10px] uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:text-black">Enterprise</TabsTrigger>
             <TabsTrigger value="general" className="h-full rounded-none px-8 font-mono text-[10px] uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:text-black">General</TabsTrigger>
           </TabsList>
 
@@ -374,6 +383,98 @@ function SettingsView({ navigate, api, session }) {
             </div>
           </TabsContent>
 
+          <TabsContent value="enterprise">
+            <div className="grid gap-4">
+              {tier !== 'enterprise' ? (
+                <Card className="glass-card p-12 text-center border-dashed border-white/10 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-white/5 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center p-8">
+                    <Building2 className="w-12 h-12 text-white mb-6 animate-pulse" />
+                    <h3 className="text-xl font-bold text-white uppercase italic mb-2 tracking-tight">Enterprise Infrastructure Locked</h3>
+                    <p className="text-zinc-500 text-xs font-mono max-w-sm mb-8 leading-relaxed">
+                      On-Premise deployment, white-labeling, and dedicated SLAs require an Enterprise license.
+                    </p>
+                    <Button className="bg-white text-black font-black uppercase italic rounded-none h-11 px-10 tracking-widest" onClick={() => navigate('/pricing')}>UPGRADE TO ENTERPRISE</Button>
+                  </div>
+                  <div className="opacity-10 grayscale blur-sm">
+                    <div className="h-48 w-full bg-zinc-900 border border-white/10 rounded-sm mb-4" />
+                    <div className="h-48 w-full bg-zinc-900 border border-white/10 rounded-sm" />
+                  </div>
+                </Card>
+              ) : (
+                <div className="space-y-6">
+                  <Card className="glass-card border-emerald-500/20">
+                    <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                      <div>
+                        <CardTitle className="text-sm font-bold text-white flex items-center gap-2">
+                          <Globe className="w-4 h-4 text-emerald-400" /> SELF-HOSTING / ON-PREMISE
+                        </CardTitle>
+                        <CardDescription className="text-[10px] font-mono mt-1 text-zinc-500">Deploy Fleet OS on your own infrastructure.</CardDescription>
+                      </div>
+                      <Badge className="bg-emerald-500 text-black text-[9px] font-bold rounded-none">ENTERPRISE ACTIVE</Badge>
+                    </CardHeader>
+                    <CardContent className="space-y-6 pt-2">
+                      <div className="grid gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-[10px] uppercase text-zinc-400">On-Premise API Key</Label>
+                          <div className="flex gap-2">
+                            <Input readOnly type="password" value="ent_live_x882_99ac_f221_0b44" className="bg-zinc-950 border-white/10 font-mono text-xs text-emerald-400" />
+                            <Button variant="outline" size="sm" className="h-9 rounded-none border-white/10" onClick={() => { navigator.clipboard.writeText('ent_live_x882_99ac_f221_0b44'); toast.success('Key copied!'); }}><Copy className="w-4 h-4" /></Button>
+                          </div>
+                          <p className="text-[9px] text-zinc-600 font-mono uppercase">THIS KEY ALLOWS YOUR ON-PREM NODE TO SYNC WITH GLOBAL FLEET POLICY.</p>
+                        </div>
+
+                        <Separator className="bg-white/5" />
+
+                        <div className="space-y-3">
+                          <h4 className="text-[10px] font-bold text-zinc-300 uppercase tracking-widest flex items-center gap-2">
+                            <Box className="w-3 h-3" /> Quick Deployment (Docker)
+                          </h4>
+                          <div className="relative group">
+                            <pre className="bg-black/60 border border-white/10 p-4 rounded-sm text-[10px] font-mono text-zinc-400 overflow-x-auto">
+                              {`version: '3.8'
+services:
+  fleet-node:
+    image: ghcr.io/openclaw/fleet:latest
+    environment:
+      - FLEET_KEY=ent_live_x882_99ac_f221_0b44
+      - SAAS_URL=${window.location.origin}
+      - MODE=on-premise
+    ports:
+      - "8080:8080"`}
+                            </pre>
+                            <Button variant="ghost" size="sm" className="absolute top-2 right-2 h-6 text-[9px] uppercase font-bold bg-white text-black hover:bg-zinc-200 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => {
+                              navigator.clipboard.writeText(`version: '3.8'\nservices:\n  fleet-node:\n    image: ghcr.io/openclaw/fleet:latest\n    environment:\n      - FLEET_KEY=ent_live_x882_99ac_f221_0b44\n      - SAAS_URL=${window.location.origin}\n      - MODE=on-premise\n    ports:\n      - "8080:8080"`);
+                              toast.success('Config copied!');
+                            }}>COPY</Button>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="glass-card">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-bold text-white flex items-center gap-2">
+                        <Settings2 className="w-4 h-4 text-zinc-400" /> Enterprise Branding
+                      </CardTitle>
+                      <CardDescription className="text-[10px] font-mono mt-1 text-zinc-500">Configure white-label appearance for your customers.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid gap-2">
+                        <Label className="text-[10px] uppercase text-zinc-500">Dashboard Domain</Label>
+                        <Input placeholder="fleet.yourcompany.com" className="bg-zinc-900 border-white/5 h-9 text-xs" />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label className="text-[10px] uppercase text-zinc-500">Organization Name</Label>
+                        <Input placeholder="Acme Logistics OS" className="bg-zinc-900 border-white/5 h-9 text-xs" />
+                      </div>
+                      <Button className="w-full bg-white/5 border border-white/10 text-white hover:bg-white/10 rounded-none h-10 font-bold uppercase tracking-widest text-xs">SAVE BRANDING</Button>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+            </div>
+          </TabsContent>
           <TabsContent value="general">
             <Card className="glass-card">
               <CardHeader>
@@ -1053,7 +1154,9 @@ function LandingView({ navigate, session }) {
 function LoginView({ navigate, session }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [ssoDomain, setSsoDomain] = useState('');
   const [loading, setLoading] = useState(false);
+  const [authMode, setAuthMode] = useState('direct');
 
   useEffect(() => { if (session) navigate('/dashboard'); }, [session, navigate]);
 
@@ -1072,28 +1175,82 @@ function LoginView({ navigate, session }) {
     }
   };
 
+  const handleSSO = async (e) => {
+    e.preventDefault();
+    if (!ssoDomain) {
+      toast.error('Enter your enterprise domain');
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithSSO({
+        domain: ssoDomain.trim()
+      });
+      if (error) throw error;
+      if (data?.url) window.location.href = data.url;
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-black relative overflow-hidden">
       <div className="absolute inset-0 grid-bg opacity-20" />
-      <Card className="w-full max-w-md bg-black border border-white/20 relative z-10 rounded-none">
+      <Card className="w-full max-w-md bg-black border border-white/20 relative z-10 rounded-none overflow-hidden">
+        <div className="h-1 bg-white" />
         <CardHeader className="text-center pb-2">
           <div className="flex justify-center mb-6">
             <div className="w-12 h-12 bg-white flex items-center justify-center"><Zap className="w-6 h-6 text-black fill-black" /></div>
           </div>
-          <CardTitle className="text-2xl font-bold tracking-tight text-white">SYSTEM LOGIN</CardTitle>
-          <CardDescription className="font-mono text-zinc-500 uppercase text-xs tracking-widest">Identify Yourself</CardDescription>
+          <CardTitle className="text-2xl font-bold tracking-tight text-white">SYSTEM ACCESS</CardTitle>
+          <CardDescription className="font-mono text-zinc-500 uppercase text-[10px] tracking-widest">Identify Yourself to console</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div className="space-y-2"><Label htmlFor="email" className="font-mono text-xs uppercase text-zinc-400">Email Address</Label><Input id="email" type="email" className="bg-zinc-900 border-white/10 text-white rounded-none h-10 focus:border-white/40" placeholder="USER@EXAMPLE.COM" value={email} onChange={e => setEmail(e.target.value)} required /></div>
-            <div className="space-y-2"><Label htmlFor="password" className="font-mono text-xs uppercase text-zinc-400">Password</Label><Input id="password" type="password" className="bg-zinc-900 border-white/10 text-white rounded-none h-10 focus:border-white/40" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required /></div>
-            <Button type="submit" className="w-full bg-white text-black hover:bg-zinc-200 rounded-none font-bold uppercase tracking-widest h-10" disabled={loading}>{loading ? 'AUTHENTICATING...' : 'ACCESS DASHBOARD'}</Button>
-          </form>
+          <Tabs value={authMode} onValueChange={setAuthMode} className="w-full mb-6">
+            <TabsList className="grid grid-cols-2 rounded-none bg-zinc-900 h-10 p-1 border border-white/10">
+              <TabsTrigger value="direct" className="rounded-none font-mono text-[10px] uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:text-black">DIRECT OPS</TabsTrigger>
+              <TabsTrigger value="enterprise" className="rounded-none font-mono text-[10px] uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:text-black">ENTERPRISE SSO</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="direct">
+              <form onSubmit={handleLogin} className="space-y-6 pt-2">
+                <div className="space-y-2"><Label htmlFor="email" className="font-mono text-[10px] uppercase text-zinc-400">Email Address</Label><Input id="email" type="email" className="bg-zinc-900 border-white/10 text-white rounded-none h-10 focus:ring-0 focus:border-white/40" placeholder="USER@EXAMPLE.COM" value={email} onChange={e => setEmail(e.target.value)} required /></div>
+                <div className="space-y-2"><Label htmlFor="password" className="font-mono text-[10px] uppercase text-zinc-400">Security Key</Label><Input id="password" type="password" className="bg-zinc-900 border-white/10 text-white rounded-none h-10 focus:ring-0 focus:border-white/40" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required /></div>
+                <Button type="submit" className="w-full bg-white text-black hover:bg-zinc-200 rounded-none font-bold uppercase tracking-widest h-11 text-xs" disabled={loading}>{loading ? 'VERIFYING...' : 'INITIATE LOGIN'}</Button>
+              </form>
+            </TabsContent>
+
+            <TabsContent value="enterprise">
+              <div className="pt-2 space-y-4">
+                <div className="p-3 bg-zinc-900 border border-white/10">
+                  <p className="text-[10px] text-zinc-400 font-mono uppercase leading-relaxed">
+                    Accessing as an organization? Redirect to your identity provider via SAML 2.0.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="sso-domain" className="font-mono text-[10px] uppercase text-zinc-400">Enterprise Domain</Label>
+                  <div className="relative">
+                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                    <Input id="sso-domain" type="text" className="pl-10 bg-zinc-900 border-white/10 text-white rounded-none h-10 focus:ring-0 focus:border-white/40" placeholder="ACME.COM" value={ssoDomain} onChange={e => setSsoDomain(e.target.value)} />
+                  </div>
+                </div>
+                <Button onClick={handleSSO} className="w-full bg-transparent border border-white/20 text-white hover:bg-white hover:text-black rounded-none font-bold uppercase tracking-widest h-11 text-xs transition-all" disabled={loading}>
+                  {loading ? 'REDIRECTING...' : 'SSO AUTHENTICATION'}
+                </Button>
+              </div>
+            </TabsContent>
+          </Tabs>
         </CardContent>
         <CardFooter className="justify-center border-t border-white/10 pt-4 mt-2">
-          <p className="text-xs text-zinc-500 font-mono">NO ACCOUNT? <button onClick={() => navigate('/register')} className="text-white hover:underline uppercase">INITIATE REGISTRATION</button></p>
+          <p className="text-xs text-zinc-500 font-mono italic">UNAUTHORIZED ACCESS IS PROHIBITED. IP LOGGED.</p>
         </CardFooter>
       </Card>
+      <div className="absolute bottom-4 left-4 flex gap-4 text-[10px] font-mono text-zinc-600 uppercase">
+        <button onClick={() => navigate('/register')} className="hover:text-white">New Operator</button>
+        <button onClick={() => navigate('/')} className="hover:text-white">Terminal Home</button>
+      </div>
     </div>
   );
 }
@@ -1262,16 +1419,22 @@ function DashboardView({ navigate, session, api, masterPassphrase }) {
     }
   };
 
-  const handleDeleteAgent = async (id) => {
-    if (!confirm('Delete this agent?')) return;
-    try {
-      await api(`/api/agents/${id}`, { method: 'DELETE' });
-      toast.success('Agent deleted');
-      loadAgents();
-      loadData();
-    } catch (err) {
-      toast.error(err.message);
-    }
+  const handleDeleteAgent = (id) => {
+    toast('Delete this agent?', {
+      action: {
+        label: 'Confirm',
+        onClick: async () => {
+          try {
+            await api(`/api/agents/${id}`, { method: 'DELETE' });
+            toast.success('Agent deleted');
+            loadAgents();
+            loadData();
+          } catch (err) {
+            toast.error(err.message);
+          }
+        }
+      }
+    });
   };
 
   const handleResolveAlert = async (id) => {
