@@ -181,6 +181,16 @@ function ChangelogView({ navigate, session }) {
   );
 }
 
+/**
+ * Render the settings view for managing alert channels and custom policies.
+ *
+ * This component fetches and displays alert channels and custom policies based on the user's subscription tier. It allows users to add, delete, and configure alert channels and policies. The component utilizes various hooks to manage state and side effects, including loading data from the API and handling user interactions through forms and dialogs.
+ *
+ * @param {Object} props - The component props.
+ * @param {Function} props.navigate - Function to navigate to different routes.
+ * @param {Function} props.api - Function to make API calls.
+ * @param {Object} props.session - The user session object containing user information.
+ */
 function SettingsView({ navigate, api, session }) {
   const [channels, setChannels] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -253,6 +263,9 @@ function SettingsView({ navigate, api, session }) {
     } catch (err) { toast.error(err.message); }
   };
 
+  /**
+   * Prompts the user to confirm deletion of a custom policy and handles the deletion.
+   */
   const handleDeletePolicy = (id) => {
     toast('Delete this custom policy?', {
       action: {
@@ -1151,6 +1164,17 @@ function LandingView({ navigate, session }) {
 }
 
 // ============ LOGIN ============
+/**
+ * Renders the login view for user authentication.
+ *
+ * This component manages the login process through both direct email/password and enterprise SSO methods.
+ * It utilizes state hooks to handle form inputs and loading states, and effects to navigate to the dashboard upon session validation.
+ * The login and SSO functions handle authentication with error handling and user feedback via toast notifications.
+ *
+ * @param {Object} props - The component props.
+ * @param {function} props.navigate - Function to navigate to different routes.
+ * @param {Object} props.session - The current user session object.
+ */
 function LoginView({ navigate, session }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -1309,6 +1333,18 @@ function RegisterView({ navigate, session }) {
 }
 
 // ============ DASHBOARD ============
+/**
+ * Dashboard view component for monitoring and managing AI agent fleets.
+ *
+ * This component fetches and displays statistics, fleets, agents, and alerts. It handles the addition and deletion of agents, as well as the resolution of alerts. The component also manages user interactions such as loading demo data and selecting fleets. It utilizes various hooks to manage state and side effects, ensuring that data is loaded and updated appropriately based on user actions and API responses.
+ *
+ * @param {Object} props - The properties for the DashboardView component.
+ * @param {Function} props.navigate - Function to navigate to different routes.
+ * @param {Object} props.session - User session information.
+ * @param {Function} props.api - Function to make API calls.
+ * @param {string} props.masterPassphrase - Master passphrase for encryption.
+ * @returns {JSX.Element} The rendered dashboard view.
+ */
 function DashboardView({ navigate, session, api, masterPassphrase }) {
   const [stats, setStats] = useState(null);
   const [fleets, setFleets] = useState([]);
