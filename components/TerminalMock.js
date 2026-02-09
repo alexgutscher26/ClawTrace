@@ -142,7 +142,7 @@ export default function TerminalMock() {
                 <p className="text-[10px] font-bold tracking-[0.2em] text-zinc-500">CPU LOAD</p>
                 <div className="relative h-1 w-full bg-zinc-900">
                   <div
-                    className="absolute top-0 left-0 h-full bg-white transition-all duration-[2000ms] ease-in-out"
+                    className="absolute top-0 left-0 h-full bg-white transition-all duration-2000 ease-in-out"
                     style={{ width: `${cpuWidth}%` }}
                   />
                 </div>
@@ -151,7 +151,7 @@ export default function TerminalMock() {
                 <p className="text-[10px] font-bold tracking-[0.2em] text-zinc-500">MEMORY</p>
                 <div className="relative h-1 w-full bg-zinc-900">
                   <div
-                    className="absolute top-0 left-0 h-full bg-white transition-all duration-[2000ms] ease-in-out"
+                    className="absolute top-0 left-0 h-full bg-white transition-all duration-2000 ease-in-out"
                     style={{ width: `${memWidth}%` }}
                   />
                 </div>
@@ -165,7 +165,7 @@ export default function TerminalMock() {
       <div className="absolute right-6 bottom-6 animate-pulse font-bold text-white">_</div>
 
       {/* CRT Scanline Effect (Subtle) */}
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(255,0,0,0.02),rgba(0,255,0,0.01),rgba(0,0,255,0.02))] bg-[length:100%_2px,3px_100%]" />
+      <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(255,0,0,0.02),rgba(0,255,0,0.01),rgba(0,0,255,0.02))] bg-size-[100%_2px,3px_100%]" />
     </div>
   );
 }

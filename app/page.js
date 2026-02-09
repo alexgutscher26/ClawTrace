@@ -1,15 +1,35 @@
 'use client';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { createClient } from '@supabase/supabase-js';
+import {
+  Zap, ArrowLeft, ArrowRight, Menu, X, Bell, Webhook,
+  Building2, Copy, Box, Globe, Settings2, AlertTriangle,
+  Trash2, Plus, Search, MoreVertical, Activity, Cpu,
+  Layers, Shield, Clock, ArrowUpRight, CheckCircle,
+  RefreshCw, Play, Square, FileCode, Settings, ChevronRight,
+  Slack
+} from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import { Progress } from '@/components/ui/progress';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Toaster } from '@/components/ui/sonner';
+import { toast } from 'sonner';
 
-import LandingView from '@/components/views/LandingView';
-
+import { getPolicy } from '@/lib/policies';
+import { encryptE2EE, decryptE2EE, isE2E } from '@/lib/client-crypto';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
-
-import { getPolicy } from '@/lib/policies';
-import { encryptE2EE, decryptE2EE, isE2E } from '@/lib/client-crypto';
 
 const STATUS_CONFIG = {
   healthy: { color: 'bg-white', text: 'text-white', border: 'border-white/20', label: 'OPERATIONAL', bgLight: 'bg-white/10' },
@@ -116,7 +136,7 @@ function ChangelogView({ navigate, session, branding }) {
 
         <div className="relative space-y-16">
           {/* Timeline Line */}
-          <div className="absolute left-0 top-0 bottom-0 w-[1px] bg-gradient-to-b from-emerald-500/50 via-white/10 to-transparent ml-[18px] md:ml-[34px] hidden sm:block" />
+          <div className="absolute left-0 top-0 bottom-0 w-px bg-linear-to-b from-emerald-500/50 via-white/10 to-transparent ml-[18px] md:ml-[34px] hidden sm:block" />
 
           {CHANGELOG_DATA.map((release, idx) => (
             <div key={idx} className="relative pl-12 sm:pl-24">
@@ -137,7 +157,7 @@ function ChangelogView({ navigate, session, branding }) {
                   <CardContent className="pt-6 space-y-4">
                     {release.items.map((item, i) => (
                       <div key={i} className="flex gap-4 group">
-                        <div className={`text-[9px] font-mono font-bold uppercase tracking-tighter px-2 py-1 rounded-sm h-fit mt-0.5 flex-shrink-0 ${item.type === 'feature' ? 'bg-white text-black' : 'bg-zinc-800 text-zinc-400'
+                        <div className={`text-[9px] font-mono font-bold uppercase tracking-tighter px-2 py-1 rounded-sm h-fit mt-0.5 shrink-0 ${item.type === 'feature' ? 'bg-white text-black' : 'bg-zinc-800 text-zinc-400'
                           }`}>
                           {item.type}
                         </div>
@@ -1050,7 +1070,7 @@ function TerminalMock() {
                 <p className="text-[10px] text-zinc-500 tracking-[0.2em] font-bold">CPU LOAD</p>
                 <div className="h-1 bg-zinc-900 w-full relative">
                   <div
-                    className="absolute top-0 left-0 h-full bg-white transition-all duration-[2000ms] ease-in-out"
+                    className="absolute top-0 left-0 h-full bg-white transition-all duration-2000 ease-in-out"
                     style={{ width: `${cpuWidth}%` }}
                   />
                 </div>
@@ -1059,7 +1079,7 @@ function TerminalMock() {
                 <p className="text-[10px] text-zinc-500 tracking-[0.2em] font-bold">MEMORY</p>
                 <div className="h-1 bg-zinc-900 w-full relative">
                   <div
-                    className="absolute top-0 left-0 h-full bg-white transition-all duration-[2000ms] ease-in-out"
+                    className="absolute top-0 left-0 h-full bg-white transition-all duration-2000 ease-in-out"
                     style={{ width: `${memWidth}%` }}
                   />
                 </div>
@@ -1073,7 +1093,7 @@ function TerminalMock() {
       <div className="absolute bottom-6 right-6 text-white font-bold animate-pulse">_</div>
 
       {/* CRT Scanline Effect (Subtle) */}
-      <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(255,0,0,0.02),rgba(0,255,0,0.01),rgba(0,0,255,0.02))] bg-[length:100%_2px,3px_100%]" />
+      <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(255,0,0,0.02),rgba(0,255,0,0.01),rgba(0,0,255,0.02))] bg-size-[100%_2px,3px_100%]" />
     </div>
   );
 }

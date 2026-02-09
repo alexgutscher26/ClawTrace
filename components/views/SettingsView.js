@@ -478,7 +478,7 @@ export default function SettingsView() {
                   {policies.map((p) => (
                     <div
                       key={p.id}
-                      className="group flex items-center justify-between border border-white/10 bg-black p-6 hover:bg-white/[0.02]"
+                      className="group flex items-center justify-between border border-white/10 bg-black p-6 hover:bg-white/2"
                     >
                       <div className="flex items-center gap-6">
                         <div
