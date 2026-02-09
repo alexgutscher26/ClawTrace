@@ -42,6 +42,16 @@ const RATE_LIMIT_CONFIG = {
   }
 };
 
+/**
+ * Retrieves the subscription tier for a given user.
+ *
+ * This function checks if a userId is provided. If not, it defaults to returning 'free'.
+ * If a userId is present, it queries the 'subscriptions' table in the Supabase database
+ * to find the user's plan, ensuring the status is not 'cancelled'. The plan is returned
+ * in lowercase, defaulting to 'free' if no plan is found.
+ *
+ * @param {string} userId - The ID of the user whose subscription tier is to be retrieved.
+ */
 async function getTier(userId) {
   if (!userId) return 'free';
   const { data } = await supabaseAdmin
@@ -53,6 +63,17 @@ async function getTier(userId) {
   return (data?.plan || 'free').toLowerCase();
 }
 
+/**
+ * Check the rate limit for a given request based on user tier and type.
+ *
+ * This function retrieves the user's tier and corresponding rate limit configuration. It checks the current token bucket for the specified identifier and type, refills tokens based on elapsed time, and determines if the request is allowed. If allowed, it updates the token bucket in the database; otherwise, it returns an error response indicating too many requests.
+ *
+ * @param request - The incoming request object.
+ * @param identifier - A unique identifier for the rate limit check.
+ * @param type - The type of rate limit to check (default is 'global').
+ * @param userId - The ID of the user (optional).
+ * @returns An object indicating whether the request is allowed.
+ */
 async function checkRateLimit(request, identifier, type = 'global', userId = null) {
   const tier = await getTier(userId);
   const tierConfig = RATE_LIMIT_CONFIG[tier] || RATE_LIMIT_CONFIG.free;
@@ -155,6 +176,18 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
 }
 
+/**
+ * Handles GET requests for various API endpoints and returns appropriate responses.
+ *
+ * This function processes the incoming request, checks the rate limit, and serves different responses based on the requested path.
+ * It includes health checks, agent installation scripts for different platforms, and user-specific data retrieval from the database.
+ * The function also manages session tokens and handles errors gracefully, ensuring that the user is authenticated for sensitive operations.
+ *
+ * @param request - The incoming request object.
+ * @param context - The context object containing parameters and other relevant data.
+ * @returns A JSON response based on the requested path and the processed data.
+ * @throws Error If an internal error occurs during processing.
+ */
 export async function GET(request, context) {
   const params = await context.params;
   const path = getPath(params);
@@ -1004,6 +1037,19 @@ done
   }
 }
 
+/**
+ * Handles POST requests for various API endpoints related to fleets, agents, custom policies, and more.
+ *
+ * This function processes incoming requests based on the specified path, performing actions such as user authentication,
+ * rate limiting, data insertion into the database, and returning appropriate JSON responses. It includes logic for
+ * managing fleets, agents, custom policies, billing, and team management, while ensuring proper error handling and
+ * validation throughout the process.
+ *
+ * @param request - The incoming request object containing headers and body data.
+ * @param context - The context object providing access to parameters and other contextual information.
+ * @returns A JSON response based on the processed request, including success or error messages.
+ * @throws Error If an unexpected error occurs during processing.
+ */
 export async function POST(request, context) {
   const params = await context.params;
   const path = getPath(params);
@@ -1611,6 +1657,19 @@ export async function POST(request, context) {
   }
 }
 
+/**
+ * Handles the PUT request for updating agents, fleets, or custom policies.
+ *
+ * The function first extracts parameters from the request context and matches the request path to determine the resource type.
+ * It checks for user authentication and authorization, processes the request body to update the relevant fields,
+ * and interacts with the Supabase database to perform the update. If the resource is not found or an error occurs,
+ * appropriate error responses are returned.
+ *
+ * @param request - The incoming request object containing the data to be updated.
+ * @param context - The context object containing parameters and other relevant data.
+ * @returns A JSON response indicating the result of the update operation.
+ * @throws Error If an internal server error occurs during the process.
+ */
 export async function PUT(request, context) {
   const params = await context.params;
   const path = getPath(params);
