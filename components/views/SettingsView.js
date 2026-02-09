@@ -288,7 +288,7 @@ export default function SettingsView() {
                           <Input
                             value={newChannel.name}
                             onChange={(e) => setNewChannel({ ...newChannel, name: e.target.value })}
-                            className="h-12 rounded-none border-white/20 bg-zinc-900 transition-all transition-colors focus:border-white"
+                            className="h-12 rounded-none border-white/20 bg-zinc-900 transition-colors focus:border-white"
                             placeholder="PRODUCTION-SLACK"
                           />
                         </div>
@@ -316,7 +316,7 @@ export default function SettingsView() {
                             onChange={(e) =>
                               setNewChannel({ ...newChannel, webhook_url: e.target.value })
                             }
-                            className="h-12 rounded-none border-white/20 bg-zinc-900 transition-all transition-colors focus:border-white"
+                            className="h-12 rounded-none border-white/20 bg-zinc-900 transition-colors focus:border-white"
                             placeholder="https://hooks.slack.com/services/..."
                           />
                         </div>
@@ -550,7 +550,7 @@ export default function SettingsView() {
                     <Input
                       value={branding.name}
                       onChange={(e) => setBranding({ ...branding, name: e.target.value })}
-                      className="h-14 rounded-none border-white/20 bg-zinc-900 text-lg font-bold tracking-tighter uppercase transition-all focus:border-white"
+                      className="h-14 rounded-none border-white/20 bg-zinc-900 text-lg font-bold tracking-tighter uppercase transition-colors focus:border-white"
                       placeholder="CYBERDYNE SYSTEMS"
                     />
                   </div>
@@ -561,7 +561,7 @@ export default function SettingsView() {
                     <Input
                       value={branding.domain}
                       onChange={(e) => setBranding({ ...branding, domain: e.target.value })}
-                      className="h-14 rounded-none border-white/20 bg-zinc-900 font-mono transition-all focus:border-white"
+                      className="h-14 rounded-none border-white/20 bg-zinc-900 font-mono transition-colors focus:border-white"
                       placeholder="fleet.cyberdyne.io"
                     />
                   </div>

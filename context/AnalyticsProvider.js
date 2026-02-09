@@ -19,6 +19,13 @@ export function AnalyticsProvider({ children }) {
         capture_pageview: false, // We'll handle it manually to support hash routing
         persistence: 'localStorage',
         autocapture: true,
+        capture_performance: true, // Enable performance/web vitals tracking
+        enable_external_api_event_tracking: true, // Captures API errors
+        session_recording: {
+          maskAllInputFields: false,
+          maskTextSelector: ".sensitive",
+        },
+        enable_recording_console_log: true, // Required for advanced Error Tracking
       });
       window.posthog = posthog;
     }
