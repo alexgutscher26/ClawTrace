@@ -900,13 +900,13 @@ export async function POST(request, context) {
         config_json: encrypt(body.config_json || {
           profile: policyProfile,
           skills: policy.skills,
-          model: body.model || 'gpt-4',
+          model: body.model || 'claude-sonnet-4',
           data_scope: policyProfile === 'dev' ? 'full' : policyProfile === 'ops' ? 'system' : 'read-only'
         }),
         metrics_json: { latency_ms: 0, tasks_completed: 0, errors_count: 0, uptime_hours: 0, cost_usd: 0, cpu_usage: 0, memory_usage: 0 },
         machine_id: body.machine_id || '',
         location: body.location || '',
-        model: body.model || 'gpt-4',
+        model: body.model || 'claude-sonnet-4',
         agent_secret: JSON.stringify(encrypt(plainSecret)), // Encrypt returns object, must stringify for DB
         policy_profile: policyProfile,
         created_at: new Date().toISOString(),
@@ -920,7 +920,7 @@ export async function POST(request, context) {
         agent: {
           ...agent,
           agent_secret: plainSecret,
-          config_json: body.config_json || { profile: 'dev', skills: ['code', 'search'], model: 'gpt-4', data_scope: 'full' }
+          config_json: body.config_json || { profile: 'dev', skills: ['code', 'search'], model: 'claude-sonnet-4', data_scope: 'full' }
         }
       }, 201);
     }

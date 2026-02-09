@@ -324,7 +324,7 @@ async function configPushCommand(args) {
   else {
     console.log(`${COLORS.yellow}No configuration provided. Using default template.${COLORS.reset}`);
     config = {
-      model: 'gpt-4',
+      model: 'claude-sonnet-4',
       skills: ['code', 'search'],
       profile: 'dev',
       data_scope: 'full'
