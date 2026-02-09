@@ -17,6 +17,13 @@ import { Zap, Building2 } from 'lucide-react';
 import { useFleet } from '@/context/FleetContext';
 import { useRouter } from 'next/navigation';
 
+/**
+ * Renders the login view for user authentication.
+ *
+ * This component manages user login through direct email/password input or enterprise SSO. It utilizes hooks to manage state and side effects, including navigation upon successful login. The component handles form submissions for both login methods, displaying appropriate feedback for success or errors.
+ *
+ * @returns {JSX.Element} The rendered login view component.
+ */
 export default function LoginView() {
   const { session } = useFleet();
   const router = useRouter();
@@ -31,6 +38,17 @@ export default function LoginView() {
     if (session) navigate('/dashboard');
   }, [session, navigate]);
 
+  /**
+   * Handles user login by processing the login form submission.
+   *
+   * This function prevents the default form submission behavior, sets a loading state,
+   * and attempts to sign in the user using Supabase's authentication method.
+   * If successful, it displays a success message, captures the event with PostHog,
+   * and navigates to the dashboard. In case of an error, it shows an error message
+   * and ensures the loading state is reset in the end.
+   *
+   * @param {Event} e - The event object from the form submission.
+   */
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
