@@ -1,0 +1,11 @@
+.next
+node_modules
+dist
+build
+.env*
+*.local
+public
+.git
+cli
+scripts
+supabase
