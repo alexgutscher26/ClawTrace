@@ -17,12 +17,12 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <body className={`bg-background min-h-screen antialiased ${font.className}`}>
-        <AnalyticsProvider>
-          <FleetProvider>
+        <FleetProvider>
+          <AnalyticsProvider>
             <Toaster richColors position="top-right" theme="dark" />
             {children}
-          </FleetProvider>
-        </AnalyticsProvider>
+          </AnalyticsProvider>
+        </FleetProvider>
       </body>
     </html>
   );
