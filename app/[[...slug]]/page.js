@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { usePathname, useRouter, useParams } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,7 +48,7 @@ function timeAgo(dateString) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-function useHashRouter() {
+function usePathRouter() {
   const router = useRouter();
   const pathname = usePathname();
   const [route, setRoute] = useState({ view: 'landing', params: {} });
@@ -63,6 +63,7 @@ function useHashRouter() {
       if (path === '/pricing') return { view: 'pricing', params: {} };
       if (path === '/settings') return { view: 'settings', params: {} };
       if (path === '/changelog') return { view: 'changelog', params: {} };
+      if (path === '/docs') return { view: 'docs', params: {} };
 
       const m = path.match(/^\/agent\/(.+)$/);
       if (m) return { view: 'agent', params: { id: m[1] } };
@@ -154,6 +155,7 @@ function Navbar({ navigate, session, branding, transparent = false }) {
             {session && <button onClick={() => navigate('/settings')} className="hover:text-white transition-colors">SETTINGS</button>}
             <button onClick={() => navigate('/changelog')} className="hover:text-white transition-colors">CHANGELOG</button>
             <button onClick={() => navigate('/pricing')} className="hover:text-white transition-colors">PRICING</button>
+            <button onClick={() => navigate('/docs')} className="hover:text-white transition-colors">DOCS</button>
             <button onClick={() => window.open('https://github.com/openclaw/fleet', '_blank')} className="hover:text-white transition-colors">GITHUB</button>
           </div>
         </div>
@@ -200,6 +202,264 @@ function Navbar({ navigate, session, branding, transparent = false }) {
   );
 }
 
+function DocsView({ navigate, session, branding }) {
+  const [activePage, setActivePage] = useState('Introduction');
+
+  const sections = [
+    { title: 'Getting Started', items: ['Introduction', 'Installation', 'Architecture', 'Quick Start'] },
+    { title: 'Core Concepts', items: ['Agents', 'Fleets', 'Policies', 'Security'] },
+    { title: 'API Reference', items: ['Authentication', 'Endpoints', 'Webhooks'] },
+    { title: 'Guides', items: ['Deploying to AWS', 'Self-Hosting', 'Custom Agents'] }
+  ];
+
+  const content = {
+    'Introduction': {
+      title: 'Introduction to Fleet',
+      subtitle: 'Orchestrate your AI swarms.',
+      body: (
+        <div className="space-y-8">
+          <p className="text-zinc-400 text-lg leading-relaxed">
+            Fleet is a lightweight, secure, and scalable orchestration platform for managing autonomous AI agent swarms.
+            Designed for high-performance environments, it provides real-time telemetry, remote execution, and policy enforcement.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[
+              { title: 'Zero Latency', desc: 'Real-time state synchronization via WebSocket.' },
+              { title: 'E2E Encryption', desc: 'Client-side encryption for all sensitive payloads.' },
+              { title: 'Policy Engine', desc: 'Granular RBAC and execution constraints.' },
+              { title: 'Self-Hosted', desc: 'Deploy anywhere with a single Docker container.' }
+            ].map((f, i) => (
+              <div key={i} className="p-4 border border-white/10 bg-black">
+                <h3 className="font-bold text-sm uppercase tracking-wide mb-2 text-white">{f.title}</h3>
+                <p className="text-xs text-zinc-500">{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )
+    },
+    'Installation': {
+      title: 'Installation',
+      subtitle: 'Deploying the Fleet Agent.',
+      body: (
+        <div className="space-y-6">
+          <p className="text-zinc-400">
+            The Fleet Agent is a standalone binary that runs on Linux, macOS, and Windows.
+            It connects to the Fleet Gateway and executes commands from the Control Plane.
+          </p>
+          <div className="space-y-2">
+            <h3 className="text-sm font-bold uppercase text-white">One-Line Install (Linux/macOS)</h3>
+            <div className="bg-zinc-950 border border-white/10 p-4 font-mono text-xs text-emerald-400">
+              curl -sL https://fleet.sh/install | bash
+            </div>
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-sm font-bold uppercase text-white">NPM Global Install</h3>
+            <div className="bg-zinc-950 border border-white/10 p-4 font-mono text-xs text-emerald-400">
+              npm install -g openclaw-fleet-monitor
+            </div>
+          </div>
+        </div>
+      )
+    },
+    'Architecture': {
+      title: 'System Architecture',
+      subtitle: 'How Fleet fits together.',
+      body: (
+        <div className="space-y-8">
+          <Card className="bg-black border-white/10 p-6">
+            <pre className="text-xs font-mono text-zinc-400 whitespace-pre-wrap">
+              {`[CONTROL PLANE] <---> [GATEWAY] <---> [AGENTS]
+      |                   |
+  [DASHBOARD]        [DATABASE]`}
+            </pre>
+          </Card>
+          <div className="space-y-4 text-zinc-400 text-sm">
+            <p><strong className="text-white">Control Plane:</strong> The brain of the operation. Handles API requests, auth, and state.</p>
+            <p><strong className="text-white">Gateway:</strong> High-performance WebSocket server dealing with agent connections.</p>
+            <p><strong className="text-white">Agents:</strong> Lightweight daemons running on edge compute (EC2, Droplets, Raspberry Pi).</p>
+          </div>
+        </div>
+      )
+    },
+    'Quick Start': {
+      title: 'Quick Start',
+      subtitle: 'From zero to fleet in 5 minutes.',
+      body: (
+        <div className="space-y-6">
+          <ol className="list-decimal list-inside space-y-4 text-zinc-400 text-sm">
+            <li>Create an account to get your <span className="font-mono text-white bg-white/10 px-1">FLEET_KEY</span>.</li>
+            <li>Run the install script on your target machine.</li>
+            <li>Enter your <span className="font-mono text-white bg-white/10 px-1">FLEET_KEY</span> when prompted.</li>
+            <li>Check the Dashboard to see your new agent online.</li>
+          </ol>
+        </div>
+      )
+    },
+    'Agents': {
+      title: 'Agents',
+      subtitle: 'The workers of your fleet.',
+      body: (
+        <div className="space-y-6">
+          <p className="text-zinc-400">Agents are the leaf nodes of the Fleet network. They are responsible for:</p>
+          <ul className="list-disc list-inside space-y-2 text-zinc-400 text-sm">
+            <li>Reporting telemetry (CPU, Mem, Disk, Net)</li>
+            <li>Executing received commands</li>
+            <li>Streaming logs back to the gateway</li>
+            <li>Managing local child processes</li>
+          </ul>
+        </div>
+      )
+    },
+    'Fleets': {
+      title: 'Fleets',
+      subtitle: 'Grouping and organization.',
+      body: (
+        <div className="space-y-6">
+          <p className="text-zinc-400">Fleets allow you to group agents logically. You can target commands to entire fleets instead of individual agents.</p>
+          <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 text-yellow-200 text-xs">
+            <strong>NOTE:</strong> Fleet grouping features are available on the PRO plan.
+          </div>
+        </div>
+      )
+    },
+    'Policies': {
+      title: 'Policies',
+      subtitle: 'Governance and RBAC.',
+      body: (
+        <div className="space-y-6">
+          <p className="text-zinc-400">Policies define what an agent is allowed to do. You can restrict:</p>
+          <ul className="list-disc list-inside space-y-2 text-zinc-400 text-sm">
+            <li>Available shell commands</li>
+            <li>Resource usage limits</li>
+            <li>Network whitelist/blacklist</li>
+          </ul>
+        </div>
+      )
+    },
+    'Security': {
+      title: 'Security',
+      subtitle: 'Zero-knowledge architecture.',
+      body: (
+        <div className="space-y-6">
+          <p className="text-zinc-400">Fleet uses a zero-knowledge architecture. The server never sees your agent secrets or configuration details in plain text.</p>
+          <p className="text-zinc-400">We use <strong className="text-white">AES-256-GCM</strong> for client-side encryption. The decryption key lives only in your browser's session storage.</p>
+        </div>
+      )
+    },
+    'Authentication': {
+      title: 'Authentication',
+      subtitle: 'API Security and Tokens.',
+      body: (
+        <div className="space-y-6">
+          <p className="text-zinc-400">All API requests require a Bearer token. You can generate API tokens in the Settings panel.</p>
+          <pre className="bg-zinc-950 border border-white/10 p-4 text-xs font-mono text-zinc-400">
+            Authorization: Bearer sk_live_...
+          </pre>
+        </div>
+      )
+    },
+    'Endpoints': {
+      title: 'Endpoints',
+      subtitle: 'REST API Reference.',
+      body: (
+        <div className="space-y-4">
+          <div className="border border-white/10 p-4">
+            <span className="bg-emerald-500/10 text-emerald-400 text-xs font-bold px-2 py-1 mr-2">GET</span>
+            <span className="font-mono text-sm text-white">/api/agents</span>
+            <p className="text-xs text-zinc-500 mt-2">List all active agents.</p>
+          </div>
+          <div className="border border-white/10 p-4">
+            <span className="bg-blue-500/10 text-blue-400 text-xs font-bold px-2 py-1 mr-2">POST</span>
+            <span className="font-mono text-sm text-white">/api/cmd</span>
+            <p className="text-xs text-zinc-500 mt-2">Dispatch a command to an agent or fleet.</p>
+          </div>
+        </div>
+      )
+    },
+    'Webhooks': {
+      title: 'Webhooks',
+      subtitle: 'Event subscriptions.',
+      body: (
+        <p className="text-zinc-400">Receive HTTP POST callbacks for events like Agent Online, Agent Offline, and Alert Triggered.</p>
+      )
+    },
+    'Deploying to AWS': {
+      title: 'Deploying to AWS',
+      subtitle: 'Production setup guide.',
+      body: (
+        <p className="text-zinc-400">Use our Terraform provider to spin up a high-availability Fleet cluster on ECS Fargate.</p>
+      )
+    },
+    'Self-Hosting': {
+      title: 'Self-Hosting',
+      subtitle: 'Run Fleet on your own metal.',
+      body: (
+        <div className="space-y-4">
+          <p className="text-zinc-400">Fleet provides a Docker Compose file for easy self-hosting.</p>
+          <pre className="bg-zinc-950 border border-white/10 p-4 text-xs font-mono text-emerald-400">
+            docker compose up -d
+          </pre>
+        </div>
+      )
+    },
+    'Custom Agents': {
+      title: 'Custom Agents',
+      subtitle: 'Building with the SDK.',
+      body: (
+        <p className="text-zinc-400">Use the Fleet Node.js SDK to build custom agents that integrate directly with your application logic.</p>
+      )
+    }
+  };
+
+  const activeContent = content[activePage] || content['Introduction'];
+
+  return (
+    <div className="min-h-screen bg-background text-white flex flex-col">
+      <Navbar navigate={navigate} session={session} branding={branding} />
+      <div className="flex flex-1 pt-16">
+        {/* Sidebar */}
+        <div className="w-64 border-r border-white/10 hidden md:block fixed top-16 bottom-0 overflow-y-auto bg-black p-6">
+          <div className="space-y-8">
+            {sections.map((section, i) => (
+              <div key={i}>
+                <h4 className="text-xs font-bold text-white uppercase tracking-widest mb-4">{section.title}</h4>
+                <ul className="space-y-2">
+                  {section.items.map((item, j) => (
+                    <li key={j}>
+                      <button
+                        onClick={() => setActivePage(item)}
+                        className={`text-[13px] transition-colors text-left w-full ${activePage === item ? 'text-emerald-400 font-bold' : 'text-zinc-500 hover:text-white'}`}
+                      >
+                        {item}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="flex-1 md:ml-64 bg-zinc-950/50 min-h-screen">
+          <div className="max-w-4xl mx-auto px-8 py-12">
+            <div className="mb-12 border-b border-white/10 pb-8">
+              <Badge variant="outline" className="mb-4 border-emerald-500/30 text-emerald-400 bg-emerald-500/5 px-3 py-1 text-[10px] font-mono tracking-widest uppercase">Documentation</Badge>
+              <h1 className="text-4xl font-black tracking-tight uppercase italic mb-4">{activeContent.title}</h1>
+              <p className="text-zinc-400 text-lg leading-relaxed font-light">{activeContent.subtitle}</p>
+            </div>
+
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              {activeContent.body}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ChangelogView({ navigate, session, branding }) {
   return (
     <div className="min-h-screen bg-background text-white">
@@ -216,7 +476,7 @@ function ChangelogView({ navigate, session, branding }) {
 
         <div className="relative space-y-16">
           {/* Timeline Line */}
-          <div className="absolute left-0 top-0 bottom-0 w-[1px] bg-gradient-to-b from-emerald-500/50 via-white/10 to-transparent ml-[18px] md:ml-[34px] hidden sm:block" />
+          <div className="absolute left-0 top-0 bottom-0 w-px bg-linear-to-b from-emerald-500/50 via-white/10 to-transparent ml-[18px] md:ml-[34px] hidden sm:block" />
 
           {CHANGELOG_DATA.map((release, idx) => (
             <div key={idx} className="relative pl-12 sm:pl-24">
@@ -814,7 +1074,7 @@ function MasterKeyModal({ onSetKey }) {
 }
 
 export default function App() {
-  const res = useHashRouter();
+  const res = usePathRouter();
   const { view, params, navigate } = res;
 
   const [session, setSession] = useState(null);
@@ -873,7 +1133,8 @@ export default function App() {
     dashboard: <DashboardView {...viewProps} onSetBranding={setBranding} />,
     agent: <AgentDetailView {...viewProps} agentId={params.id} />,
     settings: <SettingsView {...viewProps} />,
-    changelog: <ChangelogView {...viewProps} />
+    changelog: <ChangelogView {...viewProps} />,
+    docs: <DocsView {...viewProps} />
   };
 
   return (
@@ -1041,8 +1302,7 @@ export default function App() {
             <div className="hidden md:flex col-span-6 items-center justify-center border-r border-white/20 gap-8">
               <button onClick={() => navigate('/changelog')} className="text-xs uppercase tracking-widest text-zinc-500 hover:text-white transition-colors">CHANGELOG</button>
               <button onClick={() => navigate('/pricing')} className="text-xs uppercase tracking-widest text-zinc-500 hover:text-white transition-colors">PRICING</button>
-              <button onClick={() => window.open('', '_blank')} className="text-xs uppercase tracking-widest text-zinc-500 hover:text-white transition-colors">DOCS</button>
-              <button onClick={() => window.open('', '_blank')} className="text-xs uppercase tracking-widest text-zinc-500 hover:text-white transition-colors">GITHUB</button>
+              <button onClick={() => navigate('/docs')} className="text-xs uppercase tracking-widest text-zinc-500 hover:text-white transition-colors">DOCS</button>
             </div>
 
             <div className="col-span-1 md:col-span-3 flex items-center justify-end px-4 md:px-0">
@@ -1152,9 +1412,9 @@ export default function App() {
             <div className="text-right">
               <p>&copy; 2026 OPENCLAW SYSTEMS INC.</p>
               <div className="flex gap-4 justify-end mt-2 text-zinc-400">
-                <a href="#" className="hover:text-white">GITHUB</a>
-                <a href="#" className="hover:text-white">DOCS</a>
-                <a href="#" className="hover:text-white">TWITTER</a>
+                <button onClick={() => window.open('https://github.com/openclaw/fleet', '_blank')} className="hover:text-white">GITHUB</button>
+                <button onClick={() => navigate('/docs')} className="hover:text-white">DOCS</button>
+                <button onClick={() => window.open('https://twitter.com/snackforcode', '_blank')} className="hover:text-white">TWITTER</button>
               </div>
             </div>
           </footer>
