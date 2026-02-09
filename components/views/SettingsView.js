@@ -226,19 +226,19 @@ export default function SettingsView() {
           <TabsList className="h-auto w-full justify-start gap-8 rounded-none border-b border-white/10 bg-black p-0">
             <TabsTrigger
               value="alerts"
-              className="rounded-none border-b-2 border-transparent px-0 pb-4 text-xs font-black tracking-widest text-zinc-500 uppercase transition-all data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:text-white"
+              className="rounded-none border-b-2 border-transparent px-0 pb-4 text-xs font-black tracking-widest text-zinc-500 uppercase transition-colors data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:text-white"
             >
               Alert Channels
             </TabsTrigger>
             <TabsTrigger
               value="policies"
-              className="rounded-none border-b-2 border-transparent px-0 pb-4 text-xs font-black tracking-widest text-zinc-500 uppercase transition-all data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:text-white"
+              className="rounded-none border-b-2 border-transparent px-0 pb-4 text-xs font-black tracking-widest text-zinc-500 uppercase transition-colors data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:text-white"
             >
               Custom Policies
             </TabsTrigger>
             <TabsTrigger
               value="branding"
-              className="rounded-none border-b-2 border-transparent px-0 pb-4 text-xs font-black tracking-widest text-zinc-500 uppercase transition-all data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:text-white"
+              className="rounded-none border-b-2 border-transparent px-0 pb-4 text-xs font-black tracking-widest text-zinc-500 uppercase transition-colors data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:text-white"
             >
               White-Labeling
             </TabsTrigger>

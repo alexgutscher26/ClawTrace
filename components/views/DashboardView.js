@@ -71,14 +71,14 @@ export default function DashboardView() {
         setTier(p.toLowerCase());
         if (res.limits) setLimits(res.limits[p.toLowerCase()] || res.limits.free);
       })
-      .catch(() => { });
+      .catch(() => {});
   }, [api]);
 
   useEffect(() => {
     if (tier === 'enterprise' || tier === 'pro') {
       api('/api/custom-policies')
         .then((res) => setCustomPolicies(res.policies || []))
-        .catch(() => { });
+        .catch(() => {});
     }
   }, [api, tier]);
 
