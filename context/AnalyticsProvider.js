@@ -1,44 +1,44 @@
 'use client';
 
 import posthog from 'posthog-js';
-import { PostHogProvider as PHProvider } from 'posthog-js/react';
+import { PostHogProvider as PHProvider } from '@posthog/react';
 import { useEffect } from 'react';
 import { useFleet } from './FleetContext';
 import { usePathname, useSearchParams } from 'next/navigation';
+
+// Initialize PostHog outside the component to ensure it's ready before the provider renders
+if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY) {
+  posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
+    api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com',
+    person_profiles: 'always',
+    capture_pageview: false, // We handle it manually for hash routing support
+    persistence: 'localStorage',
+    autocapture: true,
+    capture_performance: true,
+    enable_external_api_event_tracking: true,
+    session_recording: {
+      maskAllInputFields: false,
+      maskTextSelector: ".sensitive",
+    },
+    loaded: (ph) => {
+      if (process.env.NODE_ENV === 'development') ph.debug();
+    }
+  });
+  window.posthog = posthog;
+}
 
 export function AnalyticsProvider({ children }) {
   const { session } = useFleet();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  // Handle manual pageview tracking for both App Router state and Hash changes
   useEffect(() => {
-    if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY) {
-      posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
-        api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com',
-        person_profiles: 'always',
-        capture_pageview: false, // We'll handle it manually to support hash routing
-        persistence: 'localStorage',
-        autocapture: true,
-        capture_performance: true, // Enable performance/web vitals tracking
-        enable_external_api_event_tracking: true, // Captures API errors
-        session_recording: {
-          maskAllInputFields: false,
-          maskTextSelector: ".sensitive",
-        },
-        enable_recording_console_log: true, // Required for advanced Error Tracking
-      });
-      window.posthog = posthog;
-    }
-  }, []);
-
-  // Manual pageview tracking to support both App Router and Hash Router migrations
-  useEffect(() => {
-    if (typeof window !== 'undefined' && posthog.__loaded) {
+    if (typeof window !== 'undefined' && posthog) {
       let url = window.origin + pathname;
       if (searchParams.toString()) {
         url = url + `?${searchParams.toString()}`;
       }
-      // Include hash if present (for virtual routes)
       if (window.location.hash) {
         url = url + window.location.hash;
       }
@@ -47,28 +47,18 @@ export function AnalyticsProvider({ children }) {
         $current_url: url,
       });
     }
-  }, [pathname, searchParams, session]);
+  }, [pathname, searchParams]);
 
-  // Additional listener for hash-only changes (common in this app)
+  // Handle identity and session state
   useEffect(() => {
-    const handleHashChange = () => {
-      if (posthog.__loaded) {
-        posthog.capture('$pageview', {
-          $current_url: window.location.href,
-        });
-      }
-    };
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
+    if (!posthog) return;
 
-  useEffect(() => {
-    if (session?.user && posthog.__loaded) {
+    if (session?.user) {
       posthog.identify(session.user.id, {
         email: session.user.email,
         name: session.user.user_metadata?.full_name,
       });
-    } else if (!session && posthog.__loaded) {
+    } else if (!session) {
       posthog.reset();
     }
   }, [session]);
