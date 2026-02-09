@@ -13,6 +13,9 @@ import { FleetProvider } from '@/context/FleetContext';
 import { AnalyticsProvider } from '@/context/AnalyticsProvider';
 import { Toaster } from 'sonner';
 
+/**
+ * Renders the root layout of the application with children components.
+ */
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
