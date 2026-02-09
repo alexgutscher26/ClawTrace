@@ -174,7 +174,24 @@ export async function GET(request, context) {
       }
 
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.headers.get('origin') || 'http://localhost:3000';
-      const interval = searchParams.get('interval') || '300';
+
+      // Determine user tier for heartbeat interval
+      let interval = searchParams.get('interval');
+      if (!interval) {
+        // Get agent's user_id to determine tier
+        const { data: agent } = await supabaseAdmin
+          .from('agents')
+          .select('user_id')
+          .eq('id', agentId)
+          .maybeSingle();
+
+        if (agent) {
+          const tier = await getTier(agent.user_id);
+          interval = tier === 'pro' ? '60' : '300'; // Pro: 1 min, Free: 5 min
+        } else {
+          interval = '300'; // Default to free tier
+        }
+      }
 
       const script = `#!/bin/bash
 # OpenClaw Fleet Monitor - Heartbeat Agent (Linux & macOS)
@@ -359,7 +376,24 @@ done
       }
 
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.headers.get('origin') || 'http://localhost:3000';
-      const interval = searchParams.get('interval') || '300';
+
+      // Determine user tier for heartbeat interval
+      let interval = searchParams.get('interval');
+      if (!interval) {
+        // Get agent's user_id to determine tier
+        const { data: agent } = await supabaseAdmin
+          .from('agents')
+          .select('user_id')
+          .eq('id', agentId)
+          .maybeSingle();
+
+        if (agent) {
+          const tier = await getTier(agent.user_id);
+          interval = tier === 'pro' ? '60' : '300'; // Pro: 1 min, Free: 5 min
+        } else {
+          interval = '300'; // Default to free tier
+        }
+      }
 
       const psScript = [
         '# OpenClaw Fleet Monitor - PowerShell Heartbeat Agent',
@@ -523,7 +557,24 @@ done
       }
 
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.headers.get('origin') || 'http://localhost:3000';
-      const interval = searchParams.get('interval') || '300';
+
+      // Determine user tier for heartbeat interval
+      let interval = searchParams.get('interval');
+      if (!interval) {
+        // Get agent's user_id to determine tier
+        const { data: agent } = await supabaseAdmin
+          .from('agents')
+          .select('user_id')
+          .eq('id', agentId)
+          .maybeSingle();
+
+        if (agent) {
+          const tier = await getTier(agent.user_id);
+          interval = tier === 'pro' ? '60' : '300'; // Pro: 1 min, Free: 5 min
+        } else {
+          interval = '300'; // Default to free tier
+        }
+      }
 
       const pyLines = [
         '#!/usr/bin/env python3',

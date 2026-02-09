@@ -1710,8 +1710,8 @@ function SetupInstructions({ agentId, agentSecret }) {
 // ============ PRICING ============
 function PricingView({ navigate, session }) {
   const tiers = [
-    { name: 'FREE', price: '$0', period: '/mo', desc: 'For solo indie operators', features: ['1 Agent Node', 'Basic Metrics', 'Community Support', '5-min Heartbeat'], cta: 'INITIALIZE', popular: false },
-    { name: 'PRO', price: '$19', period: '/mo', desc: 'For scaling fleet commanders', features: ['Unlimited Nodes', 'Real-time Monitoring', 'Slack & Email Alerts', 'Team Access', 'Policy Engine', 'Priority Ops', '1-min Heartbeat'], cta: 'UPGRADE TO PRO', popular: true },
+    { name: 'FREE', price: '$0', period: '/mo', desc: 'For solo indie operators', features: ['1 Agent Node', 'Community Support', '5-min Heartbeat'], cta: 'INITIALIZE', popular: false },
+    { name: 'PRO', price: '$19', period: '/mo', desc: 'For scaling fleet commanders', features: ['Unlimited Nodes', 'Real-time Monitoring', 'Slack & Email Alerts', 'Policy Engine', 'Priority Ops', '1-min Heartbeat'], cta: 'UPGRADE TO PRO', popular: true },
     { name: 'ENTERPRISE', price: '$99', period: '/mo', desc: 'For agencies & large systems', features: ['Everything in Pro', 'Custom Policies', 'SSO / SAML', 'Dedicated Ops', '99.99% SLA', 'Custom Integrations', 'On-Premise Option'], cta: 'CONTACT SALES', popular: false },
   ];
   return (
