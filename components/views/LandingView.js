@@ -65,12 +65,12 @@ export default function LandingView() {
                 <Button
                   variant="outline"
                   className="h-12 w-full rounded-none border-white/20 px-8 font-mono text-xs tracking-widest text-white uppercase hover:bg-white/10 sm:w-auto"
-                  onClick={() => window.open('https://github.com/openclaw/fleet', '_blank')}
+                  onClick={() => window.open('https://github.com/alexgutscher26/fleet', '_blank')}
                 >
                   <Code className="mr-2 h-4 w-4" /> GitHub
                 </Button>
                 <div className="font-mono text-xs text-zinc-500">
-                  <span className="font-bold text-white">12.4k</span> stars
+                  <span className="font-bold text-white">0</span> stars
                 </div>
               </div>
             </div>

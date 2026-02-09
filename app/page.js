@@ -1008,7 +1008,7 @@ function Navbar({ navigate, session, branding, transparent = false }) {
             {session && <button onClick={() => navigate('/settings')} className="hover:text-white transition-colors">SETTINGS</button>}
             <button onClick={() => navigate('/changelog')} className="hover:text-white transition-colors">CHANGELOG</button>
             <button onClick={() => navigate('/pricing')} className="hover:text-white transition-colors">PRICING</button>
-            <button onClick={() => window.open('https://github.com/openclaw/fleet', '_blank')} className="hover:text-white transition-colors">GITHUB</button>
+            <button onClick={() => window.open('https://github.com/alexgutscher26/fleet', '_blank')} className="hover:text-white transition-colors">GITHUB</button>
           </div>
         </div>
 
@@ -1321,9 +1321,8 @@ function LandingView({ navigate, session, branding }) {
           <div className="text-right">
             <p>&copy; 2026 OPENCLAW SYSTEMS INC.</p>
             <div className="flex gap-4 justify-end mt-2 text-zinc-400">
-              <a href="#" className="hover:text-white">GITHUB</a>
-              <a href="#" className="hover:text-white">DOCS</a>
-              <a href="#" className="hover:text-white">TWITTER</a>
+              <a href="https://github.com/alexgutscher26/fleet" className="hover:text-white">GITHUB</a>
+              <a href="/docs" className="hover:text-white">DOCS</a>
             </div>
           </div>
         </footer>

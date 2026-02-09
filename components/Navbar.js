@@ -57,7 +57,7 @@ export default function Navbar({ session, branding, transparent = false }) {
               DOCS
             </Link>
             <button
-              onClick={() => window.open('https://github.com/openclaw/fleet', '_blank')}
+              onClick={() => window.open('https://github.com/alexgutscher26/fleet', '_blank')}
               className="transition-colors hover:text-white"
             >
               GITHUB

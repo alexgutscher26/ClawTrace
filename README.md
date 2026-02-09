@@ -40,7 +40,7 @@ OpenClaw Fleet is a high-performance, secure, and scalable command center design
 
 ```bash
 # Clone the repository
-git clone https://github.com/openclaw/fleet.git
+git clone https://github.com/alexgutscher26/fleet
 cd fleet
 
 # Install dependencies
