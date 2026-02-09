@@ -5,10 +5,10 @@ const path = require('path');
 /**
  * Loads environment variables from a .env file.
  *
- * This function resolves the path to the .env file, checks if it exists, and reads its content.
- * It splits the content by lines and processes each line to extract key-value pairs,
- * which are then assigned to the process.env object if valid.
- * This allows for dynamic configuration of environment variables in the application.
+ * This function resolves the path to the .env file located one directory up from the current directory.
+ * It checks for the existence of the file and reads its content if it exists. The content is split by lines,
+ * and each line is processed to extract key-value pairs, which are assigned to the process.env object if valid.
+ * This enables dynamic configuration of environment variables in the application.
  */
 function loadEnv() {
     const envPath = path.resolve(__dirname, '../.env');
