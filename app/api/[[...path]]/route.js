@@ -855,6 +855,16 @@ done
   }
 }
 
+/**
+ * Handles POST requests for various API endpoints related to fleets, agents, alerts, and billing.
+ *
+ * The function processes the request based on the path derived from the context parameters. It includes rate limiting, user authentication, and CRUD operations for fleets and agents. It also manages agent heartbeats, billing checkouts, and team invitations. Each operation is performed with appropriate error handling and responses, ensuring that the user is authorized for actions that require authentication.
+ *
+ * @param request - The incoming request object containing headers and body data.
+ * @param context - The context object providing parameters and other contextual information.
+ * @returns A JSON response based on the operation performed, including success or error messages.
+ * @throws Error If an internal server error occurs during processing.
+ */
 export async function POST(request, context) {
   const params = await context.params;
   const path = getPath(params);
