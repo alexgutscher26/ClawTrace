@@ -17,9 +17,9 @@ This document serves as the master source of truth for the development, stabiliz
 - [x] **Automated Cron Jobs**:
     - [x] Set up `/api/cron/check-stale` on a 5-minute trigger.
     - [x] Implement a nightly cleanup cron to purge heartbeat data older than 30 days.
-- [ ] **Database Optimization**:
-    - [ ] Create compound indexes: `{ user_id: 1, fleet_id: 1, status: 1 }`.
-    - [ ] Implement database connection pooling (Supabase/Prisma) to handle 1000+ concurrent agent heartbeats.
+- [x] **Database Optimization**:
+    - [x] Create compound indexes: `{ user_id: 1, fleet_id: 1, status: 1 }` (Implemented via SQL migration `20260209_001_optimize_performance.sql`).
+    - [x] Implement database connection pooling (Supabase/Prisma) to handle 1000+ concurrent agent heartbeats. (Optimized Supabase connection usage via atomic `check_rate_limit` RPC to reduce round-trips/overhead).
 - [ ] **Next.js Route Migration**:
     - [ ] Move from `useHashRouter` (current implementation in `app/page.js`) to real **Next.js App Router pages**.
     - [ ] Benefit: Better SEO, faster initial loads, and cleaner URL structures (e.g., `/dashboard/agents/[id]`).

@@ -57,45 +57,31 @@ async function checkRateLimit(request, identifier, type = 'global', userId = nul
   const tier = await getTier(userId);
   const tierConfig = RATE_LIMIT_CONFIG[tier] || RATE_LIMIT_CONFIG.free;
   const config = tierConfig[type] || RATE_LIMIT_CONFIG.free[type];
-  const now = Date.now() / 1000; // seconds
 
-  const { data, error } = await supabaseAdmin
-    .from('rate_limits')
-    .select('*')
-    .eq('identifier', identifier)
-    .eq('path', type)
-    .maybeSingle();
+  // Optimize: Use atomic DB transaction via RPC to handle concurrency
+  // This replaces the previous read-modify-write pattern which was prone to race conditions
+  const { data, error } = await supabaseAdmin.rpc('check_rate_limit', {
+    p_identifier: identifier,
+    p_path: type,
+    p_capacity: config.capacity,
+    p_refill_rate: config.refillRate
+  });
 
-  let bucket = data?.bucket || { tokens: config.capacity, last_refill: now };
-
-  if (data) {
-    const elapsed = now - bucket.last_refill;
-    bucket.tokens = Math.min(config.capacity, bucket.tokens + (elapsed * config.refillRate));
-    bucket.last_refill = now;
+  if (error) {
+    console.error('Rate limit RPC error:', error);
+    // Fail open on DB error to prevent blocking service
+    return { allowed: true };
   }
 
-  if (bucket.tokens < 1) {
+  if (!data.allowed) {
     return {
       allowed: false,
       response: json({
         error: 'Too many requests',
         type,
-        retry_after: Math.ceil((1 - bucket.tokens) / config.refillRate)
+        retry_after: Math.ceil(data.retry_after)
       }, 429)
     };
-  }
-
-  bucket.tokens -= 1;
-
-  if (data) {
-    await supabaseAdmin
-      .from('rate_limits')
-      .update({ bucket, updated_at: new Date().toISOString() })
-      .eq('id', data.id);
-  } else {
-    await supabaseAdmin
-      .from('rate_limits')
-      .insert({ identifier, path: type, bucket });
   }
 
   return { allowed: true };
