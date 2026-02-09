@@ -119,10 +119,10 @@ const CHANGELOG_DATA = [
   }
 ];
 
-function ChangelogView({ navigate, session }) {
+function ChangelogView({ navigate, session, branding }) {
   return (
     <div className="min-h-screen bg-background text-white">
-      <Navbar navigate={navigate} session={session} />
+      <Navbar navigate={navigate} session={session} branding={branding} />
 
       <div className="pt-32 pb-20 container mx-auto max-w-4xl px-6">
         <div className="mb-16">
@@ -181,7 +181,7 @@ function ChangelogView({ navigate, session }) {
   );
 }
 
-function SettingsView({ navigate, api, session }) {
+function SettingsView({ navigate, api, session, branding: initialBranding, setGlobalBranding }) {
   const [channels, setChannels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
@@ -190,8 +190,12 @@ function SettingsView({ navigate, api, session }) {
   const [policies, setPolicies] = useState([]);
   const [policyOpen, setPolicyOpen] = useState(false);
   const [newPolicy, setNewPolicy] = useState({ name: '', label: '', description: '', skills: '', tools: '', heartbeat_interval: 300 });
-  const [branding, setBranding] = useState({ domain: '', name: '' });
+  const [branding, setBranding] = useState(initialBranding || { domain: '', name: '' });
   const [savingBranding, setSavingBranding] = useState(false);
+
+  useEffect(() => {
+    if (initialBranding) setBranding(initialBranding);
+  }, [initialBranding]);
 
   useEffect(() => {
     api('/api/billing').then(res => {
@@ -281,10 +285,13 @@ function SettingsView({ navigate, api, session }) {
   const handleSaveBranding = async () => {
     setSavingBranding(true);
     try {
-      await api('/api/enterprise/branding', {
+      const res = await api('/api/enterprise/branding', {
         method: 'POST',
         body: JSON.stringify(branding)
       });
+      if (res.branding && setGlobalBranding) {
+        setGlobalBranding(res.branding);
+      }
       toast.success('Branding updated successfully');
     } catch (err) {
       toast.error(err.message);
@@ -295,7 +302,7 @@ function SettingsView({ navigate, api, session }) {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar navigate={navigate} session={session} />
+      <Navbar navigate={navigate} session={session} branding={initialBranding} />
       <div className="pt-24 pb-20 container mx-auto px-6">
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -805,6 +812,7 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [masterPassphrase, setMasterPassphrase] = useState(null);
+  const [branding, setBranding] = useState(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -823,6 +831,20 @@ export default function App() {
     return data;
   }, [session]);
 
+  useEffect(() => {
+    if (session) {
+      api('/api/billing').then(res => {
+        if (res.subscription?.plan?.toLowerCase() === 'enterprise') {
+          api('/api/enterprise/branding').then(bRes => {
+            if (bRes.branding) setBranding(bRes.branding);
+          }).catch(() => { });
+        }
+      }).catch(() => { });
+    } else {
+      setBranding(null);
+    }
+  }, [session, api]);
+
   if (loading) return <LoadingScreen />;
   if (['dashboard', 'agent-detail', 'settings'].includes(view) && !session) {
     if (typeof window !== 'undefined') window.location.hash = '/login';
@@ -836,21 +858,21 @@ export default function App() {
         <MasterKeyModal onSetKey={setMasterPassphrase} />
       )}
 
-      {view === 'landing' && <LandingView navigate={navigate} session={session} />}
-      {view === 'login' && <LoginView navigate={navigate} session={session} />}
-      {view === 'register' && <RegisterView navigate={navigate} session={session} />}
-      {view === 'dashboard' && <DashboardView navigate={navigate} session={session} api={api} masterPassphrase={masterPassphrase} />}
-      {view === 'agent-detail' && <AgentDetailView navigate={navigate} session={session} api={api} agentId={params.id} masterPassphrase={masterPassphrase} />}
-      {view === 'settings' && <SettingsView navigate={navigate} session={session} api={api} />}
-      {view === 'changelog' && <ChangelogView navigate={navigate} session={session} />}
-      {view === 'pricing' && <PricingView navigate={navigate} session={session} />}
+      {view === 'landing' && <LandingView navigate={navigate} session={session} branding={branding} />}
+      {view === 'login' && <LoginView navigate={navigate} session={session} branding={branding} />}
+      {view === 'register' && <RegisterView navigate={navigate} session={session} branding={branding} />}
+      {view === 'dashboard' && <DashboardView navigate={navigate} session={session} api={api} masterPassphrase={masterPassphrase} branding={branding} />}
+      {view === 'agent-detail' && <AgentDetailView navigate={navigate} session={session} api={api} agentId={params.id} masterPassphrase={masterPassphrase} branding={branding} />}
+      {view === 'settings' && <SettingsView navigate={navigate} session={session} api={api} branding={branding} setGlobalBranding={setBranding} />}
+      {view === 'changelog' && <ChangelogView navigate={navigate} session={session} branding={branding} />}
+      {view === 'pricing' && <PricingView navigate={navigate} session={session} branding={branding} />}
     </div>
   );
 }
 
 // ============ NAVBAR ============
 // ============ NAVBAR ============
-function Navbar({ navigate, session, transparent = false }) {
+function Navbar({ navigate, session, branding, transparent = false }) {
   const [open, setOpen] = useState(false);
   const handleLogout = async () => { await supabase.auth.signOut(); navigate('/'); };
 
@@ -863,7 +885,11 @@ function Navbar({ navigate, session, transparent = false }) {
             <div className="w-5 h-5 bg-white flex items-center justify-center transition-transform group-hover:rotate-180">
               <Zap className="w-3 h-3 text-black fill-black" />
             </div>
-            <span className="text-lg font-bold font-mono tracking-tighter text-white">FLEET<span className="text-zinc-500">//</span>OS</span>
+            {branding?.name ? (
+              <span className="text-lg font-bold font-mono tracking-tighter text-white uppercase italic">{branding.name}</span>
+            ) : (
+              <span className="text-lg font-bold font-mono tracking-tighter text-white">FLEET<span className="text-zinc-500">//</span>OS</span>
+            )}
           </div>
         </div>
 
@@ -1033,14 +1059,9 @@ function TerminalMock() {
 }
 
 // ============ LANDING ============
-function LandingView({ navigate, session }) {
+function LandingView({ navigate, session, branding }) {
   const features = [
-    { icon: Server, title: 'FLEET DASHBOARD', desc: 'Real-time overview of all your agents with status, health, and performance at a glance.' },
-    { icon: Activity, title: 'LIVE MONITORING', desc: 'Track latency, errors, tasks, and resource usage.' },
-    { icon: Shield, title: 'POLICY PROFILES', desc: 'Pre-built roles (Dev, Ops, Exec) to control agent skills, tools, and data access.' },
-    { icon: Zap, title: 'EASY ONBOARDING', desc: 'Add agents in seconds. Paste a gateway URL or use our CLI tool to register.' },
-    { icon: AlertTriangle, title: 'SMART ALERTS', desc: 'Get notified via Slack or email when agents go down or exceed thresholds.' },
-    { icon: DollarSign, title: 'USAGE ANALYTICS', desc: 'Track costs per agent, model, and provider. Optimize your AI spend efficiently.' },
+    // ... (features)
   ];
 
   return (
@@ -1055,7 +1076,11 @@ function LandingView({ navigate, session }) {
               <div className="w-5 h-5 bg-white flex items-center justify-center transition-transform group-hover:rotate-180">
                 <Zap className="w-3 h-3 text-black fill-black" />
               </div>
-              <span className="text-lg font-bold tracking-tighter">FLEET<span className="text-zinc-500">//</span>OS</span>
+              {branding?.name ? (
+                <span className="text-lg font-bold tracking-tighter uppercase italic">{branding.name}</span>
+              ) : (
+                <span className="text-lg font-bold tracking-tighter">FLEET<span className="text-zinc-500">//</span>OS</span>
+              )}
             </div>
           </div>
 
@@ -1350,7 +1375,7 @@ function RegisterView({ navigate, session }) {
 }
 
 // ============ DASHBOARD ============
-function DashboardView({ navigate, session, api, masterPassphrase }) {
+function DashboardView({ navigate, session, api, masterPassphrase, branding }) {
   const [stats, setStats] = useState(null);
   const [fleets, setFleets] = useState([]);
   const [agents, setAgents] = useState([]);
@@ -1492,7 +1517,7 @@ function DashboardView({ navigate, session, api, masterPassphrase }) {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar navigate={navigate} session={session} />
+      <Navbar navigate={navigate} session={session} branding={branding} />
       <div className="pt-20 pb-10 container mx-auto px-6">
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -1674,7 +1699,7 @@ function DashboardView({ navigate, session, api, masterPassphrase }) {
 }
 
 // ============ AGENT DETAIL ============
-function AgentDetailView({ navigate, session, api, agentId, masterPassphrase }) {
+function AgentDetailView({ navigate, session, api, agentId, masterPassphrase, branding }) {
   const [agent, setAgent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [restarting, setRestarting] = useState(false);
@@ -1775,7 +1800,7 @@ function AgentDetailView({ navigate, session, api, agentId, masterPassphrase }) 
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar navigate={navigate} session={session} />
+      <Navbar navigate={navigate} session={session} branding={branding} />
       <div className="pt-20 pb-10 container mx-auto px-6">
         {/* Back + Header */}
         <Button variant="ghost" size="sm" className="mb-4" onClick={() => navigate('/dashboard')}><ArrowLeft className="w-4 h-4 mr-1" />Back to Dashboard</Button>
@@ -2128,7 +2153,7 @@ function SetupInstructions({ agentId, agentSecret }) {
 
 
 // ============ PRICING ============
-function PricingView({ navigate, session }) {
+function PricingView({ navigate, session, branding }) {
   const [isYearly, setIsYearly] = useState(false);
 
   const tiers = [
@@ -2138,7 +2163,7 @@ function PricingView({ navigate, session }) {
   ];
   return (
     <div className="min-h-screen bg-black text-white selection:bg-white selection:text-black">
-      <Navbar navigate={navigate} session={session} />
+      <Navbar navigate={navigate} session={session} branding={branding} />
       <div className="pt-32 pb-20 container mx-auto px-6">
         <div className="text-center mb-16">
           <Badge className="mb-6 bg-white/10 text-white border-white/20 hover:bg-white/20 cursor-default rounded-none px-3 py-1 font-mono tracking-widest text-xs uppercase">Pricing Protocols</Badge>
