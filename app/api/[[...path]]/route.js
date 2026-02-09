@@ -33,12 +33,12 @@ const RATE_LIMIT_CONFIG = {
   pro: {
     global: { capacity: 600, refillRate: 10 }, // 600 req / min
     handshake: { capacity: 50, refillRate: 50 / 600 }, // 50 req / 10 min
-    heartbeat: { capacity: 10, refillRate: 1 / 60 }, // 1 req / min
+    heartbeat: { capacity: 20, refillRate: 1 / 15 }, // 1 req / 15s
   },
   enterprise: {
-    global: { capacity: 1200, refillRate: 20 }, // 1200 req / min
-    handshake: { capacity: 100, refillRate: 100 / 600 }, // 100 req / 10 min
-    heartbeat: { capacity: 20, refillRate: 1 / 30 }, // 1 req / 30s
+    global: { capacity: 5000, refillRate: 100 }, // 5000 req / min
+    handshake: { capacity: 500, refillRate: 1 }, // 60 req / min
+    heartbeat: { capacity: 200, refillRate: 2 }, // 2 req / s
   }
 };
 
@@ -930,8 +930,9 @@ done
         .from('agents')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id);
+      const subscription = sub ? { ...sub, plan: sub.plan.toLowerCase() } : { plan: 'free', status: 'active' };
       return json({
-        subscription: sub || { plan: 'free', status: 'active' },
+        subscription,
         agent_count: agentCount,
         limits: {
           free: { max_agents: 1, alerts: false, teams: false },
@@ -1234,10 +1235,6 @@ export async function POST(request, context) {
         return json({ error: 'Invalid or expired session' }, 401);
       }
 
-      // Route-specific heartbeat limit
-      const heartbeatLimit = await checkRateLimit(request, payload.agent_id, 'heartbeat');
-      if (!heartbeatLimit.allowed) return heartbeatLimit.response;
-
       const { data: agent, error: fetchError } = await supabaseAdmin
         .from('agents')
         .select('*')
@@ -1247,68 +1244,58 @@ export async function POST(request, context) {
       if (fetchError) throw fetchError;
       if (!agent) return json({ error: 'Agent not found' }, 404);
 
+      // Route-specific heartbeat limit - passing agent's owner ID for tier check
+      const heartbeatLimit = await checkRateLimit(request, payload.agent_id, 'heartbeat', agent.user_id);
+      if (!heartbeatLimit.allowed) return heartbeatLimit.response;
+
       const update = {
         status: body.status || 'healthy',
         last_heartbeat: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
+      let tasksCount = agent.metrics_json?.tasks_completed || 0;
+      let errorsCount = agent.metrics_json?.errors_count || 0;
+
       if (body.metrics) {
         // Calculate uptime based on agent creation time (not machine uptime)
         const createdAt = new Date(agent.created_at);
         const now = new Date();
-        const uptimeHours = Math.floor((now - createdAt) / (1000 * 60 * 60));
+        const uptimeHours = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60));
 
         // Calculate cost based on model pricing (cost per task)
-        // Pricing estimates based on typical task size (~1K input, ~500 output tokens)
         const MODEL_PRICING = {
-          // Anthropic Claude models
-          'claude-opus-4.5': 0.0338,        // $15/$75 per M tokens → ~$0.034/task
-          'claude-sonnet-4': 0.0090,        // $3/$15 per M tokens → ~$0.009/task
-          'claude-3': 0.0090,               // Same as Sonnet 4
-          'claude-haiku': 0.0015,           // Budget Claude option
-
-          // OpenAI GPT models
-          'gpt-4o': 0.0090,                 // $2.50/$10 per M tokens → ~$0.009/task
-          'gpt-4o-mini': 0.0004,            // $0.15/$0.60 per M tokens → ~$0.0004/task
-          'gpt-4': 0.0180,                  // Legacy GPT-4 (more expensive)
-          'gpt-3.5-turbo': 0.0010,          // $0.50/$1.50 per M tokens → ~$0.001/task
-
-          // Google Gemini models
-          'gemini-3-pro': 0.0056,           // $1.25/$10 per M tokens → ~$0.0056/task
-          'gemini-2-flash': 0.0015,         // Budget Gemini option
-
-          // xAI Grok models
-          'grok-4.1-mini': 0.0004,          // $0.20/$0.50 per M tokens → ~$0.0004/task
-          'grok-2': 0.0030,                 // Mid-tier Grok
-
-          // Open-source models (via haimaker.ai or self-hosted)
-          'llama-3.3-70b': 0.0003,          // ~$0.10-$0.50 per M tokens → ~$0.0003/task
-          'llama-3': 0.0003,                // Same as above
-          'qwen-2.5-72b': 0.0003,           // Similar to Llama pricing
-          'mistral-large': 0.0020,          // ~$1/$5 per M tokens → ~$0.002/task
-          'mistral-medium': 0.0010,         // Budget Mistral
-          'deepseek-v3': 0.0002,            // Very cheap open-source
-
-          // Legacy/fallback
-          'gpt-4-turbo': 0.0120,            // Between GPT-4 and GPT-4o
+          'claude-opus-4.5': 0.0338,
+          'claude-sonnet-4': 0.0090,
+          'claude-3': 0.0090,
+          'claude-haiku': 0.0015,
+          'gpt-4o': 0.0090,
+          'gpt-4o-mini': 0.0004,
+          'gpt-4': 0.0180,
+          'gpt-3.5-turbo': 0.0010,
+          'gemini-3-pro': 0.0056,
+          'gemini-2-flash': 0.0015,
+          'grok-4.1-mini': 0.0004,
+          'grok-2': 0.0030,
+          'llama-3.3-70b': 0.0003,
+          'llama-3': 0.0003,
+          'qwen-2.5-72b': 0.0003,
+          'mistral-large': 0.0020,
+          'mistral-medium': 0.0010,
+          'deepseek-v3': 0.0002,
+          'gpt-4-turbo': 0.0120,
         };
 
-        const costPerTask = MODEL_PRICING[agent.model] || 0.01; // Default $0.01
-        const newTasksCompleted = (agent.metrics_json?.tasks_completed || 0) + 1;
-        const totalCost = parseFloat((newTasksCompleted * costPerTask).toFixed(4));
+        const costPerTask = MODEL_PRICING[agent.model] || 0.01;
+        tasksCount += 1;
+        errorsCount = (body.status === 'error') ? errorsCount + 1 : errorsCount;
+        const totalCost = parseFloat((tasksCount * costPerTask).toFixed(4));
 
-        // Merge incoming metrics and increment tasks_completed
         update.metrics_json = {
           ...agent.metrics_json,
           ...body.metrics,
-          tasks_completed: newTasksCompleted,
-          // Increment errors_count if status is 'error'
-          errors_count: (body.status === 'error')
-            ? (agent.metrics_json?.errors_count || 0) + 1
-            : (agent.metrics_json?.errors_count || 0),
-          // Override uptime_hours with calculated value
+          tasks_completed: tasksCount,
+          errors_count: errorsCount,
           uptime_hours: uptimeHours,
-          // Calculate cost based on model and tasks
           cost_usd: totalCost
         };
       }
@@ -1316,7 +1303,7 @@ export async function POST(request, context) {
       // Update machine_id and location if provided
       if (body.machine_id) update.machine_id = body.machine_id;
       if (body.location) update.location = body.location;
-      if (body.model) update.model = body.model; // Auto-detect model from agent
+      if (body.model) update.model = body.model;
 
       const { error } = await supabaseAdmin.from('agents').update(update).eq('id', body.agent_id);
       if (error) throw error;
@@ -1334,8 +1321,8 @@ export async function POST(request, context) {
             memory_usage: body.metrics.memory_usage || 0,
             latency_ms: body.metrics.latency_ms || 0,
             uptime_hours: body.metrics.uptime_hours || 0,
-            tasks_completed: newTasksCompleted,
-            errors_count: (update.metrics_json?.errors_count || 0)
+            tasks_completed: tasksCount,
+            errors_count: errorsCount
           });
           if (metricsError) {
             console.error('Failed to insert metrics:', metricsError);
@@ -1738,6 +1725,15 @@ export async function DELETE(request, context) {
       const { error: deleteError } = await supabaseAdmin.from('fleets').delete().eq('id', fleetMatch[1]).eq('user_id', user.id);
       if (deleteError) throw deleteError;
       return json({ message: 'Fleet and associated agents deleted' });
+    }
+
+    const customPolicyMatch = path.match(/^\/custom-policies\/([^/]+)$/);
+    if (customPolicyMatch) {
+      const user = await getUser(request);
+      if (!user) return json({ error: 'Unauthorized' }, 401);
+      const { error: deleteError } = await supabaseAdmin.from('custom_policies').delete().eq('id', customPolicyMatch[1]).eq('user_id', user.id);
+      if (deleteError) throw deleteError;
+      return json({ message: 'Custom policy deleted' });
     }
 
     return json({ error: 'Not found' }, 404);

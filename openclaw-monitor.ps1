@@ -5,7 +5,7 @@
 $SaasUrl = "http://localhost:3000"
 $AgentId = "74d8ec78-6410-4495-b0ee-d051e43eee45"
 $AgentSecret = "69106a20-dd27-4100-97d2-6fe42c487208"
-$Interval = 300
+$Interval = 60
 $SessionToken = $null
 $GatewayUrl = $null
 

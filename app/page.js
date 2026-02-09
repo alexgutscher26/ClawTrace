@@ -187,21 +187,24 @@ function SettingsView({ navigate, api, session }) {
   const [tier, setTier] = useState('free');
   const [policies, setPolicies] = useState([]);
   const [policyOpen, setPolicyOpen] = useState(false);
-  const [newPolicy, setNewPolicy] = useState({ name: '', label: '', description: '', heartbeat_interval: 300 });
+  const [newPolicy, setNewPolicy] = useState({ name: '', label: '', description: '', skills: '', tools: '', heartbeat_interval: 300 });
 
   useEffect(() => {
-    api('/api/billing').then(res => setTier(res.subscription.plan)).catch(() => { });
+    api('/api/billing').then(res => {
+      const p = res.subscription?.plan || 'free';
+      setTier(p.toLowerCase());
+    }).catch(() => { });
   }, [api]);
 
   const loadPolicies = useCallback(async () => {
     try {
       const res = await api('/api/custom-policies');
       setPolicies(res.policies || []);
-    } catch (err) { console.error(err); }
+    } catch (err) { toast.error('Failed to load policies'); console.error(err); }
   }, [api]);
 
   useEffect(() => {
-    if (tier === 'enterprise') loadPolicies();
+    if (tier === 'enterprise' || tier === 'pro') loadPolicies();
   }, [tier, loadPolicies]);
 
   const loadChannels = useCallback(async () => {
@@ -235,11 +238,15 @@ function SettingsView({ navigate, api, session }) {
     try {
       await api('/api/custom-policies', {
         method: 'POST',
-        body: JSON.stringify(newPolicy)
+        body: JSON.stringify({
+          ...newPolicy,
+          skills: newPolicy.skills.split(',').map(s => s.trim()).filter(Boolean),
+          tools: newPolicy.tools.split(',').map(t => t.trim()).filter(Boolean)
+        })
       });
       toast.success('Custom policy created!');
       setPolicyOpen(false);
-      setNewPolicy({ name: '', label: '', description: '', heartbeat_interval: 300 });
+      setNewPolicy({ name: '', label: '', description: '', skills: '', tools: '', heartbeat_interval: 300 });
       loadPolicies();
     } catch (err) { toast.error(err.message); }
   };
@@ -263,11 +270,9 @@ function SettingsView({ navigate, api, session }) {
             <p className="text-muted-foreground text-sm font-mono mt-1">CONFIGURE YOUR FLEET ORCHESTRATOR</p>
           </div>
           <div className="flex gap-2">
-            {tier === 'enterprise' && (
-              <Button variant="outline" className="border-white/10 text-white font-bold h-9 text-xs rounded-none hover:bg-white/5" onClick={() => setPolicyOpen(true)}>
-                <Shield className="w-4 h-4 mr-2" /> CREATE POLICY
-              </Button>
-            )}
+            <Button variant="outline" className="border-white/10 text-white font-bold h-9 text-xs rounded-none hover:bg-white/5 disabled:opacity-50" onClick={() => setPolicyOpen(true)} disabled={tier === 'free'}>
+              <Shield className="w-4 h-4 mr-2" /> CREATE POLICY {tier === 'free' && '(UPGRADE REQUIRED)'}
+            </Button>
             <Button className="bg-white text-black font-bold h-9 text-xs rounded-none hover:bg-zinc-200" onClick={() => setAddOpen(true)}>
               <Plus className="w-4 h-4 mr-2" /> ADD NOTIFICATION CHANNEL
             </Button>
@@ -277,9 +282,9 @@ function SettingsView({ navigate, api, session }) {
         <Tabs defaultValue="alert-channels" className="w-full">
           <TabsList className="bg-zinc-950 border border-white/10 rounded-none h-10 p-0 mb-8">
             <TabsTrigger value="alert-channels" className="h-full rounded-none px-8 font-mono text-[10px] uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:text-black">Alert Channels</TabsTrigger>
-            {tier === 'enterprise' && (
-              <TabsTrigger value="policies" className="h-full rounded-none px-8 font-mono text-[10px] uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:text-black">Custom Policies</TabsTrigger>
-            )}
+            <TabsTrigger value="policies" className="h-full rounded-none px-8 font-mono text-[10px] uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:text-black flex items-center gap-2">
+              Custom Policies {tier !== 'enterprise' && <Badge className="h-3.5 px-1 py-0 text-[7px] bg-amber-500/20 text-amber-500 border-amber-500/30 rounded-none">{tier === 'pro' ? 'PREMIUM' : 'UPGRADE'}</Badge>}
+            </TabsTrigger>
             <TabsTrigger value="general" className="h-full rounded-none px-8 font-mono text-[10px] uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:text-black">General</TabsTrigger>
           </TabsList>
 
@@ -322,47 +327,52 @@ function SettingsView({ navigate, api, session }) {
             </div>
           </TabsContent>
 
-          {tier === 'enterprise' && (
-            <TabsContent value="policies">
-              <div className="grid gap-4">
-                {policies.length === 0 ? (
-                  <Card className="glass-card p-12 text-center border-dashed border-white/10">
-                    <Shield className="w-12 h-12 text-zinc-700 mx-auto mb-4" />
-                    <h3 className="text-sm font-bold text-white uppercase mb-1">No custom policies</h3>
-                    <p className="text-muted-foreground text-xs font-mono max-w-xs mx-auto mb-6">Create specialized policies for your enterprise agents.</p>
-                    <Button variant="outline" size="sm" className="rounded-none border-white/20 text-[10px] font-bold h-8" onClick={() => setPolicyOpen(true)}>CREATE FIRST POLICY</Button>
-                  </Card>
-                ) : (
-                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {policies.map(p => (
-                      <Card key={p.id} className="glass-card border-white/5 group relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 hover:text-red-400 hover:bg-red-500/10" onClick={() => handleDeletePolicy(p.id)}>
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </Button>
+          <TabsContent value="policies">
+            <div className="grid gap-4">
+              {tier === 'free' && (
+                <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-sm mb-4">
+                  <p className="text-[10px] font-mono text-amber-400 uppercase tracking-widest flex items-center gap-2">
+                    <AlertTriangle className="w-3 h-3" /> Custom policies are an Enterprise feature. Part of your current plan limits.
+                  </p>
+                </div>
+              )}
+              {policies.length === 0 ? (
+                <Card className="glass-card p-12 text-center border-dashed border-white/10">
+                  <Shield className="w-12 h-12 text-zinc-700 mx-auto mb-4" />
+                  <h3 className="text-sm font-bold text-white uppercase mb-1">No custom policies</h3>
+                  <p className="text-muted-foreground text-xs font-mono max-w-xs mx-auto mb-6">Create specialized policies for your enterprise agents.</p>
+                  <Button variant="outline" size="sm" className="rounded-none border-white/20 text-[10px] font-bold h-8" onClick={() => setPolicyOpen(true)} disabled={tier === 'free'}>CREATE FIRST POLICY</Button>
+                </Card>
+              ) : (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {policies.map(p => (
+                    <Card key={p.id} className="glass-card border-white/5 group relative overflow-hidden">
+                      <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500 hover:text-red-400 hover:bg-red-500/10" onClick={() => handleDeletePolicy(p.id)}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                      <CardHeader className="pb-3">
+                        <Badge variant="outline" className={`w-fit text-[9px] font-mono mb-2 rounded-none ${p.color}`}>{p.label}</Badge>
+                        <CardTitle className="text-sm font-bold text-white uppercase italic">{p.name}</CardTitle>
+                        <CardDescription className="text-[10px] leading-relaxed line-clamp-2 h-8">{p.description}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="flex flex-wrap gap-1">
+                          {p.skills?.slice(0, 3).map(s => <Badge key={s} className="shadow-none bg-white/5 text-zinc-500 border-none text-[8px] font-mono px-1 rounded-none lowercase">{s}</Badge>)}
+                          {p.skills?.length > 3 && <span className="text-[8px] text-zinc-600 font-mono">+{p.skills.length - 3}</span>}
                         </div>
-                        <CardHeader className="pb-3">
-                          <Badge variant="outline" className={`w-fit text-[9px] font-mono mb-2 rounded-none ${p.color}`}>{p.label}</Badge>
-                          <CardTitle className="text-sm font-bold text-white uppercase italic">{p.name}</CardTitle>
-                          <CardDescription className="text-[10px] leading-relaxed line-clamp-2 h-8">{p.description}</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                          <div className="flex flex-wrap gap-1">
-                            {p.skills?.slice(0, 3).map(s => <Badge key={s} className="shadow-none bg-white/5 text-zinc-500 border-none text-[8px] font-mono px-1 rounded-none lowercase">{s}</Badge>)}
-                            {p.skills?.length > 3 && <span className="text-[8px] text-zinc-600 font-mono">+{p.skills.length - 3}</span>}
-                          </div>
-                          <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                            <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Interval</span>
-                            <span className="text-[10px] font-mono text-white">{p.heartbeat_interval}s</span>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-          )}
+                        <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                          <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Interval</span>
+                          <span className="text-[10px] font-mono text-white">{p.heartbeat_interval}s</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </TabsContent>
 
           <TabsContent value="general">
             <Card className="glass-card">
@@ -441,6 +451,14 @@ function SettingsView({ navigate, api, session }) {
               <Input placeholder="Specialized in SQL and Python data processing." className="bg-zinc-900 border-white/5 h-9 text-xs" value={newPolicy.description} onChange={e => setNewPolicy(p => ({ ...p, description: e.target.value }))} />
             </div>
             <div className="grid gap-2">
+              <Label className="text-[10px] uppercase text-zinc-500">Skills (comma separated)</Label>
+              <Input placeholder="coding, debugging, research" className="bg-zinc-900 border-white/5 h-9 text-xs" value={newPolicy.skills} onChange={e => setNewPolicy(p => ({ ...p, skills: e.target.value }))} />
+            </div>
+            <div className="grid gap-2">
+              <Label className="text-[10px] uppercase text-zinc-500">Tools (comma separated)</Label>
+              <Input placeholder="terminal, git, vscode" className="bg-zinc-900 border-white/5 h-9 text-xs" value={newPolicy.tools} onChange={e => setNewPolicy(p => ({ ...p, tools: e.target.value }))} />
+            </div>
+            <div className="grid gap-2">
               <Label className="text-[10px] uppercase text-zinc-500">Heartbeat Interval (Seconds)</Label>
               <Input type="number" className="bg-zinc-900 border-white/5 h-9 text-xs" value={newPolicy.heartbeat_interval} onChange={e => setNewPolicy(p => ({ ...p, heartbeat_interval: parseInt(e.target.value) }))} />
             </div>
@@ -471,6 +489,7 @@ function SmartAlertsCard({ agent, api }) {
       setConfigs(confRes.configs || []);
       setChannels(chanRes.channels || []);
     } catch (err) {
+      toast.error('Failed to load alert configuration');
       console.error('Failed to load alert data:', err);
     } finally {
       setLoading(false);
@@ -1147,11 +1166,14 @@ function DashboardView({ navigate, session, api, masterPassphrase }) {
   const [newAgent, setNewAgent] = useState({ name: '', gateway_url: '', policy_profile: 'dev' });
 
   useEffect(() => {
-    api('/api/billing').then(res => setTier(res.subscription.plan)).catch(() => { });
+    api('/api/billing').then(res => {
+      const p = res.subscription?.plan || 'free';
+      setTier(p.toLowerCase());
+    }).catch(() => { });
   }, [api]);
 
   useEffect(() => {
-    if (tier === 'enterprise') {
+    if (tier === 'enterprise' || tier === 'pro') {
       api('/api/custom-policies').then(res => setCustomPolicies(res.policies || [])).catch(() => { });
     }
   }, [api, tier]);
@@ -1181,6 +1203,7 @@ function DashboardView({ navigate, session, api, masterPassphrase }) {
       const res = await api(url);
       setAgents(res.agents);
     } catch (err) {
+      toast.error('Failed to load agents');
       console.error(err);
     }
   }, [api, selectedFleet]);
@@ -1424,7 +1447,7 @@ function DashboardView({ navigate, session, api, masterPassphrase }) {
                   <SelectItem value="dev" className="text-xs">Developer (Full Access)</SelectItem>
                   <SelectItem value="ops" className="text-xs">Operations (System Only)</SelectItem>
                   <SelectItem value="exec" className="text-xs">Executive (Read Only)</SelectItem>
-                  {tier === 'enterprise' && customPolicies.length > 0 && (
+                  {(tier === 'enterprise' || tier === 'pro') && customPolicies.length > 0 && (
                     <>
                       <Separator className="my-2 bg-white/10" />
                       <div className="px-2 py-1.5 text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Custom Policies</div>
@@ -1457,11 +1480,14 @@ function AgentDetailView({ navigate, session, api, agentId, masterPassphrase }) 
   const [configEdit, setConfigEdit] = useState('');
 
   useEffect(() => {
-    api('/api/billing').then(res => setTier(res.subscription.plan)).catch(() => { });
+    api('/api/billing').then(res => {
+      const p = res.subscription?.plan || 'free';
+      setTier(p.toLowerCase());
+    }).catch(() => { });
   }, [api]);
 
   useEffect(() => {
-    if (tier === 'enterprise') {
+    if (tier === 'enterprise' || tier === 'pro') {
       api('/api/custom-policies').then(res => setCustomPolicies(res.policies || [])).catch(() => { });
     }
   }, [api, tier]);
@@ -1639,10 +1665,9 @@ function AgentDetailView({ navigate, session, api, agentId, masterPassphrase }) 
                         <SelectItem value="dev" className="text-xs">Developer</SelectItem>
                         <SelectItem value="ops" className="text-xs">Operations</SelectItem>
                         <SelectItem value="exec" className="text-xs">Executive</SelectItem>
-                        {tier === 'enterprise' && customPolicies.length > 0 && (
+                        {(tier === 'enterprise' || tier === 'pro') && customPolicies.length > 0 && (
                           <>
                             <Separator className="my-2 bg-white/10" />
-                            <div className="px-2 py-1.5 text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Custom</div>
                             {customPolicies.map(cp => (
                               <SelectItem key={cp.id} value={cp.name} className="text-xs">{cp.label}</SelectItem>
                             ))}
