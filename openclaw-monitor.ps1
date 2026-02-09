@@ -1,10 +1,10 @@
 # OpenClaw Fleet Monitor - PowerShell Heartbeat Agent
-# Agent: 79a68826-b5af-49a3-b9db-6c322c858f17
+# Agent: 74d8ec78-6410-4495-b0ee-d051e43eee45
 # Run: powershell -ExecutionPolicy Bypass -File openclaw-monitor.ps1
 
 $SaasUrl = "http://localhost:3000"
-$AgentId = "79a68826-b5af-49a3-b9db-6c322c858f17"
-$AgentSecret = "4721c562-21eb-4b65-ae77-dcd6ec94f710"
+$AgentId = "74d8ec78-6410-4495-b0ee-d051e43eee45"
+$AgentSecret = "69106a20-dd27-4100-97d2-6fe42c487208"
 $Interval = 300
 $SessionToken = $null
 $GatewayUrl = $null
@@ -20,7 +20,13 @@ Write-Host ""
 
 function Perform-Handshake {
     Write-Host "[$(Get-Date -Format "HH:mm:ss")] Performing handshake..."
-    $body = @{ agent_id = $AgentId; agent_secret = $AgentSecret } | ConvertTo-Json
+    $timestamp = [int]([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())
+    $hmac = New-Object System.Security.Cryptography.HMACSHA256
+    $hmac.Key = [System.Text.Encoding]::UTF8.GetBytes($AgentSecret)
+    $sigBytes = $hmac.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($AgentId + $timestamp))
+    $signature = [System.BitConverter]::ToString($sigBytes).Replace("-","").ToLower()
+
+    $body = @{ agent_id = $AgentId; timestamp = "$timestamp"; signature = $signature } | ConvertTo-Json
     try {
         $res = Invoke-RestMethod -Uri "$SaasUrl/api/agents/handshake" -Method POST -Body $body -ContentType "application/json"
         if ($res.token) {

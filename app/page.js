@@ -617,6 +617,118 @@ function Navbar({ navigate, session, transparent = false }) {
 }
 
 // ============ LANDING ============
+// ============ TERMINAL MOCK ============
+function TerminalMock() {
+  const [visibleLines, setVisibleLines] = useState([]);
+  const [showMetrics, setShowMetrics] = useState(false);
+  const [cpuWidth, setCpuWidth] = useState(0);
+  const [memWidth, setMemWidth] = useState(0);
+
+  const sequence = [
+    { type: 'line', content: <><span className="text-emerald-500">user@fleet:~$</span> curl -sL https://fleet.sh/install | bash</>, delay: 500 },
+    { type: 'line', content: <span className="text-zinc-500 font-mono">[INFO] Downloading Fleet Agent v2.0...</span>, delay: 1000 },
+    { type: 'line', content: <span className="text-zinc-500 font-mono">[INFO] Verifying checksums...</span>, delay: 800 },
+    { type: 'line', content: <span className="text-zinc-500 font-mono">[INFO] Expanding package...</span>, delay: 600 },
+    { type: 'line', content: <><span className="text-emerald-500 mr-2 font-bold">➜</span> <span className="text-white font-bold">Agent node initialized.</span></>, delay: 800 },
+    { type: 'line', content: <><span className="text-emerald-500 mr-2 font-bold">➜</span> <span className="text-white font-bold">Connected to gateway: 192.168.1.40</span></>, delay: 600 },
+    { type: 'line', content: <><span className="text-emerald-500 mr-2 font-bold">➜</span> <span className="text-white font-bold">Status: </span><span className="bg-white text-black px-2 py-0.5 font-black text-[10px] ml-1">ONLINE</span></>, delay: 800 },
+  ];
+
+  useEffect(() => {
+    let timeoutId;
+    const runSequence = async () => {
+      for (let i = 0; i < sequence.length; i++) {
+        await new Promise(resolve => timeoutId = setTimeout(resolve, sequence[i].delay));
+        setVisibleLines(prev => [...prev, sequence[i].content]);
+      }
+      setShowMetrics(true);
+      setTimeout(() => {
+        setCpuWidth(45);
+        setMemWidth(62);
+      }, 500);
+    };
+    runSequence();
+    return () => clearTimeout(timeoutId);
+  }, []);
+
+  // CPU/MEM oscillation effect
+  useEffect(() => {
+    if (!showMetrics) return;
+    const interval = setInterval(() => {
+      setCpuWidth(prev => {
+        const delta = (Math.random() - 0.5) * 4;
+        return Math.min(Math.max(prev + delta, 40), 50);
+      });
+      setMemWidth(prev => {
+        const delta = (Math.random() - 0.5) * 2;
+        return Math.min(Math.max(prev + delta, 60), 65);
+      });
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [showMetrics]);
+
+  return (
+    <div className="flex-1 border border-white/10 bg-black relative p-6 pt-12 font-mono text-xs md:text-sm leading-relaxed overflow-hidden min-h-[400px]">
+      {/* Terminal Header */}
+      <div className="absolute top-0 left-0 w-full h-10 border-b border-white/10 bg-zinc-900/40 flex items-center px-4">
+        <div className="flex gap-2 group">
+          <div className="w-3 h-3 rounded-full bg-red-500/80 border border-black/20 hover:scale-110 active:scale-95 transition-all cursor-pointer flex items-center justify-center">
+            <span className="hidden group-hover:block text-[8px] text-black font-bold">×</span>
+          </div>
+          <div className="w-3 h-3 rounded-full bg-yellow-500/80 border border-black/20 hover:scale-110 active:scale-95 transition-all cursor-pointer flex items-center justify-center">
+            <span className="hidden group-hover:block text-[8px] text-black font-bold">−</span>
+          </div>
+          <div className="w-3 h-3 rounded-full bg-emerald-500/80 border border-black/20 hover:scale-110 active:scale-95 transition-all cursor-pointer flex items-center justify-center">
+            <span className="hidden group-hover:block text-[8px] text-black font-bold">+</span>
+          </div>
+        </div>
+        <span className="ml-auto text-[10px] text-zinc-500 font-mono uppercase tracking-widest opacity-50">bash - 80x24</span>
+      </div>
+
+      {/* Terminal Content */}
+      <div className="space-y-2 mt-4">
+        {visibleLines.map((line, i) => (
+          <div key={i} className="animate-in fade-in slide-in-from-left-2 duration-500 fill-mode-both">
+            {line}
+          </div>
+        ))}
+
+        {showMetrics && (
+          <div className="animate-in fade-in duration-1000">
+            <div className="h-px bg-white/5 my-8" />
+            <div className="grid grid-cols-2 gap-10">
+              <div className="space-y-2">
+                <p className="text-[10px] text-zinc-500 tracking-[0.2em] font-bold">CPU LOAD</p>
+                <div className="h-1 bg-zinc-900 w-full relative">
+                  <div
+                    className="absolute top-0 left-0 h-full bg-white transition-all duration-[2000ms] ease-in-out"
+                    style={{ width: `${cpuWidth}%` }}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <p className="text-[10px] text-zinc-500 tracking-[0.2em] font-bold">MEMORY</p>
+                <div className="h-1 bg-zinc-900 w-full relative">
+                  <div
+                    className="absolute top-0 left-0 h-full bg-white transition-all duration-[2000ms] ease-in-out"
+                    style={{ width: `${memWidth}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Blinking Cursor */}
+      <div className="absolute bottom-6 right-6 text-white font-bold animate-pulse">_</div>
+
+      {/* CRT Scanline Effect (Subtle) */}
+      <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(255,0,0,0.02),rgba(0,255,0,0.01),rgba(0,0,255,0.02))] bg-[length:100%_2px,3px_100%]" />
+    </div>
+  );
+}
+
 // ============ LANDING ============
 function LandingView({ navigate, session }) {
   const features = [
@@ -699,35 +811,8 @@ function LandingView({ navigate, session }) {
           </div>
 
           {/* Right Column: Visual/Terminal */}
-          <div className="bg-zinc-950 p-8 md:p-12 flex flex-col md:border-l border-white/0">
-            <div className="flex-1 border border-white/10 bg-black relative p-6 font-mono text-xs md:text-sm text-zinc-300 leading-relaxed overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-8 border-b border-white/10 bg-zinc-900/50 flex items-center px-4 gap-2">
-                <div className="w-3 h-3 rounded-full bg-red-500/20 border border-red-500/50" />
-                <div className="w-3 h-3 rounded-full bg-yellow-500/20 border border-yellow-500/50" />
-                <div className="w-3 h-3 rounded-full bg-emerald-500/20 border border-emerald-500/50" />
-                <span className="ml-auto text-[10px] text-zinc-600">bash - 80x24</span>
-              </div>
-              <div className="mt-8 space-y-2">
-                <p><span className="text-emerald-500">user@fleet:~$</span> curl -sL https://fleet.sh/install | bash</p>
-                <p className="text-zinc-500">[INFO] Downloading Fleet Agent v2.0...</p>
-                <p className="text-zinc-500">[INFO] Verifying checksums...</p>
-                <p className="text-zinc-500">[INFO] Expanding package...</p>
-                <p><span className="text-emerald-500">➜</span> <span className="text-white">Agent node initialized.</span></p>
-                <p><span className="text-emerald-500">➜</span> <span className="text-white">Connected to gateway: 192.168.1.40</span></p>
-                <p><span className="text-emerald-500">➜</span> <span className="text-white">Status: </span><span className="bg-white text-black px-1 font-bold">ONLINE</span></p>
-                <div className="mt-4 border-t border-white/10 pt-4 grid grid-cols-2 gap-4 text-[10px] uppercase tracking-widest text-zinc-500">
-                  <div>
-                    <p>CPU LOAD</p>
-                    <div className="w-full bg-zinc-900 h-1 mt-1"><div className="bg-white h-full w-[45%]" /></div>
-                  </div>
-                  <div>
-                    <p>MEMORY</p>
-                    <div className="w-full bg-zinc-900 h-1 mt-1"><div className="bg-white h-full w-[62%]" /></div>
-                  </div>
-                </div>
-              </div>
-              <div className="absolute bottom-4 right-4 animate-pulse">_</div>
-            </div>
+          <div className="bg-zinc-950 p-8 md:p-12 flex flex-col md:border-l border-white/0 lg:min-h-[600px] justify-center">
+            <TerminalMock />
           </div>
         </section>
 
