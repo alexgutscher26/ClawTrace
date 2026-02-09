@@ -110,10 +110,9 @@ const STATUS_CONFIG = {
 /**
  * Returns a human-readable string representing the time elapsed since a given date.
  *
- * The function calculates the difference in seconds between the current time and the
- * provided dateString. It then formats this difference into seconds, minutes, hours,
- * or days, depending on the magnitude of the difference. If the dateString is not provided,
- * it returns 'Never'.
+ * The function checks if the dateString is provided; if not, it returns 'Never'. It then calculates
+ * the difference in seconds between the current time and the provided dateString. Based on the
+ * magnitude of this difference, it formats the output into seconds, minutes, hours, or days.
  *
  * @param {string} dateString - The date string to calculate the time ago from.
  */
@@ -141,7 +140,7 @@ function useHashRouter() {
     /**
      * Parse the current URL hash and return the corresponding view and parameters.
      *
-     * The function checks the hash value from the window's location and maps it to specific views such as 'landing', 'login', 'register', 'dashboard', 'pricing', 'settings', and 'changelog'.
+     * The function retrieves the hash from the window's location, checks it against predefined routes such as 'landing', 'login', 'register', 'dashboard', 'pricing', 'settings', and 'changelog'.
      * If the hash matches the pattern for an agent detail, it extracts the agent ID and returns it.
      * If no valid hash is found, it defaults to the 'landing' view.
      *
@@ -244,7 +243,7 @@ const CHANGELOG_DATA = [
 ];
 
 /**
- * Renders the changelog view with platform updates and release information.
+ * Renders the changelog view displaying platform updates and release information.
  */
 function ChangelogView({ navigate, session, branding }) {
   return (
@@ -414,7 +413,7 @@ function SettingsView({ navigate, api, session, branding: initialBranding, setGl
   }, [loadChannels]);
 
   /**
-   * Handles the addition of a new alert channel.
+   * Handles the addition of a new alert channel via an API call.
    */
   const handleAddChannel = async () => {
     try {
@@ -476,7 +475,7 @@ function SettingsView({ navigate, api, session, branding: initialBranding, setGl
   };
 
   /**
-   * Prompts the user to confirm deletion of a custom policy and handles the deletion.
+   * Prompts the user for confirmation to delete a custom policy and executes the deletion.
    */
   const handleDeletePolicy = (id) => {
     toast('Delete this custom policy?', {
@@ -1137,6 +1136,15 @@ function SmartAlertsCard({ agent, api }) {
     loadAlertData();
   }, [loadAlertData]);
 
+  /**
+   * Handles the addition of a new alert configuration.
+   *
+   * This function checks if a channel ID is selected; if not, it displays an error message.
+   * If a channel ID is present, it sends a POST request to the API to create a new alert configuration
+   * using the provided `newConfig` and the current agent's ID. Upon success, it shows a success message,
+   * updates the state to stop adding the configuration, and reloads the alert data.
+   * In case of an error during the API call, it displays the error message.
+   */
   const handleAddConfig = async () => {
     if (!newConfig.channel_id) return toast.error('Select a channel');
     try {
@@ -1327,7 +1335,7 @@ function MasterKeyModal({ onSetKey }) {
 
   useEffect(() => {
     /**
-     * Opens the modal by setting isOpen to true.
+     * Opens the modal.
      */
     const handleOpen = () => setIsOpen(true);
     window.addEventListener('open-master-key-modal', handleOpen);
@@ -1512,8 +1520,8 @@ export default function App() {
  * Renders a responsive navigation bar with authentication options.
  *
  * The Navbar component displays branding, navigation links, and authentication buttons based on the user's session state.
- * It includes a mobile menu toggle and handles logout functionality. The component utilizes the `navigate` function for routing
- * and manages its open/close state for the mobile menu using local state. The layout adapts for mobile and desktop views.
+ * It includes a mobile menu toggle and handles logout functionality through the `handleLogout` function, which signs out the user and navigates to the home page.
+ * The layout adapts for mobile and desktop views, ensuring a seamless user experience.
  *
  * @param {Object} props - The properties for the Navbar component.
  * @param {Function} props.navigate - Function to navigate to different routes.
@@ -1698,8 +1706,9 @@ function Navbar({ navigate, session, branding, transparent = false }) {
  * Renders a mock terminal interface that simulates command execution and displays metrics.
  *
  * The TerminalMock component maintains state for visible lines, metrics visibility, and CPU/MEM widths.
- * It runs a sequence of simulated terminal commands with delays, updating the visible lines accordingly.
- * Once the sequence is complete, it shows metrics and starts an oscillation effect for CPU and memory usage.
+ * It executes a sequence of simulated terminal commands with specified delays, updating the visible lines
+ * accordingly. Once the sequence is complete, it displays metrics and initiates an oscillation effect for
+ * CPU and memory usage.
  */
 function TerminalMock() {
   const [visibleLines, setVisibleLines] = useState([]);
@@ -1773,7 +1782,7 @@ function TerminalMock() {
   useEffect(() => {
     let timeoutId;
     /**
-     * Executes a sequence of actions with delays and updates visibility and metrics.
+     * Executes a sequence of actions with delays, updating visibility and metrics.
      */
     const runSequence = async () => {
       for (let i = 0; i < sequence.length; i++) {
@@ -1875,7 +1884,7 @@ function TerminalMock() {
 
 // ============ LANDING ============
 /**
- * Renders the landing view of the application, including navigation, main content, and footer.
+ * Renders the landing view of the application.
  * @param {Object} props - The component props.
  * @param {Function} props.navigate - Function to navigate to different routes.
  * @param {Object} props.session - User session information.
@@ -2124,10 +2133,11 @@ function LoginView({ navigate, session }) {
   /**
    * Handles user login by processing the login form submission.
    *
-   * This function prevents the default form submission behavior, sets a loading state,
-   * and attempts to sign in the user using Supabase's authentication. If successful,
-   * it displays a success message and navigates to the dashboard. In case of an error,
-   * it shows an error message. The loading state is reset in the finally block.
+   * This function prevents the default form submission behavior and sets a loading state.
+   * It attempts to sign in the user using Supabase's authentication with the provided email
+   * and password. If the sign-in is successful, a success message is displayed and the user
+   * is navigated to the dashboard. In case of an error, an error message is shown. The loading
+   * state is reset in the finally block.
    *
    * @param {Event} e - The event object from the form submission.
    */
@@ -2515,6 +2525,13 @@ function DashboardView({ navigate, session, api, masterPassphrase, branding }) {
     loadAgents();
   }, [loadAgents]);
 
+  /**
+   * Handles the seeding of demo data.
+   *
+   * This function sets the seeding state to true, makes a POST request to the API to load demo data,
+   * and displays a success message upon completion. If an error occurs, it displays an error message.
+   * Finally, it resets the seeding state to false and loads additional data.
+   */
   const handleSeedDemo = async () => {
     setSeeding(true);
     try {
@@ -2532,7 +2549,7 @@ function DashboardView({ navigate, session, api, masterPassphrase, branding }) {
   /**
    * Handles the addition of a new agent.
    *
-   * This function prevents the default form submission behavior, retrieves the policy configuration based on the provided agent's profile, and prepares the agent's configuration. If a master passphrase is provided, it encrypts the configuration for end-to-end encryption. The function then sends a POST request to register the agent and updates the UI accordingly. In case of an error, it displays an error message.
+   * This function prevents the default form submission behavior and retrieves the policy configuration based on the provided agent's profile. It prepares the agent's configuration, optionally encrypts it if a master passphrase is provided, and sends a POST request to register the agent. The UI is updated accordingly, and error messages are displayed if any issues occur during the process.
    *
    * @param {Event} e - The event object from the form submission.
    */
@@ -3030,7 +3047,7 @@ function AgentDetailView({ navigate, session, api, agentId, masterPassphrase, br
   }, [loadAgent]);
 
   /**
-   * Initiates a restart of the agent and handles the loading state.
+   * Initiates a restart of the agent and manages the loading state.
    */
   const handleRestart = async () => {
     setRestarting(true);
@@ -3048,10 +3065,10 @@ function AgentDetailView({ navigate, session, api, agentId, masterPassphrase, br
   /**
    * Handles the saving of configuration settings.
    *
-   * This function sets a saving state, attempts to parse the configuration from `configEdit`,
-   * and conditionally encrypts it using a master passphrase if provided. It then sends the
-   * configuration to the API for the specified agent. In case of errors, it displays an error
-   * message, and finally resets the saving state.
+   * This function sets a saving state and attempts to parse the configuration from `configEdit`.
+   * If a master passphrase is provided, it encrypts the configuration using E2EE before sending
+   * it to the API for the specified agent. In case of errors, it displays an error message,
+   * and finally resets the saving state.
    */
   const handleSaveConfig = async () => {
     setSavingConfig(true);
@@ -3450,6 +3467,18 @@ function AgentDetailView({ navigate, session, api, agentId, masterPassphrase, br
 }
 
 // ============ SETUP INSTRUCTIONS ============
+/**
+ * Renders setup instructions for different platforms based on the provided agent credentials.
+ *
+ * This component allows users to select their operating system (Windows, macOS, or Linux) and
+ * displays the corresponding commands to install and monitor an agent. It utilizes the `copyText`
+ * function to facilitate copying commands to the clipboard and dynamically constructs command strings
+ * based on the selected platform and provided `agentId` and `agentSecret`.
+ *
+ * @param {Object} props - The component props.
+ * @param {string} props.agentId - The ID of the agent.
+ * @param {string} props.agentSecret - The secret key for the agent.
+ */
 function SetupInstructions({ agentId, agentSecret }) {
   const [platform, setPlatform] = useState('windows');
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
