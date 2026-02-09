@@ -59,6 +59,7 @@ This document serves as the master source of truth for the development, stabiliz
 *Adding the "SaaS" value-add that justifies the Pro/Enterprise tiers.*
 
 ### 🛡️ Enterprise Management
+- [x] **Policy Profiles (Dev, Ops, Exec)**: Pre-built roles to control skills and tools.
 - [ ] **Policy Enforcement Engine**:
     - [ ] Create a UI to define "Guardrails" (e.g., "Agent X cannot use tools that cost > $1.00").
     - [ ] Real-time policy syncing: Agent heartbeats should receive a "Policy Update" in the response body.

@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 import { SignJWT, jwtVerify } from 'jose';
 import { encrypt, decrypt } from '@/lib/encryption';
+import { getPolicy } from '@/lib/policies';
 
 const decryptAgent = (a) => {
   if (!a) return a;
@@ -860,6 +861,7 @@ export async function POST(request, context) {
         location: body.location || '',
         model: body.model || 'gpt-4',
         agent_secret: JSON.stringify(encrypt(plainSecret)), // Secure auto-generated secret
+        policy_profile: body.policy_profile || 'dev',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -898,7 +900,7 @@ export async function POST(request, context) {
       // Get agent's owner for tier-based handshake limit
       const { data: agent, error } = await supabaseAdmin
         .from('agents')
-        .select('id, fleet_id, agent_secret, user_id, gateway_url')
+        .select('id, fleet_id, agent_secret, user_id, gateway_url, policy_profile')
         .eq('id', body.agent_id)
         .maybeSingle();
 
@@ -916,7 +918,8 @@ export async function POST(request, context) {
       }
 
       const token = await createAgentToken(agent.id, agent.fleet_id);
-      return json({ token, expires_in: 86400, gateway_url: agent.gateway_url });
+      const policy = getPolicy(agent.policy_profile);
+      return json({ token, expires_in: 86400, gateway_url: agent.gateway_url, policy });
     }
 
     if (path === '/heartbeat') {
@@ -1022,6 +1025,9 @@ export async function POST(request, context) {
       const { error } = await supabaseAdmin.from('agents').update(update).eq('id', body.agent_id);
       if (error) throw error;
 
+      // Include updated policy in heartbeat response
+      const policy = getPolicy(agent.policy_profile);
+
       // Insert historical metrics for charts
       if (body.metrics) {
         try {
@@ -1043,7 +1049,11 @@ export async function POST(request, context) {
         }
       }
 
-      return json({ message: 'Heartbeat received', status: update.status });
+      return json({
+        message: 'Heartbeat received',
+        status: update.status,
+        policy // Real-time policy syncing
+      });
     }
 
     const resolveMatch = path.match(/^\/alerts\/([^/]+)\/resolve$/);
@@ -1077,11 +1087,11 @@ export async function POST(request, context) {
 
       const now = new Date();
       const demoAgents = [
-        { name: 'alpha-coder', gateway_url: 'http://192.168.1.100:8080', status: 'healthy', model: 'gpt-4', location: 'us-east-1', machine_id: 'droplet-alpha-001', metrics_json: { latency_ms: 120, tasks_completed: 847, errors_count: 3, uptime_hours: 720, cost_usd: 45.30, cpu_usage: 42, memory_usage: 58 }, config_json: { profile: 'dev', skills: ['code', 'search', 'deploy'], model: 'gpt-4', data_scope: 'full' }, last_heartbeat: new Date(now - 120000).toISOString() },
-        { name: 'beta-researcher', gateway_url: 'http://10.0.1.50:8080', status: 'healthy', model: 'claude-3', location: 'eu-west-1', machine_id: 'droplet-beta-002', metrics_json: { latency_ms: 180, tasks_completed: 523, errors_count: 7, uptime_hours: 500, cost_usd: 32.15, cpu_usage: 35, memory_usage: 45 }, config_json: { profile: 'ops', skills: ['search', 'analyze', 'report'], model: 'claude-3', data_scope: 'read-only' }, last_heartbeat: new Date(now - 300000).toISOString() },
-        { name: 'gamma-deployer', gateway_url: 'http://172.16.0.10:8080', status: 'idle', model: 'gpt-4', location: 'us-west-2', machine_id: 'droplet-gamma-003', metrics_json: { latency_ms: 95, tasks_completed: 312, errors_count: 1, uptime_hours: 360, cost_usd: 18.90, cpu_usage: 12, memory_usage: 30 }, config_json: { profile: 'ops', skills: ['deploy', 'monitor', 'rollback'], model: 'gpt-4', data_scope: 'full' }, last_heartbeat: new Date(now - 600000).toISOString() },
-        { name: 'delta-monitor', gateway_url: 'http://192.168.2.25:8080', status: 'error', model: 'gpt-3.5-turbo', location: 'ap-southeast-1', machine_id: 'droplet-delta-004', metrics_json: { latency_ms: 450, tasks_completed: 156, errors_count: 28, uptime_hours: 168, cost_usd: 8.75, cpu_usage: 89, memory_usage: 92 }, config_json: { profile: 'exec', skills: ['monitor', 'alert'], model: 'gpt-3.5-turbo', data_scope: 'summary-only' }, last_heartbeat: new Date(now - 1800000).toISOString() },
-        { name: 'epsilon-analyst', gateway_url: 'http://10.0.2.100:8080', status: 'offline', model: 'gpt-4', location: 'us-east-2', machine_id: 'droplet-epsilon-005', metrics_json: { latency_ms: 0, tasks_completed: 89, errors_count: 0, uptime_hours: 48, cost_usd: 5.20, cpu_usage: 0, memory_usage: 0 }, config_json: { profile: 'dev', skills: ['analyze', 'report', 'visualize'], model: 'gpt-4', data_scope: 'full' }, last_heartbeat: new Date(now - 7200000).toISOString() },
+        { name: 'alpha-coder', policy_profile: 'dev', gateway_url: 'http://192.168.1.100:8080', status: 'healthy', model: 'gpt-4', location: 'us-east-1', machine_id: 'droplet-alpha-001', metrics_json: { latency_ms: 120, tasks_completed: 847, errors_count: 3, uptime_hours: 720, cost_usd: 45.30, cpu_usage: 42, memory_usage: 58 }, config_json: { profile: 'dev', skills: ['code', 'search', 'deploy'], model: 'gpt-4', data_scope: 'full' }, last_heartbeat: new Date(now - 120000).toISOString() },
+        { name: 'beta-researcher', policy_profile: 'ops', gateway_url: 'http://10.0.1.50:8080', status: 'healthy', model: 'claude-3', location: 'eu-west-1', machine_id: 'droplet-beta-002', metrics_json: { latency_ms: 180, tasks_completed: 523, errors_count: 7, uptime_hours: 500, cost_usd: 32.15, cpu_usage: 35, memory_usage: 45 }, config_json: { profile: 'ops', skills: ['search', 'analyze', 'report'], model: 'claude-3', data_scope: 'read-only' }, last_heartbeat: new Date(now - 300000).toISOString() },
+        { name: 'gamma-deployer', policy_profile: 'ops', gateway_url: 'http://172.16.0.10:8080', status: 'idle', model: 'gpt-4', location: 'us-west-2', machine_id: 'droplet-gamma-003', metrics_json: { latency_ms: 95, tasks_completed: 312, errors_count: 1, uptime_hours: 360, cost_usd: 18.90, cpu_usage: 12, memory_usage: 30 }, config_json: { profile: 'ops', skills: ['deploy', 'monitor', 'rollback'], model: 'gpt-4', data_scope: 'full' }, last_heartbeat: new Date(now - 600000).toISOString() },
+        { name: 'delta-monitor', policy_profile: 'exec', gateway_url: 'http://192.168.2.25:8080', status: 'error', model: 'gpt-3.5-turbo', location: 'ap-southeast-1', machine_id: 'droplet-delta-004', metrics_json: { latency_ms: 450, tasks_completed: 156, errors_count: 28, uptime_hours: 168, cost_usd: 8.75, cpu_usage: 89, memory_usage: 92 }, config_json: { profile: 'exec', skills: ['monitor', 'alert'], model: 'gpt-3.5-turbo', data_scope: 'summary-only' }, last_heartbeat: new Date(now - 1800000).toISOString() },
+        { name: 'epsilon-analyst', policy_profile: 'dev', gateway_url: 'http://10.0.2.100:8080', status: 'offline', model: 'gpt-4', location: 'us-east-2', machine_id: 'droplet-epsilon-005', metrics_json: { latency_ms: 0, tasks_completed: 89, errors_count: 0, uptime_hours: 48, cost_usd: 5.20, cpu_usage: 0, memory_usage: 0 }, config_json: { profile: 'dev', skills: ['analyze', 'report', 'visualize'], model: 'gpt-4', data_scope: 'full' }, last_heartbeat: new Date(now - 7200000).toISOString() },
       ];
 
       const agentDocs = demoAgents.map(a => ({
@@ -1288,6 +1298,7 @@ export async function PUT(request, context) {
       if (body.location !== undefined) updateFields.location = body.location;
       if (body.model !== undefined) updateFields.model = body.model;
       if (body.status !== undefined) updateFields.status = body.status;
+      if (body.policy_profile !== undefined) updateFields.policy_profile = body.policy_profile;
 
       let query = supabaseAdmin.from('agents').update(updateFields).eq('id', agentId);
 

@@ -27,6 +27,8 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
+import { getPolicy, POLICY_PROFILES } from '@/lib/policies';
+
 const STATUS_CONFIG = {
   healthy: { color: 'bg-white', text: 'text-white', border: 'border-white/20', label: 'OPERATIONAL', bgLight: 'bg-white/10' },
   idle: { color: 'bg-zinc-500', text: 'text-zinc-400', border: 'border-white/10', label: 'IDLE', bgLight: 'bg-white/5' },
@@ -635,6 +637,7 @@ function DashboardView({ navigate, session, api }) {
                     <th className="text-left p-3 text-xs font-medium text-muted-foreground">Name</th>
                     <th className="text-left p-3 text-xs font-medium text-muted-foreground">Status</th>
                     <th className="text-left p-3 text-xs font-medium text-muted-foreground hidden md:table-cell">Gateway</th>
+                    <th className="text-left p-3 text-xs font-medium text-muted-foreground">Policy</th>
                     <th className="text-left p-3 text-xs font-medium text-muted-foreground hidden md:table-cell">Model</th>
                     <th className="text-left p-3 text-xs font-medium text-muted-foreground hidden lg:table-cell">Location</th>
                     <th className="text-left p-3 text-xs font-medium text-muted-foreground">Heartbeat</th>
@@ -653,6 +656,11 @@ function DashboardView({ navigate, session, api }) {
                           </td>
                           <td className="p-3"><Badge variant="outline" className={`${sc.text} ${sc.border} bg-transparent rounded-none text-[10px] font-mono uppercase tracking-wider`}>{sc.label}</Badge></td>
                           <td className="p-3 text-zinc-500 hidden md:table-cell font-mono text-xs uppercase">{agent.gateway_url}</td>
+                          <td className="p-3">
+                            <Badge variant="outline" className={`${getPolicy(agent.policy_profile).color} ${getPolicy(agent.policy_profile).bg} rounded-none text-[9px] font-mono border-opacity-50 tracking-tighter`}>
+                              {getPolicy(agent.policy_profile).label}
+                            </Badge>
+                          </td>
                           <td className="p-3 text-sm text-zinc-400 hidden md:table-cell">{agent.model}</td>
                           <td className="p-3 text-sm text-zinc-400 hidden lg:table-cell">{agent.location || 'UNKNOWN'}</td>
                           <td className="p-3 text-sm text-zinc-500 font-mono">{timeAgo(agent.last_heartbeat)}</td>
@@ -708,6 +716,17 @@ function DashboardView({ navigate, session, api }) {
           <form onSubmit={handleAddAgent} className="space-y-4">
             <div><Label>Agent Name</Label><Input placeholder="alpha-coder" value={newAgent.name} onChange={e => setNewAgent(p => ({ ...p, name: e.target.value }))} required /></div>
             <div><Label>Gateway URL</Label><Input placeholder="http://192.168.1.100:8080" value={newAgent.gateway_url} onChange={e => setNewAgent(p => ({ ...p, gateway_url: e.target.value }))} required /></div>
+            <div>
+              <Label>Policy Profile</Label>
+              <Select value={newAgent.policy_profile || 'dev'} onValueChange={v => setNewAgent(p => ({ ...p, policy_profile: v }))}>
+                <SelectTrigger className="w-full"><SelectValue placeholder="Select Policy" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="dev">Developer (Full Access)</SelectItem>
+                  <SelectItem value="ops">Operations (System Only)</SelectItem>
+                  <SelectItem value="exec">Executive (Read Only)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
 
             <DialogFooter><Button type="submit" className="bg-emerald-600 hover:bg-emerald-700">Register Agent</Button></DialogFooter>
@@ -796,7 +815,11 @@ function AgentDetailView({ navigate, session, api, agentId }) {
               <p className="text-sm text-muted-foreground font-mono">{agent.gateway_url}</p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <Badge variant="outline" className={`${getPolicy(agent.policy_profile).color} ${getPolicy(agent.policy_profile).bg} rounded-none text-xs font-mono px-3 py-1`}>
+              {getPolicy(agent.policy_profile).label} PROFILE
+            </Badge>
+            <div className="w-px h-8 bg-border/40 mx-2 hidden md:block" />
             <Button variant="outline" size="sm" onClick={handleRestart} disabled={restarting}>
               <RefreshCw className={`w-4 h-4 mr-1 ${restarting ? 'animate-spin' : ''}`} />
               {restarting ? 'Restarting...' : 'Restart'}
@@ -832,7 +855,38 @@ function AgentDetailView({ navigate, session, api, agentId }) {
               ))}
             </div>
 
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+              <Card className="glass-card">
+                <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                  <CardTitle className="text-sm">Policy Enforcer</CardTitle>
+                  <Shield className="w-4 h-4 text-white/40" />
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="p-3 bg-white/5 border border-white/10 rounded-lg">
+                    <p className="text-xs text-muted-foreground mb-3">{getPolicy(agent.policy_profile).description}</p>
+                    <Select value={agent.policy_profile} onValueChange={async (v) => {
+                      try {
+                        await api(`/api/agents/${agent.id}`, { method: 'PUT', body: JSON.stringify({ policy_profile: v }) });
+                        toast.success(`Policy changed to ${v.toUpperCase()}`);
+                        loadAgent();
+                      } catch (err) { toast.error(err.message); }
+                    }}>
+                      <SelectTrigger className="w-full bg-black border-white/20"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="dev">Developer</SelectItem>
+                        <SelectItem value="ops">Operations</SelectItem>
+                        <SelectItem value="exec">Executive</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {getPolicy(agent.policy_profile).skills.map(s => (
+                      <Badge key={s} variant="ghost" className="text-[9px] uppercase font-mono tracking-tighter bg-white/5 text-zinc-400">+{s}</Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
               <Card className="glass-card">
                 <CardHeader className="pb-2"><CardTitle className="text-sm">Agent Info</CardTitle></CardHeader>
                 <CardContent className="space-y-3 text-sm">
