@@ -930,14 +930,17 @@ done
         .from('agents')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id);
-      const subscription = sub ? { ...sub, plan: sub.plan.toLowerCase() } : { plan: 'free', status: 'active' };
+
+      const plan = (sub?.plan || 'free').toLowerCase();
+      const subscription = sub ? { ...sub, plan } : { plan: 'free', status: 'active' };
+
       return json({
         subscription,
         agent_count: agentCount,
         limits: {
-          free: { max_agents: 1, alerts: false, teams: false },
-          pro: { max_agents: -1, alerts: true, teams: true },
-          enterprise: { max_agents: -1, alerts: true, teams: true, custom_policies: true, sso: true },
+          free: { max_agents: 1, alerts: false, teams: false, heartbeat_min: 300 },
+          pro: { max_agents: -1, alerts: true, teams: true, heartbeat_min: 60 },
+          enterprise: { max_agents: -1, alerts: true, teams: true, custom_policies: true, sso: true, heartbeat_min: 10 },
         }
       });
     }
@@ -1083,6 +1086,18 @@ export async function POST(request, context) {
     if (path === '/agents') {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
+
+      const tier = await getTier(user.id);
+      if (tier === 'free') {
+        const { count } = await supabaseAdmin
+          .from('agents')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id);
+        if (count >= 1) {
+          return json({ error: 'FREE tier is limited to 1 agent node. Upgrade for unlimited scale.' }, 403);
+        }
+      }
+
       const body = await request.json();
       const plainSecret = uuidv4();
       const policyProfile = body.policy_profile || 'dev';
@@ -1227,7 +1242,17 @@ export async function POST(request, context) {
 
       console.log('[HANDSHAKE] Success! Generating token...');
       const token = await createAgentToken(agent.id, agent.fleet_id);
-      const policy = getPolicy(agent.policy_profile);
+      const policyProfile = agent.policy_profile || 'dev';
+      let policy = getPolicy(policyProfile);
+
+      // Tier-based heartbeat clamping
+      const tier = await getTier(agent.user_id);
+      if (tier === 'free' && policy.heartbeat_interval < 300) {
+        policy.heartbeat_interval = 300; // Force 5m for FREE
+      } else if (tier === 'pro' && policy.heartbeat_interval < 60) {
+        policy.heartbeat_interval = 60; // Force 1m for PRO
+      }
+
       return json({ token, expires_in: 86400, gateway_url: agent.gateway_url, policy });
     }
 
@@ -1455,9 +1480,21 @@ export async function POST(request, context) {
       if (!user) return json({ error: 'Unauthorized' }, 401);
       const body = await request.json();
       const plan = body.plan || 'pro';
+      const isYearly = body.yearly === true;
+
       const LEMON_KEY = process.env.LEMON_SQUEEZY_API_KEY;
-      const STORE_ID = '139983';
-      const VARIANT_ID = '626520';
+      const STORE_ID = process.env.LEMON_SQUEEZY_STORE_ID || '139983';
+
+      // Mapping plans to LS Variants (Verified Variant IDs for Store 288152)
+      const VARIANTS = {
+        pro_monthly: '1291188',
+        pro_yearly: '1291221',
+        enterprise_monthly: '1291241',
+        enterprise_yearly: '1291250',
+      };
+
+      const variantKey = `${plan}_${isYearly ? 'yearly' : 'monthly'}`;
+      const VARIANT_ID = VARIANTS[variantKey] || VARIANTS.pro_monthly;
 
       try {
         const checkoutRes = await fetch('https://api.lemonsqueezy.com/v1/checkouts', {
@@ -1469,58 +1506,94 @@ export async function POST(request, context) {
           },
           body: JSON.stringify({
             data: {
-              type: 'checkouts',
+              type: "checkouts",
               attributes: {
                 checkout_data: {
-                  email: user.email,
-                  custom: { user_id: user.id, plan: plan }
+                  custom: {
+                    user_id: user.id,
+                    plan: plan
+                  }
                 },
                 product_options: {
-                  name: plan === 'enterprise' ? 'OpenClaw Fleet Enterprise' : 'OpenClaw Fleet Pro',
-                  description: plan === 'enterprise' ? 'Unlimited agents, custom policies, SSO, priority support' : 'Unlimited agents, alerts, team collaboration',
-                },
+                  redirect_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/dashboard`
+                }
               },
               relationships: {
-                store: { data: { type: 'stores', id: STORE_ID } },
-                variant: { data: { type: 'variants', id: VARIANT_ID } },
+                store: {
+                  data: {
+                    type: "stores",
+                    id: String(STORE_ID)
+                  }
+                },
+                variant: {
+                  data: {
+                    type: "variants",
+                    id: String(VARIANT_ID)
+                  }
+                }
               }
             }
-          }),
+          })
         });
         const checkoutData = await checkoutRes.json();
         const checkoutUrl = checkoutData?.data?.attributes?.url;
-        if (!checkoutUrl) return json({ error: 'Failed to create checkout' }, 500);
+        if (!checkoutUrl) throw new Error(JSON.stringify(checkoutData));
         return json({ checkout_url: checkoutUrl, plan });
       } catch (err) {
         console.error('Lemon Squeezy error:', err);
-        return json({ error: 'Payment service unavailable' }, 500);
+        return json({ error: 'Payment service unavailable', details: err.message }, 500);
       }
     }
 
     // ============ LEMON SQUEEZY WEBHOOK ============
-    if (path === '/webhooks/lemonsqueezy') {
-      const body = await request.json();
-      const eventName = body?.meta?.event_name;
-      const customData = body?.meta?.custom_data || {};
+    if (path === '/billing/webhook') {
+      const crypto = await import('node:crypto');
+      const rawBody = await request.text();
+      const secret = process.env.LEMON_SQUEEZY_WEBHOOK_SECRET;
+      const hmac = crypto.createHmac('sha256', secret);
+      const digest = Buffer.from(hmac.update(rawBody).digest('hex'), 'utf8');
+      const signature = Buffer.from(request.headers.get('x-signature') || '', 'utf8');
+
+      if (!crypto.timingSafeEqual(digest, signature)) {
+        return json({ error: 'Invalid signature.' }, 400);
+      }
+
+      const body = JSON.parse(rawBody);
+      const eventName = body.meta.event_name;
+      const customData = body.meta.custom_data;
+
+      if (!customData || !customData.user_id) {
+        console.error('Webhook received without custom_data.user_id:', body);
+        return json({ error: 'Missing user_id in custom data.' }, 400);
+      }
 
       if (eventName === 'subscription_created' || eventName === 'subscription_updated') {
         const attrs = body?.data?.attributes || {};
-        await supabaseAdmin.from('subscriptions').upsert({
+        const { error: upsertError } = await supabaseAdmin.from('subscriptions').upsert({
           user_id: customData.user_id,
           plan: customData.plan || 'pro',
           status: attrs.status === 'active' ? 'active' : attrs.status,
-          lemon_subscription_id: body?.data?.id,
-          customer_id: attrs.customer_id,
-          variant_id: attrs.variant_id,
+          lemon_subscription_id: String(body?.data?.id),
+          lemon_customer_id: String(attrs.customer_id),
+          variant_id: String(attrs.variant_id),
           current_period_end: attrs.renews_at,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'user_id' });
+
+        if (upsertError) {
+          console.error('Supabase Upsert Error:', upsertError);
+        } else {
+          console.log('Subscription upserted successfully for user:', customData.user_id);
+        }
       }
 
       if (eventName === 'subscription_cancelled' || eventName === 'subscription_expired') {
+        const attrs = body?.data?.attributes || {};
+        // Only cancel if the subscription ID matches (prevent overwriting modern sub with old expired one)
         await supabaseAdmin.from('subscriptions')
           .update({ status: 'cancelled', updated_at: new Date().toISOString() })
-          .eq('user_id', customData.user_id);
+          .eq('user_id', customData.user_id)
+          .eq('lemon_subscription_id', String(body?.data?.id));
       }
 
       return json({ received: true });
@@ -1547,6 +1620,12 @@ export async function POST(request, context) {
     if (path === '/alert-channels') {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
+
+      const tier = await getTier(user.id);
+      if (tier === 'free') {
+        return json({ error: 'Alert channels requires a PRO or ENTERPRISE plan' }, 403);
+      }
+
       const body = await request.json();
       const channel = {
         id: uuidv4(),
@@ -1567,6 +1646,12 @@ export async function POST(request, context) {
     if (path === '/alert-configs') {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
+
+      const tier = await getTier(user.id);
+      if (tier === 'free') {
+        return json({ error: 'Agent alerts require a PRO or ENTERPRISE plan' }, 403);
+      }
+
       const body = await request.json();
       const config = {
         id: uuidv4(),
