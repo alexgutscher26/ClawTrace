@@ -40,6 +40,13 @@ import { getPolicy } from '@/lib/policies';
 import { useFleet } from '@/context/FleetContext';
 import { useRouter } from 'next/navigation';
 
+/**
+ * Renders the dashboard view for managing AI agents and monitoring their status.
+ *
+ * This component fetches and displays various statistics related to the agent fleet, including total agents, operational status, and alerts. It handles user interactions for adding and deleting agents, as well as resolving alerts. The component utilizes multiple hooks to manage state and side effects, ensuring data is loaded and updated appropriately based on user actions and API responses.
+ *
+ * @returns {JSX.Element} The rendered dashboard view.
+ */
 export default function DashboardView() {
   const { session, api, masterPassphrase, branding } = useFleet();
   const router = useRouter();
@@ -116,6 +123,9 @@ export default function DashboardView() {
     if (!loading) loadAgents();
   }, [loadAgents, loading, selectedFleet]);
 
+  /**
+   * Handles the seeding of the demo environment.
+   */
   const handleSeedDemo = async () => {
     setSeeding(true);
     try {
@@ -129,6 +139,13 @@ export default function DashboardView() {
     }
   };
 
+  /**
+   * Handles the addition of a new agent.
+   *
+   * This function prevents the default form submission behavior, checks if the maximum number of agents has been reached, and displays an error message if so. If the limit is not exceeded, it sends a POST request to register the new agent with the provided details. Upon successful registration, it captures an event, resets the form state, and reloads the agents and data. In case of an error during the API call, it displays an error message.
+   *
+   * @param {Event} e - The event object from the form submission.
+   */
   const handleAddAgent = async (e) => {
     e.preventDefault();
     if (agents.length >= limits.max_agents && limits.max_agents !== -1) {
