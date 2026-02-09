@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import { usePathname, useRouter, useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,27 +49,30 @@ function timeAgo(dateString) {
 }
 
 function useHashRouter() {
+  const router = useRouter();
+  const pathname = usePathname();
   const [route, setRoute] = useState({ view: 'landing', params: {} });
+
   useEffect(() => {
-    const parseHash = () => {
-      const hash = window.location.hash.slice(1) || '/';
-      if (hash === '/' || hash === '') return { view: 'landing', params: {} };
-      if (hash === '/login') return { view: 'login', params: {} };
-      if (hash === '/register') return { view: 'register', params: {} };
-      if (hash === '/dashboard') return { view: 'dashboard', params: {} };
-      if (hash === '/pricing') return { view: 'pricing', params: {} };
-      if (hash === '/settings') return { view: 'settings', params: {} };
-      if (hash === '/changelog') return { view: 'changelog', params: {} };
-      const m = hash.match(/^\/agent\/(.+)$/);
+    const parsePath = () => {
+      const path = pathname || '/';
+      if (path === '/' || path === '') return { view: 'landing', params: {} };
+      if (path === '/login') return { view: 'login', params: {} };
+      if (path === '/register') return { view: 'register', params: {} };
+      if (path === '/dashboard') return { view: 'dashboard', params: {} };
+      if (path === '/pricing') return { view: 'pricing', params: {} };
+      if (path === '/settings') return { view: 'settings', params: {} };
+      if (path === '/changelog') return { view: 'changelog', params: {} };
+
+      const m = path.match(/^\/agent\/(.+)$/);
       if (m) return { view: 'agent', params: { id: m[1] } };
+
       return { view: 'landing', params: {} };
     };
-    const handle = () => setRoute(parseHash());
-    handle();
-    window.addEventListener('hashchange', handle);
-    return () => window.removeEventListener('hashchange', handle);
-  }, []);
-  const navigate = useCallback((p) => { window.location.hash = p; }, []);
+    setRoute(parsePath());
+  }, [pathname]);
+
+  const navigate = useCallback((p) => router.push(p), [router]);
   return { ...route, navigate };
 }
 
@@ -118,8 +122,83 @@ const CHANGELOG_DATA = [
       { type: 'improvement', text: 'Implemented Row Level Security (RLS) across all core database tables.' },
       { type: 'feature', text: 'New Team Management system with invite-only access control.' }
     ]
+
   }
 ];
+
+// ============ NAVBAR ============
+function Navbar({ navigate, session, branding, transparent = false }) {
+  const [open, setOpen] = useState(false);
+  const handleLogout = async () => { await supabase.auth.signOut(); navigate('/'); };
+
+  return (
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-black border-b border-white">
+      <div className="container mx-auto grid grid-cols-2 md:grid-cols-12 h-16">
+        {/* Logo Section */}
+        <div className="col-span-1 md:col-span-3 flex items-center px-4 md:px-6 border-r border-white/20">
+          <div className="flex items-center gap-2 group cursor-pointer" onClick={() => navigate('/')}>
+            <div className="w-5 h-5 bg-white flex items-center justify-center transition-transform group-hover:rotate-180">
+              <Zap className="w-3 h-3 text-black fill-black" />
+            </div>
+            {branding?.name ? (
+              <span className="text-lg font-bold font-mono tracking-tighter text-white uppercase italic">{branding.name}</span>
+            ) : (
+              <span className="text-lg font-bold font-mono tracking-tighter text-white">FLEET<span className="text-zinc-500">//</span>OS</span>
+            )}
+          </div>
+        </div>
+
+        {/* Center / Spacer */}
+        <div className="hidden md:flex col-span-5 items-center px-6 border-r border-white/20">
+          <div className="flex gap-6 text-xs font-mono uppercase tracking-widest text-zinc-500">
+            {session && <button onClick={() => navigate('/settings')} className="hover:text-white transition-colors">SETTINGS</button>}
+            <button onClick={() => navigate('/changelog')} className="hover:text-white transition-colors">CHANGELOG</button>
+            <button onClick={() => navigate('/pricing')} className="hover:text-white transition-colors">PRICING</button>
+            <button onClick={() => window.open('https://github.com/openclaw/fleet', '_blank')} className="hover:text-white transition-colors">GITHUB</button>
+          </div>
+        </div>
+
+        {/* Auth Actions */}
+        <div className="col-span-1 md:col-span-4 flex items-center justify-end">
+          {session ? (
+            <div className="flex h-full w-full">
+              <button onClick={() => navigate('/dashboard')} className="flex-1 h-full border-r border-white/20 hover:bg-white hover:text-black transition-colors font-bold uppercase text-xs">CONSOLE</button>
+              <button onClick={handleLogout} className="w-24 h-full text-red-500 hover:bg-red-500 hover:text-black transition-colors font-bold uppercase text-xs">LOGOUT</button>
+            </div>
+          ) : (
+            <div className="flex h-full w-full">
+              <button onClick={() => navigate('/login')} className="flex-1 h-full border-r border-white/20 hover:bg-white/10 transition-colors uppercase text-xs text-white">LOGIN</button>
+              <button onClick={() => navigate('/register')} className="flex-1 h-full bg-white text-black hover:bg-zinc-200 transition-colors uppercase text-xs font-bold">GET KEY</button>
+            </div>
+          )}
+
+          {/* Mobile Menu Toggle */}
+          <button className="md:hidden w-16 h-full border-l border-white/20 flex items-center justify-center text-white" onClick={() => setOpen(!open)}>
+            {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Menu */}
+      {open && (
+        <div className="md:hidden bg-black border-b border-white p-0">
+          <button onClick={() => { navigate('/pricing'); setOpen(false); }} className="block w-full text-left p-4 font-mono text-xs uppercase hover:bg-white/10 border-b border-white/10 text-white">PRICING</button>
+          {session ? (
+            <>
+              <button onClick={() => { navigate('/dashboard'); setOpen(false); }} className="block w-full text-left p-4 font-mono text-xs uppercase hover:bg-white/10 border-b border-white/10 text-white">CONSOLE</button>
+              <button onClick={() => { handleLogout(); setOpen(false); }} className="block w-full text-left p-4 font-mono text-xs uppercase text-red-500 hover:bg-red-500 hover:text-black">LOGOUT</button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => { navigate('/login'); setOpen(false); }} className="block w-full text-left p-4 font-mono text-xs uppercase hover:bg-white/10 border-b border-white/10 text-white">LOGIN</button>
+              <button onClick={() => { navigate('/register'); setOpen(false); }} className="block w-full text-left p-4 font-bold text-xs uppercase bg-white text-black">GET KEY</button>
+            </>
+          )}
+        </div>
+      )}
+    </nav>
+  );
+}
 
 function ChangelogView({ navigate, session, branding }) {
   return (
@@ -813,80 +892,7 @@ export default function App() {
 
 
 
-  // ============ NAVBAR ============
-  // ============ NAVBAR ============
-  function Navbar({ navigate, session, branding, transparent = false }) {
-    const [open, setOpen] = useState(false);
-    const handleLogout = async () => { await supabase.auth.signOut(); navigate('/'); };
 
-    return (
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-black border-b border-white">
-        <div className="container mx-auto grid grid-cols-2 md:grid-cols-12 h-16">
-          {/* Logo Section */}
-          <div className="col-span-1 md:col-span-3 flex items-center px-4 md:px-6 border-r border-white/20">
-            <div className="flex items-center gap-2 group cursor-pointer" onClick={() => navigate('/')}>
-              <div className="w-5 h-5 bg-white flex items-center justify-center transition-transform group-hover:rotate-180">
-                <Zap className="w-3 h-3 text-black fill-black" />
-              </div>
-              {branding?.name ? (
-                <span className="text-lg font-bold font-mono tracking-tighter text-white uppercase italic">{branding.name}</span>
-              ) : (
-                <span className="text-lg font-bold font-mono tracking-tighter text-white">FLEET<span className="text-zinc-500">//</span>OS</span>
-              )}
-            </div>
-          </div>
-
-          {/* Center / Spacer */}
-          <div className="hidden md:flex col-span-5 items-center px-6 border-r border-white/20">
-            <div className="flex gap-6 text-xs font-mono uppercase tracking-widest text-zinc-500">
-              {session && <button onClick={() => navigate('/settings')} className="hover:text-white transition-colors">SETTINGS</button>}
-              <button onClick={() => navigate('/changelog')} className="hover:text-white transition-colors">CHANGELOG</button>
-              <button onClick={() => navigate('/pricing')} className="hover:text-white transition-colors">PRICING</button>
-              <button onClick={() => window.open('https://github.com/openclaw/fleet', '_blank')} className="hover:text-white transition-colors">GITHUB</button>
-            </div>
-          </div>
-
-          {/* Auth Actions */}
-          <div className="col-span-1 md:col-span-4 flex items-center justify-end">
-            {session ? (
-              <div className="flex h-full w-full">
-                <button onClick={() => navigate('/dashboard')} className="flex-1 h-full border-r border-white/20 hover:bg-white hover:text-black transition-colors font-bold uppercase text-xs">CONSOLE</button>
-                <button onClick={handleLogout} className="w-24 h-full text-red-500 hover:bg-red-500 hover:text-black transition-colors font-bold uppercase text-xs">LOGOUT</button>
-              </div>
-            ) : (
-              <div className="flex h-full w-full">
-                <button onClick={() => navigate('/login')} className="flex-1 h-full border-r border-white/20 hover:bg-white/10 transition-colors uppercase text-xs text-white">LOGIN</button>
-                <button onClick={() => navigate('/register')} className="flex-1 h-full bg-white text-black hover:bg-zinc-200 transition-colors uppercase text-xs font-bold">GET KEY</button>
-              </div>
-            )}
-
-            {/* Mobile Menu Toggle */}
-            <button className="md:hidden w-16 h-full border-l border-white/20 flex items-center justify-center text-white" onClick={() => setOpen(!open)}>
-              {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
-          </div>
-        </div>
-
-        {/* Mobile Menu */}
-        {open && (
-          <div className="md:hidden bg-black border-b border-white p-0">
-            <button onClick={() => { navigate('/pricing'); setOpen(false); }} className="block w-full text-left p-4 font-mono text-xs uppercase hover:bg-white/10 border-b border-white/10 text-white">PRICING</button>
-            {session ? (
-              <>
-                <button onClick={() => { navigate('/dashboard'); setOpen(false); }} className="block w-full text-left p-4 font-mono text-xs uppercase hover:bg-white/10 border-b border-white/10 text-white">CONSOLE</button>
-                <button onClick={() => { handleLogout(); setOpen(false); }} className="block w-full text-left p-4 font-mono text-xs uppercase text-red-500 hover:bg-red-500 hover:text-black">LOGOUT</button>
-              </>
-            ) : (
-              <>
-                <button onClick={() => { navigate('/login'); setOpen(false); }} className="block w-full text-left p-4 font-mono text-xs uppercase hover:bg-white/10 border-b border-white/10 text-white">LOGIN</button>
-                <button onClick={() => { navigate('/register'); setOpen(false); }} className="block w-full text-left p-4 font-bold text-xs uppercase bg-white text-black">GET KEY</button>
-              </>
-            )}
-          </div>
-        )}
-      </nav>
-    );
-  }
 
   // ============ LANDING ============
   // ============ TERMINAL MOCK ============
@@ -1032,8 +1038,11 @@ export default function App() {
               </div>
             </div>
 
-            <div className="hidden md:flex col-span-6 items-center justify-center border-r border-white/20">
-              <span className="text-xs text-zinc-500 uppercase tracking-widest animate-pulse">System Status: 100% Operational</span>
+            <div className="hidden md:flex col-span-6 items-center justify-center border-r border-white/20 gap-8">
+              <button onClick={() => navigate('/changelog')} className="text-xs uppercase tracking-widest text-zinc-500 hover:text-white transition-colors">CHANGELOG</button>
+              <button onClick={() => navigate('/pricing')} className="text-xs uppercase tracking-widest text-zinc-500 hover:text-white transition-colors">PRICING</button>
+              <button onClick={() => window.open('', '_blank')} className="text-xs uppercase tracking-widest text-zinc-500 hover:text-white transition-colors">DOCS</button>
+              <button onClick={() => window.open('', '_blank')} className="text-xs uppercase tracking-widest text-zinc-500 hover:text-white transition-colors">GITHUB</button>
             </div>
 
             <div className="col-span-1 md:col-span-3 flex items-center justify-end px-4 md:px-0">
