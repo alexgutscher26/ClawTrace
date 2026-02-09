@@ -72,7 +72,7 @@ function useHashRouter() {
     /**
      * Parse the current URL hash and return the corresponding view and parameters.
      *
-     * The function checks the hash value from the window's location and maps it to specific views such as 'landing', 'login', 'register', 'dashboard', 'pricing', 'settings', and 'changelog'.
+     * The function retrieves the hash from the window's location, checks it against predefined routes such as 'landing', 'login', 'register', 'dashboard', 'pricing', 'settings', and 'changelog'.
      * If the hash matches the pattern for an agent detail, it extracts the agent ID and returns it.
      * If no valid hash is found, it defaults to the 'landing' view.
      *
@@ -278,7 +278,7 @@ function SettingsView({ navigate, api, session, branding: initialBranding, setGl
   useEffect(() => { loadChannels(); }, [loadChannels]);
 
   /**
-   * Handles the addition of a new alert channel.
+   * Handles the addition of a new alert channel via an API call.
    */
   const handleAddChannel = async () => {
     try {
@@ -969,8 +969,8 @@ export default function App() {
  * Renders a responsive navigation bar with authentication options.
  *
  * The Navbar component displays branding, navigation links, and authentication buttons based on the user's session state.
- * It includes a mobile menu toggle and handles logout functionality. The component utilizes the `navigate` function for routing
- * and manages its open/close state for the mobile menu using local state. The layout adapts for mobile and desktop views.
+ * It includes a mobile menu toggle and handles logout functionality through the `handleLogout` function, which utilizes
+ * the `navigate` function for routing. The layout adapts for mobile and desktop views, ensuring a seamless user experience.
  *
  * @param {Object} props - The properties for the Navbar component.
  * @param {Function} props.navigate - Function to navigate to different routes.
@@ -1060,8 +1060,9 @@ function Navbar({ navigate, session, branding, transparent = false }) {
  * Renders a mock terminal interface that simulates command execution and displays metrics.
  *
  * The TerminalMock component maintains state for visible lines, metrics visibility, and CPU/MEM widths.
- * It runs a sequence of simulated terminal commands with delays, updating the visible lines accordingly.
- * Once the sequence is complete, it shows metrics and starts an oscillation effect for CPU and memory usage.
+ * It executes a sequence of simulated terminal commands with specified delays, updating the visible lines
+ * accordingly. Once the sequence is complete, it displays metrics and initiates an oscillation effect for
+ * CPU and memory usage based on the visibility state.
  */
 function TerminalMock() {
   const [visibleLines, setVisibleLines] = useState([]);
@@ -1082,7 +1083,7 @@ function TerminalMock() {
   useEffect(() => {
     let timeoutId;
     /**
-     * Executes a sequence of actions with delays and updates visibility and metrics.
+     * Executes a sequence of actions with delays, updating visibility and metrics.
      */
     const runSequence = async () => {
       for (let i = 0; i < sequence.length; i++) {
@@ -1179,7 +1180,7 @@ function TerminalMock() {
 
 // ============ LANDING ============
 /**
- * Renders the landing view of the application, including navigation, main content, and footer.
+ * Renders the landing view of the application.
  * @param {Object} props - The component props.
  * @param {Function} props.navigate - Function to navigate to different routes.
  * @param {Object} props.session - User session information.
@@ -1367,9 +1368,10 @@ function LoginView({ navigate, session }) {
    * Handles user login by processing the login form submission.
    *
    * This function prevents the default form submission behavior, sets a loading state,
-   * and attempts to sign in the user using Supabase's authentication. If successful,
-   * it displays a success message and navigates to the dashboard. In case of an error,
-   * it shows an error message. The loading state is reset in the finally block.
+   * and attempts to sign in the user using Supabase's authentication. If an error occurs
+   * during the sign-in process, it displays an error message. Upon successful login,
+   * it shows a success message and navigates to the dashboard. The loading state is reset
+   * in the finally block.
    *
    * @param {Event} e - The event object from the form submission.
    */
@@ -1642,7 +1644,7 @@ function DashboardView({ navigate, session, api, masterPassphrase, branding }) {
   /**
    * Handles the addition of a new agent.
    *
-   * This function prevents the default form submission behavior, retrieves the policy configuration based on the provided agent's profile, and prepares the agent's configuration. If a master passphrase is provided, it encrypts the configuration for end-to-end encryption. The function then sends a POST request to register the agent and updates the UI accordingly. In case of an error, it displays an error message.
+   * This function prevents the default form submission behavior and retrieves the policy configuration based on the provided agent's profile. It prepares the agent's configuration, optionally encrypts it if a master passphrase is provided, and sends a POST request to register the agent. The UI is updated accordingly, and error messages are displayed if any issues occur during the process.
    *
    * @param {Event} e - The event object from the form submission.
    */
@@ -1705,7 +1707,7 @@ function DashboardView({ navigate, session, api, masterPassphrase, branding }) {
   };
 
   /**
-   * Resolves an alert by its ID and handles success or error notifications.
+   * Resolves an alert by its ID and handles notifications for success or error.
    */
   const handleResolveAlert = async (id) => {
     try {
@@ -1973,7 +1975,7 @@ function AgentDetailView({ navigate, session, api, agentId, masterPassphrase, br
   useEffect(() => { loadAgent(); }, [loadAgent]);
 
   /**
-   * Initiates a restart of the agent and handles the loading state.
+   * Initiates a restart of the agent and manages the loading state.
    */
   const handleRestart = async () => {
     setRestarting(true);
@@ -1991,10 +1993,10 @@ function AgentDetailView({ navigate, session, api, agentId, masterPassphrase, br
   /**
    * Handles the saving of configuration settings.
    *
-   * This function sets a saving state, attempts to parse the configuration from `configEdit`,
-   * and conditionally encrypts it using a master passphrase if provided. It then sends the
-   * configuration to the API for the specified agent. In case of errors, it displays an error
-   * message, and finally resets the saving state.
+   * This function sets a saving state and attempts to parse the configuration from `configEdit`.
+   * If a master passphrase is provided, it encrypts the configuration using E2EE before sending
+   * it to the API for the specified agent. In case of errors, it displays an error message,
+   * and finally resets the saving state.
    */
   const handleSaveConfig = async () => {
     setSavingConfig(true);
@@ -2252,12 +2254,23 @@ function AgentDetailView({ navigate, session, api, agentId, masterPassphrase, br
 }
 
 // ============ SETUP INSTRUCTIONS ============
+/**
+ * Renders setup instructions for different platforms based on the selected operating system.
+ *
+ * This component allows users to select their platform (Windows, macOS, or Linux) and displays the corresponding
+ * commands for installing and monitoring an agent. It utilizes the `agentId` and `agentSecret` to generate
+ * specific commands for each platform. The user can copy these commands to the clipboard for convenience.
+ *
+ * @param {Object} props - The component props.
+ * @param {string} props.agentId - The ID of the agent.
+ * @param {string} props.agentSecret - The secret key for the agent.
+ */
 function SetupInstructions({ agentId, agentSecret }) {
   const [platform, setPlatform] = useState('windows');
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
 
   /**
-   * Copies the given text to the clipboard and shows a success message.
+   * Copies the given text to the clipboard.
    */
   const copyText = (text) => {
     navigator.clipboard.writeText(text);
