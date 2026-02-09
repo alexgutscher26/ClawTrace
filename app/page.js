@@ -856,22 +856,35 @@ function AgentDetailView({ navigate, session, api, agentId }) {
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-              <Card className="glass-card">
+              <Card className="glass-card shadow-[0_0_20px_rgba(255,255,255,0.02)]">
                 <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                  <CardTitle className="text-sm">Policy Enforcer</CardTitle>
+                  <CardTitle className="text-xs font-mono uppercase tracking-widest text-zinc-400">Policy Enforcer</CardTitle>
                   <Shield className="w-4 h-4 text-white/40" />
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="p-3 bg-white/5 border border-white/10 rounded-lg">
-                    <p className="text-xs text-muted-foreground mb-3">{getPolicy(agent.policy_profile).description}</p>
+                  <div className="p-3 bg-white/5 border border-white/10 rounded-sm">
+                    <p className="text-[10px] text-muted-foreground mb-3 leading-relaxed">{getPolicy(agent.policy_profile).description}</p>
                     <Select value={agent.policy_profile} onValueChange={async (v) => {
                       try {
-                        await api(`/api/agents/${agent.id}`, { method: 'PUT', body: JSON.stringify({ policy_profile: v }) });
-                        toast.success(`Policy changed to ${v.toUpperCase()}`);
+                        const policy = getPolicy(v);
+                        const newConfig = {
+                          ...agent.config_json,
+                          profile: v,
+                          skills: policy.skills,
+                          data_scope: v === 'dev' ? 'full' : v === 'ops' ? 'system' : 'read-only'
+                        };
+                        await api(`/api/agents/${agent.id}`, {
+                          method: 'PUT',
+                          body: JSON.stringify({
+                            policy_profile: v,
+                            config_json: newConfig
+                          })
+                        });
+                        toast.success(`Policy & Config updated to ${v.toUpperCase()}`);
                         loadAgent();
                       } catch (err) { toast.error(err.message); }
                     }}>
-                      <SelectTrigger className="w-full bg-black border-white/20"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="w-full bg-black border-white/20 h-8 text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="dev">Developer</SelectItem>
                         <SelectItem value="ops">Operations</SelectItem>
@@ -881,7 +894,7 @@ function AgentDetailView({ navigate, session, api, agentId }) {
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {getPolicy(agent.policy_profile).skills.map(s => (
-                      <Badge key={s} variant="ghost" className="text-[9px] uppercase font-mono tracking-tighter bg-white/5 text-zinc-400">+{s}</Badge>
+                      <Badge key={s} variant="ghost" className="text-[9px] uppercase font-mono tracking-tighter bg-white/5 text-zinc-500 border-none">+{s}</Badge>
                     ))}
                   </div>
                 </CardContent>
@@ -890,7 +903,7 @@ function AgentDetailView({ navigate, session, api, agentId }) {
               <Card className="glass-card">
                 <CardHeader className="pb-2"><CardTitle className="text-sm">Agent Info</CardTitle></CardHeader>
                 <CardContent className="space-y-3 text-sm">
-                  {[['Machine ID', agent.machine_id || '-'], ['Location', agent.location || '-'], ['Model', agent.config_json?.model || agent.model || '-'], ['Profile', agent.config_json?.profile || '-'], ['Skills', (agent.config_json?.skills || []).join(', ')], ['Data Scope', agent.config_json?.data_scope || '-'], ['Created', new Date(agent.created_at).toLocaleDateString()]].map(([k, v]) => (
+                  {[['Machine ID', agent.machine_id || '-'], ['Location', agent.location || '-'], ['Model', agent.config_json?.model || agent.model || '-'], ['Profile', getPolicy(agent.policy_profile).label], ['Skills', getPolicy(agent.policy_profile).skills.join(', ')], ['Status', agent.status.toUpperCase()], ['Created', new Date(agent.created_at).toLocaleDateString()]].map(([k, v]) => (
                     <div key={k} className="flex justify-between"><span className="text-muted-foreground">{k}</span><span className="font-medium">{v}</span></div>
                   ))}
                 </CardContent>
@@ -965,7 +978,7 @@ function AgentDetailView({ navigate, session, api, agentId }) {
                       try {
                         const c = JSON.parse(configEdit);
                         const skills = Array.isArray(c.skills) ? c.skills.join(',') : '';
-                        return `fleet-monitor config push --agent-id=${agent.id} --saas-url=${typeof window !== 'undefined' ? window.location.origin : ''} --agent-secret=${agent.agent_secret} --model=${c.model} --skills=${skills} --profile=${c.profile} --data-scope=${c.data_scope}`;
+                        return `fleet-monitor config push --agent-id=${agent.id} --saas-url=${typeof window !== 'undefined' ? window.location.origin : ''} --agent-secret=${agent.agent_secret} --model=${c.model || agent.model} --skills=${skills} --profile=${agent.policy_profile} --data-scope=${c.data_scope || (agent.policy_profile === 'dev' ? 'full' : 'restricted')}`;
                       } catch (e) {
                         return `fleet-monitor config push --agent-id=${agent.id} --config-file=./config.json (Fix JSON to see full command)`;
                       }

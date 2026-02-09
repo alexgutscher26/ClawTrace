@@ -847,6 +847,9 @@ export async function POST(request, context) {
       if (!user) return json({ error: 'Unauthorized' }, 401);
       const body = await request.json();
       const plainSecret = uuidv4();
+      const policyProfile = body.policy_profile || 'dev';
+      const policy = getPolicy(policyProfile);
+
       const agent = {
         id: uuidv4(),
         fleet_id: body.fleet_id,
@@ -855,13 +858,18 @@ export async function POST(request, context) {
         gateway_url: body.gateway_url || '',
         status: 'idle',
         last_heartbeat: null,
-        config_json: encrypt(body.config_json || { profile: 'dev', skills: ['code', 'search'], model: 'gpt-4', data_scope: 'full' }),
+        config_json: encrypt(body.config_json || {
+          profile: policyProfile,
+          skills: policy.skills,
+          model: body.model || 'gpt-4',
+          data_scope: policyProfile === 'dev' ? 'full' : policyProfile === 'ops' ? 'system' : 'read-only'
+        }),
         metrics_json: { latency_ms: 0, tasks_completed: 0, errors_count: 0, uptime_hours: 0, cost_usd: 0, cpu_usage: 0, memory_usage: 0 },
         machine_id: body.machine_id || '',
         location: body.location || '',
         model: body.model || 'gpt-4',
         agent_secret: JSON.stringify(encrypt(plainSecret)), // Secure auto-generated secret
-        policy_profile: body.policy_profile || 'dev',
+        policy_profile: policyProfile,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
