@@ -558,6 +558,19 @@ export default function App() {
 
 // ============ NAVBAR ============
 // ============ NAVBAR ============
+/**
+ * Renders a responsive navigation bar with authentication options.
+ *
+ * The Navbar component displays different navigation links based on the user's session state.
+ * It includes a logo section, links to settings, changelog, pricing, and GitHub, as well as
+ * authentication actions for logging in, registering, or logging out. The mobile menu can be
+ * toggled to show or hide additional navigation options.
+ *
+ * @param {Object} props - The component properties.
+ * @param {Function} props.navigate - Function to navigate to different routes.
+ * @param {Object} props.session - The current user session object.
+ * @param {boolean} [props.transparent=false] - Indicates if the navbar should be transparent.
+ */
 function Navbar({ navigate, session, transparent = false }) {
   const [open, setOpen] = useState(false);
   const handleLogout = async () => { await supabase.auth.signOut(); navigate('/'); };
@@ -629,6 +642,13 @@ function Navbar({ navigate, session, transparent = false }) {
 
 // ============ LANDING ============
 // ============ TERMINAL MOCK ============
+/**
+ * Renders a mock terminal interface that simulates command execution and displays metrics.
+ *
+ * The TerminalMock component maintains state for visible lines, metrics visibility, and CPU/MEM widths.
+ * It runs a sequence of simulated terminal commands with delays, updating the visible lines accordingly.
+ * Once the sequence is complete, it shows metrics and starts an oscillation effect for CPU and memory usage.
+ */
 function TerminalMock() {
   const [visibleLines, setVisibleLines] = useState([]);
   const [showMetrics, setShowMetrics] = useState(false);
@@ -647,6 +667,9 @@ function TerminalMock() {
 
   useEffect(() => {
     let timeoutId;
+    /**
+     * Executes a sequence of actions with delays and updates visibility and metrics.
+     */
     const runSequence = async () => {
       for (let i = 0; i < sequence.length; i++) {
         await new Promise(resolve => timeoutId = setTimeout(resolve, sequence[i].delay));
@@ -741,6 +764,12 @@ function TerminalMock() {
 }
 
 // ============ LANDING ============
+/**
+ * Renders the landing view of the application, including navigation, hero section, features, and footer.
+ * @param {Object} props - The component props.
+ * @param {Function} props.navigate - Function to navigate to different routes.
+ * @param {Object} props.session - The current user session.
+ */
 function LandingView({ navigate, session }) {
   const features = [
     { icon: Server, title: 'FLEET DASHBOARD', desc: 'Real-time overview of all your agents with status, health, and performance at a glance.' },
