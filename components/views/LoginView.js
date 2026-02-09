@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import posthog from 'posthog-js';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import {
@@ -38,6 +38,7 @@ export default function LoginView() {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       toast.success('Welcome back!');
+      posthog.capture('user_login_success', { method: 'password' });
       navigate('/dashboard');
     } catch (err) {
       toast.error(err.message);

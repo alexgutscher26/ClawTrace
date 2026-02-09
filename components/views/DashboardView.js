@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import posthog from 'posthog-js';
 import { toast } from 'sonner';
 import {
   Server,
@@ -63,14 +63,14 @@ export default function DashboardView() {
         setTier(p.toLowerCase());
         if (res.limits) setLimits(res.limits[p.toLowerCase()] || res.limits.free);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [api]);
 
   useEffect(() => {
     if (tier === 'enterprise' || tier === 'pro') {
       api('/api/custom-policies')
         .then((res) => setCustomPolicies(res.policies || []))
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [api, tier]);
 
@@ -120,6 +120,7 @@ export default function DashboardView() {
     try {
       await api('/api/demo/seed', { method: 'POST' });
       toast.success('Demo environment provisioned');
+      posthog.capture('demo_environment_seeded');
       window.location.reload();
     } catch (err) {
       toast.error(err.message);
@@ -145,6 +146,10 @@ export default function DashboardView() {
         }),
       });
       toast.success('Agent registered successfully');
+      posthog.capture('agent_registered', {
+        policy: newAgent.policy_profile,
+        fleet_id: selectedFleet,
+      });
       setAddOpen(false);
       setNewAgent({ name: '', gateway_url: '' });
       loadAgents();

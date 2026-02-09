@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import posthog from 'posthog-js';
 import { toast } from 'sonner';
 import {
   ArrowLeft,
@@ -95,6 +95,7 @@ export default function AgentDetailView() {
     try {
       await api(`/api/agents/${agentId}/restart`, { method: 'POST' });
       toast.success('Restart initiated');
+      posthog.capture('agent_restart_triggered', { agent_id: agentId });
       loadAgent();
     } catch (err) {
       toast.error(err.message);
@@ -120,6 +121,10 @@ export default function AgentDetailView() {
         body: JSON.stringify({ config_json: payload }),
       });
       toast.success('Config saved (E2EE Active)');
+      posthog.capture('agent_config_updated', {
+        agent_id: agentId,
+        e2ee_enabled: !!masterPassphrase,
+      });
       loadAgent();
     } catch (err) {
       toast.error(err.message || 'Invalid JSON');

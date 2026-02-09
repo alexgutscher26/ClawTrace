@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import posthog from 'posthog-js';
 import { toast } from 'sonner';
 import { MessageSquare, Terminal, Lock, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -105,6 +105,7 @@ export default function SettingsView() {
         }),
       });
       toast.success('Channel added!');
+      posthog.capture('alert_channel_created', { type: newChannel.type });
       setAddOpen(false);
       setNewChannel({ name: '', type: 'slack', webhook_url: '' });
       loadChannels();
@@ -173,6 +174,10 @@ export default function SettingsView() {
         setGlobalBranding(res.branding);
       }
       toast.success('Branding updated successfully');
+      posthog.capture('enterprise_branding_updated', {
+        has_domain: !!branding.domain,
+        has_name: !!branding.name,
+      });
     } catch (err) {
       toast.error(err.message);
     } finally {
