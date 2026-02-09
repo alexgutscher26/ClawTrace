@@ -1708,6 +1708,17 @@ function SetupInstructions({ agentId, agentSecret }) {
 
 
 // ============ PRICING ============
+/**
+ * Renders the pricing view component displaying different subscription tiers.
+ *
+ * The function defines an array of pricing tiers, each with specific features, pricing, and descriptions.
+ * It utilizes the `Navbar` component for navigation and displays a grid of pricing options, highlighting the
+ * popular tier. The `Button` component is used for call-to-action, directing users based on their session status.
+ *
+ * @param {Object} props - The properties object.
+ * @param {Function} props.navigate - The function to navigate between routes.
+ * @param {Object} props.session - The current user session object.
+ */
 function PricingView({ navigate, session }) {
   const tiers = [
     { name: 'FREE', price: '$0', period: '/mo', desc: 'For solo indie operators', features: ['1 Agent Node', 'Community Support', '5-min Heartbeat'], cta: 'INITIALIZE', popular: false },
