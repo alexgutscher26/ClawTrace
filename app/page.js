@@ -1291,6 +1291,22 @@ function DashboardView({ navigate, session, api, masterPassphrase }) {
 }
 
 // ============ AGENT DETAIL ============
+/**
+ * Component for displaying and managing the details of an agent.
+ *
+ * This component fetches agent details from the API, handles configuration editing, and allows for restarting the agent.
+ * It manages loading states and displays relevant metrics and configurations. The component also supports encryption
+ * of configurations if a master passphrase is provided. It utilizes various hooks and callbacks to manage state and
+ * side effects effectively.
+ *
+ * @param {Object} props - The properties for the component.
+ * @param {function} props.navigate - Function to navigate to different routes.
+ * @param {Object} props.session - The current user session.
+ * @param {function} props.api - Function to make API calls.
+ * @param {string} props.agentId - The ID of the agent to display.
+ * @param {string} props.masterPassphrase - The master passphrase for encryption.
+ * @returns {JSX.Element|null} The rendered component or null if the agent is not found.
+ */
 function AgentDetailView({ navigate, session, api, agentId, masterPassphrase }) {
   const [agent, setAgent] = useState(null);
   const [loading, setLoading] = useState(true);
