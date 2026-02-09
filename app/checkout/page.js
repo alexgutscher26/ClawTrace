@@ -14,7 +14,7 @@ export default function CheckoutPage() {
   const { session, branding } = useFleet();
 
   /**
-   * Captures a purchase event in PostHog.
+   * Captures a purchase event in PostHog and alerts the user.
    */
   function handlePurchase() {
     posthog.capture('purchase_completed', {
