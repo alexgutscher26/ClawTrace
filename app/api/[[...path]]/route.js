@@ -816,6 +816,18 @@ done
   }
 }
 
+/**
+ * Handles POST requests for various endpoints related to fleets, agents, billing, and team management.
+ *
+ * The function processes the request based on the path, performing actions such as creating fleets and agents,
+ * managing agent heartbeats, handling billing through Lemon Squeezy, and managing team invitations.
+ * It includes rate limiting, user authentication, and error handling throughout the process.
+ *
+ * @param request - The incoming request object containing headers and body data.
+ * @param context - The context object providing parameters and other relevant data.
+ * @returns A JSON response indicating the result of the operation, including success or error messages.
+ * @throws Error If an internal error occurs during processing.
+ */
 export async function POST(request, context) {
   const params = await context.params;
   const path = getPath(params);
@@ -1265,6 +1277,19 @@ export async function POST(request, context) {
   }
 }
 
+/**
+ * Handles the PUT request to update agent or fleet information.
+ *
+ * This function first extracts the path from the request context and checks if it matches the agent or fleet routes.
+ * It verifies user authentication and authorization, updates the relevant fields based on the request body,
+ * and interacts with the Supabase database to perform the update.
+ * If the agent or fleet is not found, or if there are any errors during the process, appropriate error responses are returned.
+ *
+ * @param request - The incoming request object containing the data to be updated.
+ * @param context - The context object containing parameters and other relevant data.
+ * @returns A JSON response containing the updated agent or fleet data, or an error message.
+ * @throws Error If there is an internal server error during the update process.
+ */
 export async function PUT(request, context) {
   const params = await context.params;
   const path = getPath(params);
