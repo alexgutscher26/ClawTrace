@@ -41,7 +41,7 @@ class DesignSystemGenerator:
         self.reasoning_data = self._load_reasoning()
 
     def _load_reasoning(self) -> list:
-        """Load reasoning rules from CSV."""
+        """Load reasoning rules from a CSV file."""
         filepath = DATA_DIR / REASONING_FILE
         if not filepath.exists():
             return []
@@ -49,7 +49,15 @@ class DesignSystemGenerator:
             return list(csv.DictReader(f))
 
     def _multi_domain_search(self, query: str, style_priority: list = None) -> dict:
-        """Execute searches across multiple domains."""
+        """Execute searches across multiple domains.
+        
+        This function performs searches for a given query across various domains
+        defined in the SEARCH_CONFIG. If the domain is "style" and a style_priority
+        list is provided, it combines the query with the top two priority keywords
+        from the list. The results are collected in a dictionary, where each domain
+        maps to its corresponding search results based on the specified maximum results
+        in the configuration.
+        """
         results = {}
         for domain, config in SEARCH_CONFIG.items():
             if domain == "style" and style_priority:
@@ -62,7 +70,15 @@ class DesignSystemGenerator:
         return results
 
     def _find_reasoning_rule(self, category: str) -> dict:
-        """Find matching reasoning rule for a category."""
+        """Find matching reasoning rule for a category.
+        
+        This function searches for a reasoning rule that matches the provided  category
+        string. It first attempts to find an exact match in the  `self.reasoning_data`.
+        If no exact match is found, it checks for  partial matches and then looks for
+        keyword matches by splitting  the UI_Category into individual keywords. The
+        function returns the  first matching rule found or an empty dictionary if no
+        matches are  found.
+        """
         category_lower = category.lower()
 
         # Try exact match first
@@ -120,7 +136,23 @@ class DesignSystemGenerator:
         }
 
     def _select_best_match(self, results: list, priority_keywords: list) -> dict:
-        """Select best matching result based on priority keywords."""
+        """Select the best matching result based on priority keywords.
+        
+        This function evaluates a list of results against a set of priority keywords to
+        determine the best match. It first attempts to find an exact match for the
+        style name, returning the corresponding result if found. If no exact match is
+        identified, it scores each result based on keyword occurrences across various
+        fields, prioritizing style name matches, followed by keyword matches, and
+        finally other field matches. The result with the highest score is returned, or
+        the first result is returned if no suitable match is found.
+        
+        Args:
+            results (list): A list of dictionaries containing style information.
+            priority_keywords (list): A list of keywords to prioritize in the matching process.
+        
+        Returns:
+            dict: The best matching result based on the provided priority keywords.
+        """
         if not results:
             return {}
 
@@ -161,8 +193,17 @@ class DesignSystemGenerator:
         return search_result.get("results", [])
 
     def generate(self, query: str, project_name: str = None) -> dict:
-        """Generate complete design system recommendation."""
         # Step 1: First search product to get category
+        """def generate(self, query: str, project_name: str = None) -> dict:
+        
+        Generate a complete design system recommendation.  This function processes a
+        user query to generate a design system recommendation  based on product
+        categories and reasoning rules. It first searches for products  to determine
+        the category, then applies reasoning rules to prioritize styles.  A multi-
+        domain search is conducted using these priorities, and the best matches  are
+        selected for styles, colors, typography, and landing patterns. Finally,  it
+        compiles these elements into a structured recommendation dictionary.
+        """
         product_result = search(query, "product", 1)
         product_results = product_result.get("results", [])
         category = "General"
@@ -240,7 +281,16 @@ class DesignSystemGenerator:
 BOX_WIDTH = 90  # Wider box for more content
 
 def format_ascii_box(design_system: dict) -> str:
-    """Format design system as ASCII box with emojis (MCP-style)."""
+    """def format_ascii_box(design_system: dict) -> str:
+    Format design system as an ASCII box with detailed sections.  This function
+    takes a design system dictionary and formats it into an ASCII box
+    representation. It extracts various components such as project name, pattern,
+    style,  colors, typography, key effects, and anti-patterns. Each section is
+    carefully constructed  and wrapped to fit within a specified width, ensuring a
+    clear and organized output.
+    
+    Args:
+        design_system (dict): A dictionary containing design system details including"""
     project = design_system.get("project_name", "PROJECT")
     pattern = design_system.get("pattern", {})
     style = design_system.get("style", {})
@@ -489,18 +539,7 @@ def generate_design_system(query: str, project_name: str = None, output_format: 
 
 # ============ PERSISTENCE FUNCTIONS ============
 def persist_design_system(design_system: dict, page: str = None, output_dir: str = None, page_query: str = None) -> dict:
-    """
-    Persist design system to design-system/<project>/ folder using Master + Overrides pattern.
-    
-    Args:
-        design_system: The generated design system dictionary
-        page: Optional page name for page-specific override file
-        output_dir: Optional output directory (defaults to current working directory)
-        page_query: Optional query string for intelligent page override generation
-    
-    Returns:
-        dict with created file paths and status
-    """
+    """Persist design system to a specified directory."""
     base_dir = Path(output_dir) if output_dir else Path.cwd()
     
     # Use project name for project-specific folder
@@ -540,7 +579,23 @@ def persist_design_system(design_system: dict, page: str = None, output_dir: str
 
 
 def format_master_md(design_system: dict) -> str:
-    """Format design system as MASTER.md with hierarchical override logic."""
+    """Format design system as MASTER.md with hierarchical override logic.
+    
+    This function generates a comprehensive Markdown representation of a design
+    system, incorporating various elements such as project details, color palettes,
+    typography, spacing variables, and component specifications. It follows a
+    specific logic where page-specific rules can override the master file settings,
+    ensuring flexibility in design implementation. The output is structured with
+    clear sections for global rules, component specs, style guidelines, and anti-
+    patterns, facilitating easy reference for developers.
+    
+    Args:
+        design_system (dict): A dictionary containing design system attributes including project name,
+            colors, typography, and patterns.
+    
+    Returns:
+        str: A formatted Markdown string representing the design system.
+    """
     project = design_system.get("project_name", "PROJECT")
     pattern = design_system.get("pattern", {})
     style = design_system.get("style", {})
@@ -803,7 +858,23 @@ def format_master_md(design_system: dict) -> str:
 
 
 def format_page_override_md(design_system: dict, page_name: str, page_query: str = None) -> str:
-    """Format a page-specific override file with intelligent AI-generated content."""
+    """Format a page-specific override file with intelligent AI-generated content.
+    
+    This function generates a markdown file that contains page-specific overrides
+    based on the provided design system. It retrieves the project name and current
+    timestamp, then calls the _generate_intelligent_overrides function to obtain
+    the necessary overrides for layout, spacing, typography, colors, and
+    components. The generated content is structured into sections, ensuring that
+    any deviations from the master file are clearly documented.
+    
+    Args:
+        design_system (dict): A dictionary containing design system information, including project name.
+        page_name (str): The name of the page for which overrides are being generated.
+        page_query (str?): An optional query string for additional page-specific information.
+    
+    Returns:
+        str: A formatted markdown string containing the page-specific overrides.
+    """
     project = design_system.get("project_name", "PROJECT")
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     page_title = page_name.replace("-", " ").replace("_", " ").title()
@@ -912,11 +983,24 @@ def format_page_override_md(design_system: dict, page_name: str, page_query: str
 
 
 def _generate_intelligent_overrides(page_name: str, page_query: str, design_system: dict) -> dict:
-    """
-    Generate intelligent overrides based on page type using layered search.
+    """Generate intelligent overrides based on page type using layered search.
     
-    Uses the existing search infrastructure to find relevant style, UX, and layout
-    data instead of hardcoded page types.
+    This function utilizes the existing search infrastructure to gather relevant
+    style, UX, and layout data based on the provided page name and query. It
+    performs searches across multiple domains to extract guidance, detects the page
+    type, and builds a comprehensive set of overrides, including layout, spacing,
+    typography, colors, and recommendations. If no specific results are found, it
+    defaults to predefined settings to ensure a consistent design approach.
+    
+    Args:
+        page_name (str): The name of the page for which overrides are generated.
+        page_query (str): A query string to refine the search for relevant overrides.
+        design_system (dict): A dictionary representing the design system to be used.
+    
+    Returns:
+        dict: A dictionary containing the generated overrides, including page type, layout,
+            spacing, typography, colors, components, unique components, and
+            recommendations.
     """
     from core import search
     
@@ -1018,7 +1102,19 @@ def _generate_intelligent_overrides(page_name: str, page_query: str, design_syst
 
 
 def _detect_page_type(context: str, style_results: list) -> str:
-    """Detect page type from context and search results."""
+    """Detect the page type from context and search results.
+    
+    This function analyzes the provided context string to identify common page type
+    patterns, such as "Dashboard / Data View" or "Checkout /  Payment". It checks
+    against a predefined list of keywords associated  with various page types. If
+    no match is found, it attempts to infer  the page type from the style results,
+    prioritizing specific categories  like "Dashboard" or "Landing".
+    
+    Args:
+        context (str): The context string to analyze for page type.
+        style_results (list): A list of style results to assist in type
+            inference if the context does not provide a clear match.
+    """
     context_lower = context.lower()
     
     # Check for common page type patterns
