@@ -119,6 +119,9 @@ const CHANGELOG_DATA = [
   }
 ];
 
+/**
+ * Renders the changelog view with platform updates and release information.
+ */
 function ChangelogView({ navigate, session, branding }) {
   return (
     <div className="min-h-screen bg-background text-white">
@@ -181,6 +184,18 @@ function ChangelogView({ navigate, session, branding }) {
   );
 }
 
+/**
+ * Render the SettingsView component for managing alert channels and custom policies.
+ *
+ * This component handles the state and lifecycle of alert channels and custom policies, including loading data from the API, adding new channels and policies, and managing branding settings. It utilizes various hooks to manage state and side effects, ensuring that the UI reflects the current application state based on user interactions and API responses.
+ *
+ * @param {Object} props - The properties for the SettingsView component.
+ * @param {Function} props.navigate - Function to navigate to different routes.
+ * @param {Function} props.api - Function to make API calls.
+ * @param {Object} props.session - The current user session information.
+ * @param {Object} props.branding - Initial branding settings.
+ * @param {Function} props.setGlobalBranding - Function to update global branding settings.
+ */
 function SettingsView({ navigate, api, session, branding: initialBranding, setGlobalBranding }) {
   const [channels, setChannels] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -282,6 +297,13 @@ function SettingsView({ navigate, api, session, branding: initialBranding, setGl
     });
   };
 
+  /**
+   * Handles the saving of branding information.
+   *
+   * This function sets a loading state while making an asynchronous POST request to update branding data.
+   * It processes the response to update global branding state if available and displays a success message.
+   * In case of an error, it shows an error message. Finally, it resets the loading state.
+   */
   const handleSaveBranding = async () => {
     setSavingBranding(true);
     try {
@@ -807,6 +829,13 @@ function MasterKeyModal({ onSetKey }) {
   );
 }
 
+/**
+ * Main application component that manages user sessions and routing.
+ *
+ * This component utilizes hooks to manage authentication state and loading status. It fetches user session data from Supabase and updates the UI based on the current view and session state. The component also handles API requests for branding and subscription details, conditionally rendering different views based on the user's authentication status and selected route.
+ *
+ * @returns A JSX element representing the application UI.
+ */
 export default function App() {
   const { view, params, navigate } = useHashRouter();
   const [session, setSession] = useState(null);
@@ -872,6 +901,19 @@ export default function App() {
 
 // ============ NAVBAR ============
 // ============ NAVBAR ============
+/**
+ * Renders a responsive navigation bar with authentication options.
+ *
+ * The Navbar component displays branding, navigation links, and authentication buttons based on the user's session state.
+ * It includes a mobile menu toggle and handles logout functionality. The component utilizes the `navigate` function for routing
+ * and manages its open/close state for the mobile menu using local state.
+ *
+ * @param {Object} props - The properties for the Navbar component.
+ * @param {Function} props.navigate - Function to navigate to different routes.
+ * @param {Object} props.session - The current user session object.
+ * @param {Object} props.branding - Branding information for the application.
+ * @param {boolean} [props.transparent=false] - Indicates if the navbar should be transparent.
+ */
 function Navbar({ navigate, session, branding, transparent = false }) {
   const [open, setOpen] = useState(false);
   const handleLogout = async () => { await supabase.auth.signOut(); navigate('/'); };
@@ -1375,6 +1417,19 @@ function RegisterView({ navigate, session }) {
 }
 
 // ============ DASHBOARD ============
+/**
+ * DashboardView component for managing and monitoring AI agent fleets.
+ *
+ * This component fetches and displays statistics, fleets, agents, and alerts related to the AI agents. It handles loading data from the API, adding and deleting agents, and resolving alerts. The component also manages the state for various UI elements and provides a dialog for adding new agents with specific configurations based on user input and subscription tier.
+ *
+ * @param {Object} props - The properties for the DashboardView component.
+ * @param {Function} props.navigate - Function to navigate to different routes.
+ * @param {Object} props.session - The current user session information.
+ * @param {Function} props.api - Function to make API calls.
+ * @param {string} props.masterPassphrase - The master passphrase for encryption.
+ * @param {Object} props.branding - Branding information for the application.
+ * @returns {JSX.Element} The rendered DashboardView component.
+ */
 function DashboardView({ navigate, session, api, masterPassphrase, branding }) {
   const [stats, setStats] = useState(null);
   const [fleets, setFleets] = useState([]);
@@ -1699,6 +1754,20 @@ function DashboardView({ navigate, session, api, masterPassphrase, branding }) {
 }
 
 // ============ AGENT DETAIL ============
+/**
+ * Renders the agent detail view component.
+ *
+ * This component fetches and displays detailed information about a specific agent, including its configuration, status, and metrics. It handles loading states, restarts, and configuration saving, while also managing custom policies based on the agent's subscription tier. The component utilizes various hooks to manage state and side effects, ensuring a responsive user interface.
+ *
+ * @param {Object} props - The component properties.
+ * @param {function} props.navigate - Function to navigate to different routes.
+ * @param {Object} props.session - The current user session.
+ * @param {function} props.api - Function to make API calls.
+ * @param {string} props.agentId - The ID of the agent to display.
+ * @param {string} props.masterPassphrase - The master passphrase for encryption.
+ * @param {Object} props.branding - Branding information for the UI.
+ * @returns {JSX.Element|null} The rendered component or null if the agent is not found.
+ */
 function AgentDetailView({ navigate, session, api, agentId, masterPassphrase, branding }) {
   const [agent, setAgent] = useState(null);
   const [loading, setLoading] = useState(true);
