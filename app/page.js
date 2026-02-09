@@ -218,7 +218,10 @@ function SettingsView({ navigate, api, session, branding: initialBranding, setGl
     try {
       const res = await api('/api/custom-policies');
       setPolicies(res.policies || []);
-    } catch (err) { toast.error('Failed to load policies'); console.error(err); }
+    } catch (err) {
+      if (err.message === 'Unauthorized') return;
+      toast.error('Failed to load policies'); console.error(err);
+    }
   }, [api]);
 
   useEffect(() => {
@@ -229,8 +232,10 @@ function SettingsView({ navigate, api, session, branding: initialBranding, setGl
     try {
       const res = await api('/api/alert-channels');
       setChannels(res.channels || []);
-    } catch (err) { toast.error(err.message); }
-    finally { setLoading(false); }
+    } catch (err) {
+      if (err.message === 'Unauthorized') return;
+      toast.error(err.message);
+    } finally { setLoading(false); }
   }, [api]);
 
   useEffect(() => { loadChannels(); }, [loadChannels]);
@@ -559,6 +564,7 @@ function SmartAlertsCard({ agent, api }) {
       setConfigs(confRes.configs || []);
       setChannels(chanRes.channels || []);
     } catch (err) {
+      if (err.message === 'Unauthorized') return;
       toast.error('Failed to load alert configuration');
       console.error('Failed to load alert data:', err);
     } finally {
@@ -998,7 +1004,12 @@ export default function App() {
   // ============ LANDING ============
   function LandingView({ navigate, session, branding }) {
     const features = [
-      // ... (features)
+      { icon: Server, title: 'Centralized Command', desc: 'Manage thousands of agents from a single dashboard with zero latency updates.' },
+      { icon: Activity, title: 'Real-time Telemetry', desc: 'Live stream CPU, Memory, and Network stats with 50ms resolution.' },
+      { icon: Zap, title: 'Instant Provisioning', desc: 'One-line install script for Linux, macOS, and Windows environments.' },
+      { icon: Shield, title: 'Zero-Knowledge Security', desc: 'All agent configurations are encrypted client-side. We cannot see your data.' },
+      { icon: Terminal, title: 'Remote Execution', desc: 'Execute shell commands and scripts across your fleet instantly.' },
+      { icon: Database, title: 'Historical Data', desc: 'Retain historical performance data for trend analysis and debugging.' }
     ];
 
     return (
@@ -1365,6 +1376,7 @@ export default function App() {
         const res = await api(url);
         setAgents(res.agents);
       } catch (err) {
+        if (err.message === 'Unauthorized') return;
         toast.error('Failed to load agents');
         console.error(err);
       }
@@ -1684,6 +1696,7 @@ export default function App() {
         setConfigEdit(JSON.stringify(config, null, 2));
 
       } catch (err) {
+        if (err.message === 'Unauthorized') return;
         toast.error('Failed to load agent');
         navigate('/dashboard');
       } finally {
@@ -2164,7 +2177,7 @@ export default function App() {
                     <p className="text-[10px] text-white/40 font-mono uppercase mt-4 bg-white/5 py-1 px-3 inline-block">Billed annually</p>
                   )}
                 </div>
-                <ul className="grid gap-4 mb-10 flex-1">
+                <ul className="flex flex-col gap-4 mb-10 flex-1">
                   {t.features.map(f => (
                     <li key={f} className="flex items-center gap-4 text-sm text-zinc-400 group-hover:text-zinc-200 transition-colors">
                       <div className="w-1.5 h-1.5 bg-white/30 group-hover:bg-white transition-all rotate-45 shrink-0" />
