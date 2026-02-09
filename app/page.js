@@ -38,6 +38,16 @@ const STATUS_CONFIG = {
   offline: { color: 'bg-zinc-700', text: 'text-zinc-500', border: 'border-white/5', label: 'OFFLINE', bgLight: 'bg-white/5' },
 };
 
+/**
+ * Returns a human-readable string representing the time elapsed since a given date.
+ *
+ * The function calculates the difference in seconds between the current time and the
+ * provided dateString. It then formats this difference into seconds, minutes, hours,
+ * or days, depending on the magnitude of the difference. If the dateString is not provided,
+ * it returns 'Never'.
+ *
+ * @param {string} dateString - The date string to calculate the time ago from.
+ */
 function timeAgo(dateString) {
   if (!dateString) return 'Never';
   const diff = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000);
@@ -47,9 +57,27 @@ function timeAgo(dateString) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
+/**
+ * Custom hook to manage routing based on the URL hash.
+ *
+ * It initializes the route state and sets up an effect to parse the hash from the URL.
+ * The hash is used to determine the current view and any associated parameters.
+ * The hook also provides a navigate function to change the hash, triggering a re-evaluation of the route.
+ *
+ * @returns An object containing the current route view and parameters, along with a navigate function to change the route.
+ */
 function useHashRouter() {
   const [route, setRoute] = useState({ view: 'landing', params: {} });
   useEffect(() => {
+    /**
+     * Parse the current URL hash and return the corresponding view and parameters.
+     *
+     * The function checks the hash value from the window's location and maps it to specific views such as 'landing', 'login', 'register', 'dashboard', 'pricing', 'settings', and 'changelog'.
+     * If the hash matches the pattern for an agent detail, it extracts the agent ID and returns it.
+     * If no valid hash is found, it defaults to the 'landing' view.
+     *
+     * @returns An object containing the view and associated parameters.
+     */
     const parseHash = () => {
       const hash = window.location.hash.slice(1) || '/';
       if (hash === '/' || hash === '') return { view: 'landing', params: {} };
@@ -63,6 +91,9 @@ function useHashRouter() {
       if (m) return { view: 'agent-detail', params: { id: m[1] } };
       return { view: 'landing', params: {} };
     };
+    /**
+     * Updates the route based on the parsed hash.
+     */
     const handle = () => setRoute(parseHash());
     handle();
     window.addEventListener('hashchange', handle);
@@ -246,6 +277,9 @@ function SettingsView({ navigate, api, session, branding: initialBranding, setGl
 
   useEffect(() => { loadChannels(); }, [loadChannels]);
 
+  /**
+   * Handles the addition of a new alert channel.
+   */
   const handleAddChannel = async () => {
     try {
       await api('/api/alert-channels', {
@@ -263,6 +297,14 @@ function SettingsView({ navigate, api, session, branding: initialBranding, setGl
     } catch (err) { toast.error(err.message); }
   };
 
+  /**
+   * Handles the addition of a new custom policy.
+   *
+   * This function sends a POST request to the API to create a new policy using the data from `newPolicy`.
+   * It processes the `skills` and `tools` fields by splitting them into arrays, trimming whitespace, and filtering out any empty values.
+   * Upon successful creation, it displays a success message, resets the policy form, and reloads the list of policies.
+   * In case of an error, it displays an error message.
+   */
   const handleAddPolicy = async () => {
     try {
       await api('/api/custom-policies', {
@@ -280,6 +322,9 @@ function SettingsView({ navigate, api, session, branding: initialBranding, setGl
     } catch (err) { toast.error(err.message); }
   };
 
+  /**
+   * Prompts the user to confirm deletion of a custom policy and handles the deletion.
+   */
   const handleDeletePolicy = (id) => {
     toast('Delete this custom policy?', {
       action: {
@@ -642,6 +687,16 @@ services:
   );
 }
 
+/**
+ * Renders the Smart Alerts Card component for managing alert configurations.
+ *
+ * This component fetches alert configurations and channels from the API, manages the state for loading, adding new configurations, and displays the current alerts. It utilizes the loadAlertData function to load data asynchronously and handles user interactions for adding new alert configurations. The component also provides a dialog for configuring new alerts with specific thresholds.
+ *
+ * @param {Object} props - The properties for the SmartAlertsCard component.
+ * @param {Object} props.agent - The agent object containing agent details.
+ * @param {Function} props.api - The API function for making requests.
+ * @returns {JSX.Element} The rendered Smart Alerts Card component.
+ */
 function SmartAlertsCard({ agent, api }) {
   const [configs, setConfigs] = useState([]);
   const [channels, setChannels] = useState([]);
@@ -768,11 +823,19 @@ function SmartAlertsCard({ agent, api }) {
 }
 
 // ============ MASTER KEY MODAL ============
+/**
+ * Renders a modal for entering a master key to decrypt configurations.
+ * @param {Object} props - The component props.
+ * @param {Function} props.onSetKey - Callback to set the master key.
+ */
 function MasterKeyModal({ onSetKey }) {
   const [passphrase, setPassphrase] = useState('');
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
+    /**
+     * Opens the modal by setting isOpen to true.
+     */
     const handleOpen = () => setIsOpen(true);
     window.addEventListener('open-master-key-modal', handleOpen);
 
@@ -783,6 +846,9 @@ function MasterKeyModal({ onSetKey }) {
     return () => window.removeEventListener('open-master-key-modal', handleOpen);
   }, [onSetKey]);
 
+  /**
+   * Handles the save action for the master passphrase.
+   */
   const handleSave = (e) => {
     e.preventDefault();
     if (passphrase.length < 8) return toast.error('Key must be at least 8 characters');
@@ -904,7 +970,7 @@ export default function App() {
  *
  * The Navbar component displays branding, navigation links, and authentication buttons based on the user's session state.
  * It includes a mobile menu toggle and handles logout functionality. The component utilizes the `navigate` function for routing
- * and manages its open/close state for the mobile menu using local state.
+ * and manages its open/close state for the mobile menu using local state. The layout adapts for mobile and desktop views.
  *
  * @param {Object} props - The properties for the Navbar component.
  * @param {Function} props.navigate - Function to navigate to different routes.
@@ -914,6 +980,9 @@ export default function App() {
  */
 function Navbar({ navigate, session, branding, transparent = false }) {
   const [open, setOpen] = useState(false);
+  /**
+   * Logs out the user and navigates to the home page.
+   */
   const handleLogout = async () => { await supabase.auth.signOut(); navigate('/'); };
 
   return (
@@ -987,6 +1056,13 @@ function Navbar({ navigate, session, branding, transparent = false }) {
 
 // ============ LANDING ============
 // ============ TERMINAL MOCK ============
+/**
+ * Renders a mock terminal interface that simulates command execution and displays metrics.
+ *
+ * The TerminalMock component maintains state for visible lines, metrics visibility, and CPU/MEM widths.
+ * It runs a sequence of simulated terminal commands with delays, updating the visible lines accordingly.
+ * Once the sequence is complete, it shows metrics and starts an oscillation effect for CPU and memory usage.
+ */
 function TerminalMock() {
   const [visibleLines, setVisibleLines] = useState([]);
   const [showMetrics, setShowMetrics] = useState(false);
@@ -1005,6 +1081,9 @@ function TerminalMock() {
 
   useEffect(() => {
     let timeoutId;
+    /**
+     * Executes a sequence of actions with delays and updates visibility and metrics.
+     */
     const runSequence = async () => {
       for (let i = 0; i < sequence.length; i++) {
         await new Promise(resolve => timeoutId = setTimeout(resolve, sequence[i].delay));
@@ -1099,6 +1178,13 @@ function TerminalMock() {
 }
 
 // ============ LANDING ============
+/**
+ * Renders the landing view of the application, including navigation, main content, and footer.
+ * @param {Object} props - The component props.
+ * @param {Function} props.navigate - Function to navigate to different routes.
+ * @param {Object} props.session - User session information.
+ * @param {Object} props.branding - Branding information for the application.
+ */
 function LandingView({ navigate, session, branding }) {
   const features = [
     // ... (features)
@@ -1257,6 +1343,17 @@ function LandingView({ navigate, session, branding }) {
 }
 
 // ============ LOGIN ============
+/**
+ * Renders the login view for user authentication.
+ *
+ * This component manages the login process through both direct email/password and enterprise SSO methods.
+ * It utilizes state hooks to handle form inputs and loading states, and effects to navigate to the dashboard upon session validation.
+ * The login and SSO functions handle authentication with error handling and user feedback via toast notifications.
+ *
+ * @param {Object} props - The component props.
+ * @param {function} props.navigate - Function to navigate to different routes.
+ * @param {Object} props.session - The current user session object.
+ */
 function LoginView({ navigate, session }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -1266,6 +1363,16 @@ function LoginView({ navigate, session }) {
 
   useEffect(() => { if (session) navigate('/dashboard'); }, [session, navigate]);
 
+  /**
+   * Handles user login by processing the login form submission.
+   *
+   * This function prevents the default form submission behavior, sets a loading state,
+   * and attempts to sign in the user using Supabase's authentication. If successful,
+   * it displays a success message and navigates to the dashboard. In case of an error,
+   * it shows an error message. The loading state is reset in the finally block.
+   *
+   * @param {Event} e - The event object from the form submission.
+   */
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -1281,6 +1388,15 @@ function LoginView({ navigate, session }) {
     }
   };
 
+  /**
+   * Handles the Single Sign-On (SSO) authentication process.
+   *
+   * This function prevents the default form submission, checks for a valid SSO domain, and initiates the sign-in process using Supabase.
+   * If an error occurs during the sign-in, it displays an error message. Finally, it manages the loading state throughout the process.
+   *
+   * @param e - The event object from the form submission.
+   * @returns void
+   */
   const handleSSO = async (e) => {
     e.preventDefault();
     if (!ssoDomain) {
@@ -1361,6 +1477,18 @@ function LoginView({ navigate, session }) {
   );
 }
 
+/**
+ * Renders the registration view for new users.
+ *
+ * This component manages the registration process by capturing user input for email and password.
+ * It utilizes the Supabase authentication service to create a new account. Upon successful registration,
+ * it navigates the user to the dashboard or prompts them to check their email for confirmation.
+ * The component also handles loading states and displays appropriate success or error messages.
+ *
+ * @param {Object} props - The component props.
+ * @param {Function} props.navigate - Function to navigate to different routes.
+ * @param {Object} props.session - The current user session object.
+ */
 function RegisterView({ navigate, session }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -1368,6 +1496,16 @@ function RegisterView({ navigate, session }) {
 
   useEffect(() => { if (session) navigate('/dashboard'); }, [session, navigate]);
 
+  /**
+   * Handles user registration by signing up with Supabase.
+   *
+   * This function prevents the default form submission, sets a loading state, and attempts to sign up a user using the provided email and password.
+   * If the sign-up is successful and a session is created, it redirects the user to the dashboard.
+   * If the sign-up is successful but no session is created, it prompts the user to check their email for confirmation and redirects to the login page.
+   * In case of an error, it displays an error message.
+   *
+   * @param {Event} e - The event object from the form submission.
+   */
   const handleRegister = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -1501,6 +1639,13 @@ function DashboardView({ navigate, session, api, masterPassphrase, branding }) {
     }
   };
 
+  /**
+   * Handles the addition of a new agent.
+   *
+   * This function prevents the default form submission behavior, retrieves the policy configuration based on the provided agent's profile, and prepares the agent's configuration. If a master passphrase is provided, it encrypts the configuration for end-to-end encryption. The function then sends a POST request to register the agent and updates the UI accordingly. In case of an error, it displays an error message.
+   *
+   * @param {Event} e - The event object from the form submission.
+   */
   const handleAddAgent = async (e) => {
     e.preventDefault();
     try {
@@ -1538,6 +1683,9 @@ function DashboardView({ navigate, session, api, masterPassphrase, branding }) {
     }
   };
 
+  /**
+   * Prompts the user to confirm deletion of an agent and handles the deletion process.
+   */
   const handleDeleteAgent = (id) => {
     toast('Delete this agent?', {
       action: {
@@ -1556,6 +1704,9 @@ function DashboardView({ navigate, session, api, masterPassphrase, branding }) {
     });
   };
 
+  /**
+   * Resolves an alert by its ID and handles success or error notifications.
+   */
   const handleResolveAlert = async (id) => {
     try {
       await api(`/api/alerts/${id}/resolve`, { method: 'POST' });
@@ -1755,7 +1906,7 @@ function DashboardView({ navigate, session, api, masterPassphrase, branding }) {
 /**
  * Renders the agent detail view component.
  *
- * This component fetches and displays detailed information about a specific agent, including its configuration, status, and metrics. It handles loading states, restarts, and configuration saving, while also managing custom policies based on the agent's subscription tier. The component utilizes various hooks to manage state and side effects, ensuring a responsive user interface.
+ * This component fetches and displays detailed information about a specific agent, including its configuration, status, and metrics. It manages loading states, restarts, and configuration saving, while also handling custom policies based on the agent's subscription tier. The component utilizes various hooks to manage state and side effects, ensuring a responsive user interface.
  *
  * @param {Object} props - The component properties.
  * @param {function} props.navigate - Function to navigate to different routes.
@@ -1821,6 +1972,9 @@ function AgentDetailView({ navigate, session, api, agentId, masterPassphrase, br
 
   useEffect(() => { loadAgent(); }, [loadAgent]);
 
+  /**
+   * Initiates a restart of the agent and handles the loading state.
+   */
   const handleRestart = async () => {
     setRestarting(true);
     try {
@@ -1834,6 +1988,14 @@ function AgentDetailView({ navigate, session, api, agentId, masterPassphrase, br
     }
   };
 
+  /**
+   * Handles the saving of configuration settings.
+   *
+   * This function sets a saving state, attempts to parse the configuration from `configEdit`,
+   * and conditionally encrypts it using a master passphrase if provided. It then sends the
+   * configuration to the API for the specified agent. In case of errors, it displays an error
+   * message, and finally resets the saving state.
+   */
   const handleSaveConfig = async () => {
     setSavingConfig(true);
     try {
@@ -2094,6 +2256,9 @@ function SetupInstructions({ agentId, agentSecret }) {
   const [platform, setPlatform] = useState('windows');
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
 
+  /**
+   * Copies the given text to the clipboard and shows a success message.
+   */
   const copyText = (text) => {
     navigator.clipboard.writeText(text);
     toast.success('Copied to clipboard!');
@@ -2220,6 +2385,20 @@ function SetupInstructions({ agentId, agentSecret }) {
 
 
 // ============ PRICING ============
+/**
+ * Render the pricing view component with different subscription tiers.
+ *
+ * This component displays a pricing structure with options for monthly and yearly billing.
+ * It utilizes state to toggle between yearly and monthly pricing, and maps over predefined tiers
+ * to display their features, pricing, and call-to-action buttons. The component also integrates
+ * with a navigation system and session management for user interactions.
+ *
+ * @param {Object} props - The properties for the PricingView component.
+ * @param {Function} props.navigate - Function to navigate to different routes.
+ * @param {Object} props.session - The current user session object.
+ * @param {Object} props.branding - Branding information for the application.
+ * @returns {JSX.Element} The rendered pricing view component.
+ */
 function PricingView({ navigate, session, branding }) {
   const [isYearly, setIsYearly] = useState(false);
 
@@ -2279,6 +2458,9 @@ function PricingView({ navigate, session, branding }) {
 }
 
 // ============ LOADING ============
+/**
+ * Renders a loading screen with an animation and status message.
+ */
 function LoadingScreen() {
   return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4">

@@ -43,7 +43,7 @@ import { useRouter, useParams } from 'next/navigation';
 /**
  * Renders the agent detail view, displaying agent information and configuration options.
  *
- * This component fetches agent data and billing information, manages state for loading, restarting, and saving configurations, and handles user interactions for updating agent policies and configurations. It utilizes various hooks to manage side effects and API calls, ensuring a responsive UI that reflects the current state of the agent.
+ * This component fetches agent data and billing information, manages state for loading, restarting, and saving configurations, and handles user interactions for updating agent policies and configurations. It utilizes various hooks to manage side effects and API calls, ensuring a responsive UI that reflects the current state of the agent. The component also includes error handling and user feedback through toast notifications.
  *
  * @returns {JSX.Element|null} The rendered component or null if the agent is not found.
  */
@@ -115,10 +115,10 @@ export default function AgentDetailView() {
   /**
    * Handles the saving of the configuration.
    *
-   * This function sets a saving state, attempts to parse the configuration from `configEdit`,
-   * and conditionally encrypts it using a master passphrase if provided. It then sends the
-   * configuration to the API for saving and captures an event for analytics. In case of an
-   * error during the process, it displays an error message. Finally, it resets the saving state.
+   * This function sets a saving state and attempts to parse the configuration from `configEdit`.
+   * If a master passphrase is provided, it encrypts the configuration using E2EE before sending it
+   * to the API for saving. It captures an event for analytics and handles any errors that may occur
+   * during the process, displaying an appropriate error message. Finally, it resets the saving state.
    */
   const handleSaveConfig = async () => {
     setSavingConfig(true);

@@ -14,6 +14,7 @@ GATEWAY_URL = None
 
 
 def perform_handshake():
+    """Perform a handshake with the server to establish a session."""
     global SESSION_TOKEN, GATEWAY_URL
     timestamp = str(int(time.time()))
     signature = hmac.new(
