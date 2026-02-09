@@ -155,6 +155,18 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
 }
 
+/**
+ * Handles GET requests for various API endpoints and returns appropriate responses.
+ *
+ * This function processes the incoming request, checks the rate limit, and serves different responses based on the requested path.
+ * It includes health checks, agent installation scripts for different platforms, and user-specific data retrieval from the database.
+ * The function also manages session tokens and handles errors gracefully.
+ *
+ * @param request - The incoming request object.
+ * @param context - The context object containing parameters and other relevant data.
+ * @returns A JSON response based on the requested path and processed data.
+ * @throws Error If an internal error occurs during processing.
+ */
 export async function GET(request, context) {
   const params = await context.params;
   const path = getPath(params);
@@ -1005,6 +1017,19 @@ done
   }
 }
 
+/**
+ * Handles various POST requests for fleet management, agent operations, and billing.
+ *
+ * This function processes incoming requests based on the specified path, performing actions such as user authentication,
+ * rate limiting, fleet and agent creation, custom policy management, and billing operations. It also handles
+ * agent heartbeat updates and webhook events from Lemon Squeezy. Each operation includes necessary validations
+ * and error handling to ensure robust functionality.
+ *
+ * @param request - The incoming request object containing headers and body data.
+ * @param context - The context object providing access to parameters and other contextual information.
+ * @returns A JSON response indicating the result of the operation, including created resources or error messages.
+ * @throws Error If an internal error occurs during processing or if specific conditions are not met (e.g., unauthorized access).
+ */
 export async function POST(request, context) {
   const params = await context.params;
   const path = getPath(params);
@@ -1702,6 +1727,18 @@ export async function PUT(request, context) {
   }
 }
 
+/**
+ * Handle DELETE requests for agents, fleets, and custom policies.
+ *
+ * This function processes the request by extracting parameters from the context and matching the path to determine
+ * whether to delete an agent, a fleet with associated agents, or a custom policy. It checks for user authorization
+ * and handles potential errors during deletion operations, returning appropriate JSON responses based on the outcome.
+ *
+ * @param request - The incoming request object.
+ * @param context - The context object containing parameters for the request.
+ * @returns A JSON response indicating the result of the deletion operation.
+ * @throws Error If an error occurs during the deletion process.
+ */
 export async function DELETE(request, context) {
   const params = await context.params;
   const path = getPath(params);
