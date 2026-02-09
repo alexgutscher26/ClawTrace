@@ -75,6 +75,17 @@ function useHashRouter() {
 const CHANGELOG_DATA = [
   {
     date: 'February 2026',
+    version: 'v1.4.1',
+    title: 'Authentication & UX Improvements',
+    items: [
+      { type: 'fix', text: 'Fixed PowerShell agent handshake timestamp bug causing 6-hour offset on Windows systems.' },
+      { type: 'improvement', text: 'Enhanced HMAC-SHA256 signature validation with comprehensive debug logging.' },
+      { type: 'improvement', text: 'Updated default AI model from gpt-4 to claude-sonnet-4 for better cost-efficiency.' },
+      { type: 'fix', text: 'Resolved E2EE master key prompt appearing incorrectly for server-side encrypted configs.' }
+    ]
+  },
+  {
+    date: 'February 2026',
     version: 'v1.4.0',
     title: 'Deep Intelligence & Smart Alerts',
     items: [
@@ -1293,18 +1304,19 @@ function AgentDetailView({ navigate, session, api, agentId, masterPassphrase }) 
       const res = await api(`/api/agents/${agentId}`);
       let config = res.agent.config_json;
 
-      // Handle transparent E2EE decryption
-      if (isE2E(config)) {
-        if (!masterPassphrase) {
-          toast.info('Enter master key to decrypt config');
-        } else {
-          try {
-            config = await decryptE2EE(config, masterPassphrase);
-          } catch (e) {
-            toast.error('Decryption failed. Wrong Master Key?');
-          }
-        }
-      }
+
+      // E2EE disabled - using server-side encryption instead
+      // if (isE2E(config)) {
+      //   if (!masterPassphrase) {
+      //     toast.info('Enter master key to decrypt config');
+      //   } else {
+      //     try {
+      //       config = await decryptE2EE(config, masterPassphrase);
+      //     } catch (e) {
+      //       toast.error('Decryption failed. Wrong Master Key?');
+      //     }
+      //   }
+      // }
 
       setAgent({ ...res.agent, config_json: config });
       setConfigEdit(JSON.stringify(config, null, 2));
