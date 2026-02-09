@@ -181,6 +181,16 @@ function ChangelogView({ navigate, session }) {
   );
 }
 
+/**
+ * Component for managing settings, including alert channels and custom policies.
+ *
+ * This component fetches and displays alert channels and custom policies based on the user's subscription tier. It allows users to add, delete, and manage alert channels and custom policies. The branding settings are also configurable for enterprise users. The component utilizes various hooks to manage state and side effects, ensuring that data is loaded and updated appropriately based on user interactions and API responses.
+ *
+ * @param {Object} props - The component properties.
+ * @param {Function} props.navigate - Function to navigate between routes.
+ * @param {Function} props.api - Function to make API calls.
+ * @param {Object} props.session - The user session object.
+ */
 function SettingsView({ navigate, api, session }) {
   const [channels, setChannels] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -278,6 +288,9 @@ function SettingsView({ navigate, api, session }) {
     });
   };
 
+  /**
+   * Handles the branding save operation by sending a POST request to the API.
+   */
   const handleSaveBranding = async () => {
     setSavingBranding(true);
     try {
@@ -2128,6 +2141,18 @@ function SetupInstructions({ agentId, agentSecret }) {
 
 
 // ============ PRICING ============
+/**
+ * Render the pricing view component with subscription tiers.
+ *
+ * This component displays different pricing tiers based on whether the user selects a monthly or yearly billing cycle.
+ * It utilizes the `useState` hook to manage the billing cycle state and maps over the `tiers` array to render each pricing option.
+ * The component also includes navigation to different routes based on the user's session status.
+ *
+ * @param {Object} props - The component props.
+ * @param {Function} props.navigate - Function to navigate to different routes.
+ * @param {Object} props.session - The current user session object.
+ * @returns {JSX.Element} The rendered pricing view component.
+ */
 function PricingView({ navigate, session }) {
   const [isYearly, setIsYearly] = useState(false);
 
