@@ -1,3 +1,4 @@
+import React, { useState, useEffect, useCallback } from 'react';
 import posthog from 'posthog-js';
 import { toast } from 'sonner';
 import { MessageSquare, Terminal, Lock, Trash2 } from 'lucide-react';

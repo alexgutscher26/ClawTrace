@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import posthog from 'posthog-js';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
