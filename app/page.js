@@ -29,6 +29,7 @@ const supabase = createClient(
 );
 
 import { getPolicy } from '@/lib/policies';
+import { encryptE2EE, decryptE2EE, isE2E } from '@/lib/client-crypto';
 
 const STATUS_CONFIG = {
   healthy: { color: 'bg-white', text: 'text-white', border: 'border-white/20', label: 'OPERATIONAL', bgLight: 'bg-white/10' },
@@ -441,10 +442,66 @@ function SmartAlertsCard({ agent, api }) {
   );
 }
 
+// ============ MASTER KEY MODAL ============
+function MasterKeyModal({ onSetKey }) {
+  const [passphrase, setPassphrase] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem('master_passphrase');
+    if (!saved) setIsOpen(true);
+    else onSetKey(saved);
+  }, [onSetKey]);
+
+  const handleSave = (e) => {
+    e.preventDefault();
+    if (passphrase.length < 8) return toast.error('Key must be at least 8 characters');
+    sessionStorage.setItem('master_passphrase', passphrase);
+    onSetKey(passphrase);
+    setIsOpen(false);
+    toast.success('Master Key active (Session only)');
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogContent className="bg-black border-white/20 text-white rounded-none sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-bold tracking-tight uppercase italic flex items-center gap-2">
+            <Shield className="w-5 h-5 text-emerald-400" /> E2EE Master Key Required
+          </DialogTitle>
+          <DialogDescription className="text-xs text-zinc-500 font-mono uppercase tracking-widest mt-2">
+            Your fleet configurations are end-to-end encrypted. Enter your master key to decrypt them.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSave} className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label className="text-[10px] uppercase text-zinc-500">Master Passphrase</Label>
+            <Input
+              type="password"
+              placeholder="••••••••••••••••"
+              className="bg-zinc-900 border-white/10 rounded-none h-11"
+              value={passphrase}
+              onChange={e => setPassphrase(e.target.value)}
+              required
+            />
+          </div>
+          <p className="text-[9px] text-zinc-600 font-mono leading-relaxed bg-white/5 p-3 border border-white/5">
+            NOTICE: THIS KEY IS NEVER SENT TO THE SERVER. IT IS STORED ONLY IN YOUR BROWSER'S VOLATILE MEMORY. IF YOU FORGET THIS KEY, ENCRYPTED CONFIGURATIONS CANNOT BE RECOVERED.
+          </p>
+          <Button type="submit" className="w-full bg-white text-black hover:bg-zinc-200 rounded-none font-bold uppercase tracking-widest h-11">
+            UNLOCK CONFIGURATIONS
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function App() {
   const { view, params, navigate } = useHashRouter();
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [masterPassphrase, setMasterPassphrase] = useState(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -464,7 +521,7 @@ export default function App() {
   }, [session]);
 
   if (loading) return <LoadingScreen />;
-  if (['dashboard', 'agent-detail'].includes(view) && !session) {
+  if (['dashboard', 'agent-detail', 'settings'].includes(view) && !session) {
     if (typeof window !== 'undefined') window.location.hash = '/login';
     return <LoadingScreen />;
   }
@@ -472,11 +529,15 @@ export default function App() {
   return (
     <div className="min-h-screen bg-background">
       <Toaster richColors position="top-right" theme="dark" />
+      {session && ['dashboard', 'agent-detail', 'settings'].includes(view) && (
+        <MasterKeyModal onSetKey={setMasterPassphrase} />
+      )}
+
       {view === 'landing' && <LandingView navigate={navigate} session={session} />}
       {view === 'login' && <LoginView navigate={navigate} session={session} />}
       {view === 'register' && <RegisterView navigate={navigate} session={session} />}
-      {view === 'dashboard' && <DashboardView navigate={navigate} session={session} api={api} />}
-      {view === 'agent-detail' && <AgentDetailView navigate={navigate} session={session} api={api} agentId={params.id} />}
+      {view === 'dashboard' && <DashboardView navigate={navigate} session={session} api={api} masterPassphrase={masterPassphrase} />}
+      {view === 'agent-detail' && <AgentDetailView navigate={navigate} session={session} api={api} agentId={params.id} masterPassphrase={masterPassphrase} />}
       {view === 'settings' && <SettingsView navigate={navigate} session={session} api={api} />}
       {view === 'changelog' && <ChangelogView navigate={navigate} session={session} />}
       {view === 'pricing' && <PricingView navigate={navigate} session={session} />}
@@ -845,7 +906,7 @@ function RegisterView({ navigate, session }) {
 }
 
 // ============ DASHBOARD ============
-function DashboardView({ navigate, session, api }) {
+function DashboardView({ navigate, session, api, masterPassphrase }) {
   const [stats, setStats] = useState(null);
   const [fleets, setFleets] = useState([]);
   const [agents, setAgents] = useState([]);
@@ -905,7 +966,26 @@ function DashboardView({ navigate, session, api }) {
   const handleAddAgent = async (e) => {
     e.preventDefault();
     try {
-      await api('/api/agents', { method: 'POST', body: JSON.stringify({ ...newAgent, fleet_id: selectedFleet }) });
+      let config = {
+        profile: newAgent.policy_profile || 'dev',
+        skills: getPolicy(newAgent.policy_profile || 'dev').skills,
+        model: 'gpt-4',
+        data_scope: (newAgent.policy_profile || 'dev') === 'dev' ? 'full' : 'restricted'
+      };
+
+      if (masterPassphrase) {
+        config = await encryptE2EE(config, masterPassphrase);
+        toast.info('Agent created with E2EE protection');
+      }
+
+      await api('/api/agents', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...newAgent,
+          fleet_id: selectedFleet,
+          config_json: config
+        })
+      });
       toast.success('Agent registered!');
       setAddOpen(false);
       setNewAgent({ name: '', gateway_url: '' });
@@ -1115,7 +1195,7 @@ function DashboardView({ navigate, session, api }) {
 }
 
 // ============ AGENT DETAIL ============
-function AgentDetailView({ navigate, session, api, agentId }) {
+function AgentDetailView({ navigate, session, api, agentId, masterPassphrase }) {
   const [agent, setAgent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [restarting, setRestarting] = useState(false);
@@ -1126,9 +1206,23 @@ function AgentDetailView({ navigate, session, api, agentId }) {
   const loadAgent = useCallback(async () => {
     try {
       const res = await api(`/api/agents/${agentId}`);
-      setAgent(res.agent);
-      setConfigEdit(JSON.stringify(res.agent.config_json, null, 2));
+      let config = res.agent.config_json;
 
+      // Handle transparent E2EE decryption
+      if (isE2E(config)) {
+        if (!masterPassphrase) {
+          toast.info('Enter master key to decrypt config');
+        } else {
+          try {
+            config = await decryptE2EE(config, masterPassphrase);
+          } catch (e) {
+            toast.error('Decryption failed. Wrong Master Key?');
+          }
+        }
+      }
+
+      setAgent({ ...res.agent, config_json: config });
+      setConfigEdit(JSON.stringify(config, null, 2));
 
     } catch (err) {
       toast.error('Failed to load agent');
@@ -1136,7 +1230,7 @@ function AgentDetailView({ navigate, session, api, agentId }) {
     } finally {
       setLoading(false);
     }
-  }, [api, agentId, navigate]);
+  }, [api, agentId, navigate, masterPassphrase]);
 
   useEffect(() => { loadAgent(); }, [loadAgent]);
 
@@ -1157,8 +1251,19 @@ function AgentDetailView({ navigate, session, api, agentId }) {
     setSavingConfig(true);
     try {
       const parsed = JSON.parse(configEdit);
-      await api(`/api/agents/${agentId}`, { method: 'PUT', body: JSON.stringify({ config_json: parsed }) });
-      toast.success('Config saved');
+      let payload = parsed;
+
+      // Encrypt with E2EE if Master Key is present
+      if (masterPassphrase) {
+        payload = await encryptE2EE(parsed, masterPassphrase);
+        toast.info('Encrypting with Master Key...');
+      }
+
+      await api(`/api/agents/${agentId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ config_json: payload })
+      });
+      toast.success('Config saved (E2EE Active)');
       loadAgent();
     } catch (err) {
       toast.error(err.message || 'Invalid JSON');

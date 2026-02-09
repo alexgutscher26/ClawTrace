@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 import { SignJWT, jwtVerify } from 'jose';
@@ -198,9 +199,13 @@ echo ""
 
 perform_handshake() {
   echo "[$(date +%H:%M:%S)] Performing handshake..."
+  TIMESTAMP=$(date +%s)
+  # Generate HMAC-SHA256 signature using openssl (typical on Linux/macOS)
+  SIGNATURE=$(echo -n "\${AGENT_ID}\${TIMESTAMP}" | openssl dgst -sha256 -hmac "\$AGENT_SECRET" | cut -d' ' -f2)
+  
   RESPONSE=$(curl -s -X POST "\${SAAS_URL}/api/agents/handshake" \\
     -H "Content-Type: application/json" \\
-    -d "{\\"agent_id\\":\\"$AGENT_ID\\",\\"agent_secret\\":\\"$AGENT_SECRET\\"}")
+    -d "{\\"agent_id\\":\\"$AGENT_ID\\",\\"timestamp\\":\\"$TIMESTAMP\\",\\"signature\\":\\"$SIGNATURE\\"}")
   
   # Extract token and gateway_url using simple grep/cut
   SESSION_TOKEN=$(echo "$RESPONSE" | grep -o '"token":"[^"]*' | cut -d'"' -f4)
@@ -379,7 +384,13 @@ done
         '',
         'function Perform-Handshake {',
         '    Write-Host "[$(Get-Date -Format "HH:mm:ss")] Performing handshake..."',
-        '    $body = @{ agent_id = $AgentId; agent_secret = $AgentSecret } | ConvertTo-Json',
+        '    $timestamp = [int][double]::Parse((Get-Date -UFormat %s))',
+        '    $hmac = New-Object System.Security.Cryptography.HMACSHA256',
+        '    $hmac.Key = [System.Text.Encoding]::UTF8.GetBytes($AgentSecret)',
+        '    $sigBytes = $hmac.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($AgentId + $timestamp))',
+        '    $signature = [System.BitConverter]::ToString($sigBytes).Replace("-","").ToLower()',
+        '',
+        '    $body = @{ agent_id = $AgentId; timestamp = "$timestamp"; signature = $signature } | ConvertTo-Json',
         '    try {',
         '        $res = Invoke-RestMethod -Uri "$SaasUrl/api/agents/handshake" -Method POST -Body $body -ContentType "application/json"',
         '        if ($res.token) {',
@@ -520,7 +531,7 @@ done
         '# Agent: ' + agentId,
         '# Run: python3 openclaw-monitor.py',
         '',
-        'import json, time, urllib.request, platform, os',
+        'import json, time, urllib.request, platform, os, hmac, hashlib',
         '',
         'SAAS_URL = "' + baseUrl + '"',
         'AGENT_ID = "' + agentId + '"',
@@ -529,7 +540,10 @@ done
         '',
         'def perform_handshake():',
         '    global SESSION_TOKEN, GATEWAY_URL',
-        '    data = json.dumps({"agent_id": AGENT_ID, "agent_secret": AGENT_SECRET}).encode()',
+        '    timestamp = str(int(time.time()))',
+        '    signature = hmac.new(AGENT_SECRET.encode(), (AGENT_ID + timestamp).encode(), hashlib.sha256).hexdigest()',
+        '    payload = {"agent_id": AGENT_ID, "timestamp": timestamp, "signature": signature}',
+        '    data = json.dumps(payload).encode()',
         '    req = urllib.request.Request(f"{SAAS_URL}/api/agents/handshake", data=data, headers={"Content-Type": "application/json"}, method="POST")',
         '    try:',
         '        with urllib.request.urlopen(req, timeout=10) as resp:\n            res = json.loads(resp.read().decode())\n            SESSION_TOKEN = res.get("token")\n            GATEWAY_URL = res.get("gateway_url")\n            print(f"[{time.strftime(\'%H:%M:%S\')}] Handshake successful")\n            if GATEWAY_URL: print(f"   \\033[96mProbing active: {GATEWAY_URL}\\033[0m")\n            return True',
@@ -944,10 +958,31 @@ export async function POST(request, context) {
       const handshakeLimit = await checkRateLimit(request, agent.id, 'handshake', agent.user_id);
       if (!handshakeLimit.allowed) return handshakeLimit.response;
 
-      // Simple secret check (Option B uses secret for handshake)
       const decryptedSecret = decrypt(agent.agent_secret);
-      if (!decryptedSecret || decryptedSecret !== body.agent_secret) {
-        return json({ error: 'Invalid agent secret' }, 401);
+
+      if (body.signature) {
+        // Hardened Handshake: HMAC-SHA256(agent_id + timestamp, secret)
+        const timestamp = parseInt(body.timestamp);
+        const now = Math.floor(Date.now() / 1000);
+
+        // Anti-replay: 5 minute window
+        if (isNaN(timestamp) || Math.abs(now - timestamp) > 300) {
+          return json({ error: 'Signature expired or invalid timestamp' }, 401);
+        }
+
+        const expectedSignature = crypto
+          .createHmac('sha256', decryptedSecret)
+          .update(agent.id + body.timestamp)
+          .digest('hex');
+
+        if (expectedSignature !== body.signature) {
+          return json({ error: 'Invalid signature' }, 401);
+        }
+      } else {
+        // Legacy Handshake: Plaintext secret (Optional fallback)
+        if (!decryptedSecret || decryptedSecret !== body.agent_secret) {
+          return json({ error: 'Invalid agent secret' }, 401);
+        }
       }
 
       const token = await createAgentToken(agent.id, agent.fleet_id);

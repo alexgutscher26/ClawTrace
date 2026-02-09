@@ -3,7 +3,7 @@
 # Agent: 79a68826-b5af-49a3-b9db-6c322c858f17
 # Run: python3 openclaw-monitor.py
 
-import json, time, urllib.request, platform, os
+import json, time, urllib.request, platform, os, hmac, hashlib
 
 SAAS_URL = "http://localhost:3000"
 AGENT_ID = "79a68826-b5af-49a3-b9db-6c322c858f17"
@@ -15,7 +15,20 @@ GATEWAY_URL = None
 
 def perform_handshake():
     global SESSION_TOKEN, GATEWAY_URL
-    data = json.dumps({"agent_id": AGENT_ID, "agent_secret": AGENT_SECRET}).encode()
+    timestamp = str(int(time.time()))
+    signature = hmac.new(
+        AGENT_SECRET.encode(),
+        (AGENT_ID + timestamp).encode(),
+        hashlib.sha256
+    ).hexdigest()
+    
+    payload = {
+        "agent_id": AGENT_ID,
+        "timestamp": timestamp,
+        "signature": signature
+    }
+    
+    data = json.dumps(payload).encode()
     req = urllib.request.Request(f"{SAAS_URL}/api/agents/handshake", data=data, headers={"Content-Type": "application/json"}, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
