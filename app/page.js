@@ -231,6 +231,9 @@ function SettingsView({ navigate, api, session }) {
     } catch (err) { toast.error(err.message); }
   };
 
+  /**
+   * Handles the addition of a new custom policy.
+   */
   const handleAddPolicy = async () => {
     try {
       await api('/api/custom-policies', {
@@ -244,6 +247,16 @@ function SettingsView({ navigate, api, session }) {
     } catch (err) { toast.error(err.message); }
   };
 
+  /**
+   * Handles the deletion of a custom policy.
+   *
+   * This function prompts the user for confirmation before proceeding to delete a custom policy identified by the given id.
+   * If confirmed, it sends a DELETE request to the API and displays a success message upon successful deletion.
+   * In case of an error, it catches the error and displays an error message using toast notifications.
+   * It also calls loadPolicies to refresh the list of policies after deletion.
+   *
+   * @param {string} id - The identifier of the custom policy to be deleted.
+   */
   const handleDeletePolicy = async (id) => {
     if (!confirm('Delete this custom policy?')) return;
     try {
@@ -580,6 +593,11 @@ function SmartAlertsCard({ agent, api }) {
 }
 
 // ============ MASTER KEY MODAL ============
+/**
+ * Renders a modal for entering a master key to decrypt configurations.
+ * @param {Object} props - The component props.
+ * @param {Function} props.onSetKey - Callback to set the master key.
+ */
 function MasterKeyModal({ onSetKey }) {
   const [passphrase, setPassphrase] = useState('');
   const [isOpen, setIsOpen] = useState(false);
@@ -1202,6 +1220,13 @@ function DashboardView({ navigate, session, api, masterPassphrase }) {
     }
   };
 
+  /**
+   * Handles the addition of a new agent.
+   *
+   * This function prevents the default form submission behavior, retrieves the policy configuration based on the provided policy profile, and prepares the agent's configuration. If a master passphrase is provided, it encrypts the configuration for end-to-end encryption. It then sends a POST request to register the agent and updates the UI accordingly. In case of an error, it displays an error message.
+   *
+   * @param {Event} e - The event object from the form submission.
+   */
   const handleAddAgent = async (e) => {
     e.preventDefault();
     try {
@@ -1447,6 +1472,19 @@ function DashboardView({ navigate, session, api, masterPassphrase }) {
 }
 
 // ============ AGENT DETAIL ============
+/**
+ * Renders the agent detail view component, managing agent data and configuration.
+ *
+ * This component fetches agent details, handles configuration editing, and manages agent actions such as restarting and saving configurations. It utilizes multiple hooks to manage state and side effects, including loading agent data and handling custom policies based on the subscription tier. The component also provides a user interface for displaying agent metrics and configuration options.
+ *
+ * @param {Object} props - The component props.
+ * @param {Function} props.navigate - Function to navigate to different routes.
+ * @param {Object} props.session - The current user session.
+ * @param {Function} props.api - Function to make API calls.
+ * @param {string} props.agentId - The ID of the agent to display.
+ * @param {string} props.masterPassphrase - The master passphrase for encryption.
+ * @returns {JSX.Element|null} The rendered component or null if the agent is not found.
+ */
 function AgentDetailView({ navigate, session, api, agentId, masterPassphrase }) {
   const [agent, setAgent] = useState(null);
   const [loading, setLoading] = useState(true);
