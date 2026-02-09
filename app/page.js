@@ -1,28 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { createClient } from '@supabase/supabase-js';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Progress } from '@/components/ui/progress';
-import { Separator } from '@/components/ui/separator';
-import { Toaster, toast } from 'sonner';
-import {
-  Server, Activity, AlertTriangle, Shield,
-  Plus, RefreshCw, Trash2, Terminal, Zap,
-  Clock, DollarSign, Cpu, HardDrive, ArrowLeft, Menu, X,
-  CheckCircle, XCircle, Wifi,
-  BarChart3, Eye, Copy, Database,
-  Bell, Slack, Webhook, Building2,
-  Box, Globe, Key, Settings2,
-  MoreVertical
-} from 'lucide-react';
+import LandingView from '@/components/views/LandingView';
 
 
 const supabase = createClient(

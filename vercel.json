@@ -1,12 +1,12 @@
 {
-    "crons": [
-        {
-            "path": "/api/cron/check-stale",
-            "schedule": "*/5 * * * *"
-        },
-        {
-            "path": "/api/cron/cleanup-heartbeats",
-            "schedule": "0 0 * * *"
-        }
-    ]
+  "crons": [
+    {
+      "path": "/api/cron/check-stale",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-heartbeats",
+      "schedule": "0 0 * * *"
+    }
+  ]
 }

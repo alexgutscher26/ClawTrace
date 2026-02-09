@@ -22,7 +22,9 @@ const decryptAgent = (a) => {
   return decrypted;
 };
 
-const JWT_SECRET = new TextEncoder().encode(process.env.SUPABASE_SERVICE_ROLE_KEY || 'default-secret-for-development-only');
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.SUPABASE_SERVICE_ROLE_KEY || 'default-secret-for-development-only'
+);
 
 const RATE_LIMIT_CONFIG = {
   free: {
@@ -39,7 +41,7 @@ const RATE_LIMIT_CONFIG = {
     global: { capacity: 5000, refillRate: 100 }, // 5000 req / min
     handshake: { capacity: 500, refillRate: 1 }, // 60 req / min
     heartbeat: { capacity: 200, refillRate: 2 }, // 2 req / s
-  }
+  },
 };
 
 async function getTier(userId) {
@@ -57,45 +59,34 @@ async function checkRateLimit(request, identifier, type = 'global', userId = nul
   const tier = await getTier(userId);
   const tierConfig = RATE_LIMIT_CONFIG[tier] || RATE_LIMIT_CONFIG.free;
   const config = tierConfig[type] || RATE_LIMIT_CONFIG.free[type];
-  const now = Date.now() / 1000; // seconds
 
-  const { data, error } = await supabaseAdmin
-    .from('rate_limits')
-    .select('*')
-    .eq('identifier', identifier)
-    .eq('path', type)
-    .maybeSingle();
+  // Optimize: Use atomic DB transaction via RPC to handle concurrency
+  // This replaces the previous read-modify-write pattern which was prone to race conditions
+  const { data, error } = await supabaseAdmin.rpc('check_rate_limit', {
+    p_identifier: identifier,
+    p_path: type,
+    p_capacity: config.capacity,
+    p_refill_rate: config.refillRate,
+  });
 
-  let bucket = data?.bucket || { tokens: config.capacity, last_refill: now };
-
-  if (data) {
-    const elapsed = now - bucket.last_refill;
-    bucket.tokens = Math.min(config.capacity, bucket.tokens + (elapsed * config.refillRate));
-    bucket.last_refill = now;
+  if (error) {
+    console.error('Rate limit RPC error:', error);
+    // Fail open on DB error to prevent blocking service
+    return { allowed: true };
   }
 
-  if (bucket.tokens < 1) {
+  if (!data.allowed) {
     return {
       allowed: false,
-      response: json({
-        error: 'Too many requests',
-        type,
-        retry_after: Math.ceil((1 - bucket.tokens) / config.refillRate)
-      }, 429)
+      response: json(
+        {
+          error: 'Too many requests',
+          type,
+          retry_after: Math.ceil(data.retry_after),
+        },
+        429
+      ),
     };
-  }
-
-  bucket.tokens -= 1;
-
-  if (data) {
-    await supabaseAdmin
-      .from('rate_limits')
-      .update({ bucket, updated_at: new Date().toISOString() })
-      .eq('id', data.id);
-  } else {
-    await supabaseAdmin
-      .from('rate_limits')
-      .insert({ identifier, path: type, bucket });
   }
 
   return { allowed: true };
@@ -128,7 +119,10 @@ async function getUser(request) {
   if (!authHeader?.startsWith('Bearer ')) return null;
   const token = authHeader.split(' ')[1];
   try {
-    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+    const {
+      data: { user },
+      error,
+    } = await supabaseAdmin.auth.getUser(token);
     if (error || !user) return null;
     return user;
   } catch (e) {
@@ -179,7 +173,10 @@ export async function GET(request, context) {
         return json({ error: 'Missing agent_id or agent_secret parameter' }, 400);
       }
 
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.headers.get('origin') || 'http://localhost:3000';
+      const baseUrl =
+        process.env.NEXT_PUBLIC_BASE_URL ||
+        request.headers.get('origin') ||
+        'http://localhost:3000';
 
       // Determine user tier for heartbeat interval
       let interval = searchParams.get('interval');
@@ -401,7 +398,10 @@ done
         return json({ error: 'Missing agent_id or agent_secret parameter' }, 400);
       }
 
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.headers.get('origin') || 'http://localhost:3000';
+      const baseUrl =
+        process.env.NEXT_PUBLIC_BASE_URL ||
+        request.headers.get('origin') ||
+        'http://localhost:3000';
 
       // Determine user tier for heartbeat interval
       let interval = searchParams.get('interval');
@@ -588,7 +588,10 @@ done
 
       return new NextResponse(psScript, {
         status: 200,
-        headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Content-Disposition': 'attachment; filename="openclaw-monitor.ps1"' },
+        headers: {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Content-Disposition': 'attachment; filename="openclaw-monitor.ps1"',
+        },
       });
     }
 
@@ -602,7 +605,10 @@ done
         return json({ error: 'Missing agent_id or agent_secret parameter' }, 400);
       }
 
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.headers.get('origin') || 'http://localhost:3000';
+      const baseUrl =
+        process.env.NEXT_PUBLIC_BASE_URL ||
+        request.headers.get('origin') ||
+        'http://localhost:3000';
 
       // Determine user tier for heartbeat interval
       let interval = searchParams.get('interval');
@@ -778,7 +784,10 @@ done
 
       return new NextResponse(pyLines, {
         status: 200,
-        headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Content-Disposition': 'attachment; filename="openclaw-monitor.py"' },
+        headers: {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Content-Disposition': 'attachment; filename="openclaw-monitor.py"',
+        },
       });
     }
 
@@ -864,7 +873,10 @@ done
       if (!user) return json({ error: 'Unauthorized' }, 401);
       const { searchParams } = new URL(request.url);
       const agent_id = searchParams.get('agent_id');
-      let query = supabaseAdmin.from('alert_configs').select('*, channel:alert_channels(*)').eq('user_id', user.id);
+      let query = supabaseAdmin
+        .from('alert_configs')
+        .select('*, channel:alert_channels(*)')
+        .eq('user_id', user.id);
       if (agent_id) query = query.eq('agent_id', agent_id);
       const { data: configs, error } = await query.order('created_at', { ascending: false });
       if (error) throw error;
@@ -891,7 +903,11 @@ done
       const [agentsRes, fleetsRes, alertsRes] = await Promise.all([
         supabaseAdmin.from('agents').select('*').eq('user_id', user.id),
         supabaseAdmin.from('fleets').select('*').eq('user_id', user.id),
-        supabaseAdmin.from('alerts').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('resolved', false)
+        supabaseAdmin
+          .from('alerts')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('resolved', false),
       ]);
 
       const agents = agentsRes.data || [];
@@ -901,11 +917,13 @@ done
       const stats = {
         total_agents: agents.length,
         total_fleets: fleets.length,
-        healthy: agents.filter(a => a.status === 'healthy').length,
-        idle: agents.filter(a => a.status === 'idle').length,
-        error: agents.filter(a => a.status === 'error').length,
-        offline: agents.filter(a => a.status === 'offline').length,
-        total_cost: parseFloat(agents.reduce((sum, a) => sum + (a.metrics_json?.cost_usd || 0), 0).toFixed(2)),
+        healthy: agents.filter((a) => a.status === 'healthy').length,
+        idle: agents.filter((a) => a.status === 'idle').length,
+        error: agents.filter((a) => a.status === 'error').length,
+        offline: agents.filter((a) => a.status === 'offline').length,
+        total_cost: parseFloat(
+          agents.reduce((sum, a) => sum + (a.metrics_json?.cost_usd || 0), 0).toFixed(2)
+        ),
         total_tasks: agents.reduce((sum, a) => sum + (a.metrics_json?.tasks_completed || 0), 0),
         unresolved_alerts: unresolvedAlerts,
       };
@@ -914,7 +932,6 @@ done
 
     // ============ STALE AGENT CRON (MOVED TO /api/cron/check-stale) ============
     // Logic migrated to specialized route handler: app/api/cron/check-stale/route.js
-
 
     // ============ BILLING / SUBSCRIPTION ============
     if (path === '/billing') {
@@ -930,15 +947,25 @@ done
         .from('agents')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id);
-      const subscription = sub ? { ...sub, plan: sub.plan.toLowerCase() } : { plan: 'free', status: 'active' };
+
+      const plan = (sub?.plan || 'free').toLowerCase();
+      const subscription = sub ? { ...sub, plan } : { plan: 'free', status: 'active' };
+
       return json({
         subscription,
         agent_count: agentCount,
         limits: {
-          free: { max_agents: 1, alerts: false, teams: false },
-          pro: { max_agents: -1, alerts: true, teams: true },
-          enterprise: { max_agents: -1, alerts: true, teams: true, custom_policies: true, sso: true },
-        }
+          free: { max_agents: 1, alerts: false, teams: false, heartbeat_min: 300 },
+          pro: { max_agents: -1, alerts: true, teams: true, heartbeat_min: 60 },
+          enterprise: {
+            max_agents: -1,
+            alerts: true,
+            teams: true,
+            custom_policies: true,
+            sso: true,
+            heartbeat_min: 10,
+          },
+        },
       });
     }
 
@@ -958,8 +985,15 @@ done
           id: uuidv4(),
           name: `${user.email?.split('@')[0]}'s Team`,
           owner_id: user.id,
-          members: [{ user_id: user.id, email: user.email, role: 'owner', joined_at: new Date().toISOString() }],
-          created_at: new Date().toISOString()
+          members: [
+            {
+              user_id: user.id,
+              email: user.email,
+              role: 'owner',
+              joined_at: new Date().toISOString(),
+            },
+          ],
+          created_at: new Date().toISOString(),
         };
         await supabaseAdmin.from('teams').insert(team);
       }
@@ -1072,7 +1106,7 @@ export async function POST(request, context) {
         heartbeat_interval: parseInt(body.heartbeat_interval) || 300,
         is_active: true,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       };
 
       const { error } = await supabaseAdmin.from('custom_policies').insert(policy);
@@ -1083,6 +1117,21 @@ export async function POST(request, context) {
     if (path === '/agents') {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
+
+      const tier = await getTier(user.id);
+      if (tier === 'free') {
+        const { count } = await supabaseAdmin
+          .from('agents')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id);
+        if (count >= 1) {
+          return json(
+            { error: 'FREE tier is limited to 1 agent node. Upgrade for unlimited scale.' },
+            403
+          );
+        }
+      }
+
       const body = await request.json();
       const plainSecret = uuidv4();
       const policyProfile = body.policy_profile || 'dev';
@@ -1111,13 +1160,24 @@ export async function POST(request, context) {
         gateway_url: body.gateway_url || '',
         status: 'idle',
         last_heartbeat: null,
-        config_json: encrypt(body.config_json || {
-          profile: policyProfile,
-          skills: policy.skills,
-          model: body.model || 'claude-sonnet-4',
-          data_scope: policyProfile === 'dev' ? 'full' : policyProfile === 'ops' ? 'system' : 'read-only'
-        }),
-        metrics_json: { latency_ms: 0, tasks_completed: 0, errors_count: 0, uptime_hours: 0, cost_usd: 0, cpu_usage: 0, memory_usage: 0 },
+        config_json: encrypt(
+          body.config_json || {
+            profile: policyProfile,
+            skills: policy.skills,
+            model: body.model || 'claude-sonnet-4',
+            data_scope:
+              policyProfile === 'dev' ? 'full' : policyProfile === 'ops' ? 'system' : 'read-only',
+          }
+        ),
+        metrics_json: {
+          latency_ms: 0,
+          tasks_completed: 0,
+          errors_count: 0,
+          uptime_hours: 0,
+          cost_usd: 0,
+          cpu_usage: 0,
+          memory_usage: 0,
+        },
         machine_id: body.machine_id || '',
         location: body.location || '',
         model: body.model || 'claude-sonnet-4',
@@ -1130,13 +1190,21 @@ export async function POST(request, context) {
       if (error) throw error;
 
       // Return plaintext to the UI
-      return json({
-        agent: {
-          ...agent,
-          agent_secret: plainSecret,
-          config_json: body.config_json || { profile: 'dev', skills: ['code', 'search'], model: 'claude-sonnet-4', data_scope: 'full' }
-        }
-      }, 201);
+      return json(
+        {
+          agent: {
+            ...agent,
+            agent_secret: plainSecret,
+            config_json: body.config_json || {
+              profile: 'dev',
+              skills: ['code', 'search'],
+              model: 'claude-sonnet-4',
+              data_scope: 'full',
+            },
+          },
+        },
+        201
+      );
     }
 
     const restartMatch = path.match(/^\/agents\/([^/]+)\/restart$/);
@@ -1145,7 +1213,11 @@ export async function POST(request, context) {
       if (!user) return json({ error: 'Unauthorized' }, 401);
       const { data: agent, error } = await supabaseAdmin
         .from('agents')
-        .update({ status: 'idle', last_heartbeat: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .update({
+          status: 'idle',
+          last_heartbeat: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
         .eq('id', restartMatch[1])
         .eq('user_id', user.id)
         .select()
@@ -1157,7 +1229,11 @@ export async function POST(request, context) {
 
     if (path === '/agents/handshake') {
       const body = await request.json();
-      console.log('[HANDSHAKE] Request received:', { agent_id: body.agent_id, has_signature: !!body.signature, timestamp: body.timestamp });
+      console.log('[HANDSHAKE] Request received:', {
+        agent_id: body.agent_id,
+        has_signature: !!body.signature,
+        timestamp: body.timestamp,
+      });
 
       // Get agent's owner for tier-based handshake limit
       const { data: agent, error } = await supabaseAdmin
@@ -1185,7 +1261,7 @@ export async function POST(request, context) {
       console.log('[HANDSHAKE] Decryption result:', {
         encrypted_length: agent.agent_secret?.length,
         decrypted_length: decryptedSecret?.length,
-        decrypted_preview: decryptedSecret?.substring(0, 8) + '...'
+        decrypted_preview: decryptedSecret?.substring(0, 8) + '...',
       });
 
       if (body.signature) {
@@ -1193,7 +1269,11 @@ export async function POST(request, context) {
         const timestamp = parseInt(body.timestamp);
         const now = Math.floor(Date.now() / 1000);
 
-        console.log('[HANDSHAKE] Signature validation:', { timestamp, now, diff: Math.abs(now - timestamp) });
+        console.log('[HANDSHAKE] Signature validation:', {
+          timestamp,
+          now,
+          diff: Math.abs(now - timestamp),
+        });
 
         // Anti-replay: 5 minute window
         if (isNaN(timestamp) || Math.abs(now - timestamp) > 300) {
@@ -1209,7 +1289,7 @@ export async function POST(request, context) {
         console.log('[HANDSHAKE] Signature comparison:', {
           expected: expectedSignature.substring(0, 16) + '...',
           received: body.signature.substring(0, 16) + '...',
-          match: expectedSignature === body.signature
+          match: expectedSignature === body.signature,
         });
 
         if (expectedSignature !== body.signature) {
@@ -1227,7 +1307,17 @@ export async function POST(request, context) {
 
       console.log('[HANDSHAKE] Success! Generating token...');
       const token = await createAgentToken(agent.id, agent.fleet_id);
-      const policy = getPolicy(agent.policy_profile);
+      const policyProfile = agent.policy_profile || 'dev';
+      let policy = getPolicy(policyProfile);
+
+      // Tier-based heartbeat clamping
+      const tier = await getTier(agent.user_id);
+      if (tier === 'free' && policy.heartbeat_interval < 300) {
+        policy.heartbeat_interval = 300; // Force 5m for FREE
+      } else if (tier === 'pro' && policy.heartbeat_interval < 60) {
+        policy.heartbeat_interval = 60; // Force 1m for PRO
+      }
+
       return json({ token, expires_in: 86400, gateway_url: agent.gateway_url, policy });
     }
 
@@ -1257,7 +1347,12 @@ export async function POST(request, context) {
       if (!agent) return json({ error: 'Agent not found' }, 404);
 
       // Route-specific heartbeat limit - passing agent's owner ID for tier check
-      const heartbeatLimit = await checkRateLimit(request, payload.agent_id, 'heartbeat', agent.user_id);
+      const heartbeatLimit = await checkRateLimit(
+        request,
+        payload.agent_id,
+        'heartbeat',
+        agent.user_id
+      );
       if (!heartbeatLimit.allowed) return heartbeatLimit.response;
 
       const update = {
@@ -1277,29 +1372,29 @@ export async function POST(request, context) {
         // Calculate cost based on model pricing (cost per task)
         const MODEL_PRICING = {
           'claude-opus-4.5': 0.0338,
-          'claude-sonnet-4': 0.0090,
-          'claude-3': 0.0090,
+          'claude-sonnet-4': 0.009,
+          'claude-3': 0.009,
           'claude-haiku': 0.0015,
-          'gpt-4o': 0.0090,
+          'gpt-4o': 0.009,
           'gpt-4o-mini': 0.0004,
-          'gpt-4': 0.0180,
-          'gpt-3.5-turbo': 0.0010,
+          'gpt-4': 0.018,
+          'gpt-3.5-turbo': 0.001,
           'gemini-3-pro': 0.0056,
           'gemini-2-flash': 0.0015,
           'grok-4.1-mini': 0.0004,
-          'grok-2': 0.0030,
+          'grok-2': 0.003,
           'llama-3.3-70b': 0.0003,
           'llama-3': 0.0003,
           'qwen-2.5-72b': 0.0003,
-          'mistral-large': 0.0020,
-          'mistral-medium': 0.0010,
+          'mistral-large': 0.002,
+          'mistral-medium': 0.001,
           'deepseek-v3': 0.0002,
-          'gpt-4-turbo': 0.0120,
+          'gpt-4-turbo': 0.012,
         };
 
         const costPerTask = MODEL_PRICING[agent.model] || 0.01;
         tasksCount += 1;
-        errorsCount = (body.status === 'error') ? errorsCount + 1 : errorsCount;
+        errorsCount = body.status === 'error' ? errorsCount + 1 : errorsCount;
         const totalCost = parseFloat((tasksCount * costPerTask).toFixed(4));
 
         update.metrics_json = {
@@ -1308,7 +1403,7 @@ export async function POST(request, context) {
           tasks_completed: tasksCount,
           errors_count: errorsCount,
           uptime_hours: uptimeHours,
-          cost_usd: totalCost
+          cost_usd: totalCost,
         };
       }
 
@@ -1334,7 +1429,7 @@ export async function POST(request, context) {
             latency_ms: body.metrics.latency_ms || 0,
             uptime_hours: body.metrics.uptime_hours || 0,
             tasks_completed: tasksCount,
-            errors_count: errorsCount
+            errors_count: errorsCount,
           });
           if (metricsError) {
             console.error('Failed to insert metrics:', metricsError);
@@ -1346,13 +1441,15 @@ export async function POST(request, context) {
 
       // Trigger smart alerts
       if (body.metrics) {
-        processSmartAlerts(body.agent_id, update.status, body.metrics).catch(e => console.error('Alert processing error:', e));
+        processSmartAlerts(body.agent_id, update.status, body.metrics).catch((e) =>
+          console.error('Alert processing error:', e)
+        );
       }
 
       return json({
         message: 'Heartbeat received',
         status: update.status,
-        policy // Real-time policy syncing
+        policy, // Real-time policy syncing
       });
     }
 
@@ -1376,7 +1473,13 @@ export async function POST(request, context) {
       let { data: fleets } = await supabaseAdmin.from('fleets').select('*').eq('user_id', user.id);
       let fleet;
       if (!fleets || fleets.length === 0) {
-        fleet = { id: uuidv4(), user_id: user.id, name: 'Production Fleet', created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+        fleet = {
+          id: uuidv4(),
+          user_id: user.id,
+          name: 'Production Fleet',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
         await supabaseAdmin.from('fleets').insert(fleet);
       } else {
         fleet = fleets[0];
@@ -1387,26 +1490,171 @@ export async function POST(request, context) {
 
       const now = new Date();
       const demoAgents = [
-        { name: 'alpha-coder', policy_profile: 'dev', gateway_url: 'http://192.168.1.100:8080', status: 'healthy', model: 'gpt-4', location: 'us-east-1', machine_id: 'droplet-alpha-001', metrics_json: { latency_ms: 120, tasks_completed: 847, errors_count: 3, uptime_hours: 720, cost_usd: 45.30, cpu_usage: 42, memory_usage: 58 }, config_json: { profile: 'dev', skills: ['code', 'search', 'deploy'], model: 'gpt-4', data_scope: 'full' }, last_heartbeat: new Date(now - 120000).toISOString() },
-        { name: 'beta-researcher', policy_profile: 'ops', gateway_url: 'http://10.0.1.50:8080', status: 'healthy', model: 'claude-3', location: 'eu-west-1', machine_id: 'droplet-beta-002', metrics_json: { latency_ms: 180, tasks_completed: 523, errors_count: 7, uptime_hours: 500, cost_usd: 32.15, cpu_usage: 35, memory_usage: 45 }, config_json: { profile: 'ops', skills: ['search', 'analyze', 'report'], model: 'claude-3', data_scope: 'read-only' }, last_heartbeat: new Date(now - 300000).toISOString() },
-        { name: 'gamma-deployer', policy_profile: 'ops', gateway_url: 'http://172.16.0.10:8080', status: 'idle', model: 'gpt-4', location: 'us-west-2', machine_id: 'droplet-gamma-003', metrics_json: { latency_ms: 95, tasks_completed: 312, errors_count: 1, uptime_hours: 360, cost_usd: 18.90, cpu_usage: 12, memory_usage: 30 }, config_json: { profile: 'ops', skills: ['deploy', 'monitor', 'rollback'], model: 'gpt-4', data_scope: 'full' }, last_heartbeat: new Date(now - 600000).toISOString() },
-        { name: 'delta-monitor', policy_profile: 'exec', gateway_url: 'http://192.168.2.25:8080', status: 'error', model: 'gpt-3.5-turbo', location: 'ap-southeast-1', machine_id: 'droplet-delta-004', metrics_json: { latency_ms: 450, tasks_completed: 156, errors_count: 28, uptime_hours: 168, cost_usd: 8.75, cpu_usage: 89, memory_usage: 92 }, config_json: { profile: 'exec', skills: ['monitor', 'alert'], model: 'gpt-3.5-turbo', data_scope: 'summary-only' }, last_heartbeat: new Date(now - 1800000).toISOString() },
-        { name: 'epsilon-analyst', policy_profile: 'dev', gateway_url: 'http://10.0.2.100:8080', status: 'offline', model: 'gpt-4', location: 'us-east-2', machine_id: 'droplet-epsilon-005', metrics_json: { latency_ms: 0, tasks_completed: 89, errors_count: 0, uptime_hours: 48, cost_usd: 5.20, cpu_usage: 0, memory_usage: 0 }, config_json: { profile: 'dev', skills: ['analyze', 'report', 'visualize'], model: 'gpt-4', data_scope: 'full' }, last_heartbeat: new Date(now - 7200000).toISOString() },
+        {
+          name: 'alpha-coder',
+          policy_profile: 'dev',
+          gateway_url: 'http://192.168.1.100:8080',
+          status: 'healthy',
+          model: 'gpt-4',
+          location: 'us-east-1',
+          machine_id: 'droplet-alpha-001',
+          metrics_json: {
+            latency_ms: 120,
+            tasks_completed: 847,
+            errors_count: 3,
+            uptime_hours: 720,
+            cost_usd: 45.3,
+            cpu_usage: 42,
+            memory_usage: 58,
+          },
+          config_json: {
+            profile: 'dev',
+            skills: ['code', 'search', 'deploy'],
+            model: 'gpt-4',
+            data_scope: 'full',
+          },
+          last_heartbeat: new Date(now - 120000).toISOString(),
+        },
+        {
+          name: 'beta-researcher',
+          policy_profile: 'ops',
+          gateway_url: 'http://10.0.1.50:8080',
+          status: 'healthy',
+          model: 'claude-3',
+          location: 'eu-west-1',
+          machine_id: 'droplet-beta-002',
+          metrics_json: {
+            latency_ms: 180,
+            tasks_completed: 523,
+            errors_count: 7,
+            uptime_hours: 500,
+            cost_usd: 32.15,
+            cpu_usage: 35,
+            memory_usage: 45,
+          },
+          config_json: {
+            profile: 'ops',
+            skills: ['search', 'analyze', 'report'],
+            model: 'claude-3',
+            data_scope: 'read-only',
+          },
+          last_heartbeat: new Date(now - 300000).toISOString(),
+        },
+        {
+          name: 'gamma-deployer',
+          policy_profile: 'ops',
+          gateway_url: 'http://172.16.0.10:8080',
+          status: 'idle',
+          model: 'gpt-4',
+          location: 'us-west-2',
+          machine_id: 'droplet-gamma-003',
+          metrics_json: {
+            latency_ms: 95,
+            tasks_completed: 312,
+            errors_count: 1,
+            uptime_hours: 360,
+            cost_usd: 18.9,
+            cpu_usage: 12,
+            memory_usage: 30,
+          },
+          config_json: {
+            profile: 'ops',
+            skills: ['deploy', 'monitor', 'rollback'],
+            model: 'gpt-4',
+            data_scope: 'full',
+          },
+          last_heartbeat: new Date(now - 600000).toISOString(),
+        },
+        {
+          name: 'delta-monitor',
+          policy_profile: 'exec',
+          gateway_url: 'http://192.168.2.25:8080',
+          status: 'error',
+          model: 'gpt-3.5-turbo',
+          location: 'ap-southeast-1',
+          machine_id: 'droplet-delta-004',
+          metrics_json: {
+            latency_ms: 450,
+            tasks_completed: 156,
+            errors_count: 28,
+            uptime_hours: 168,
+            cost_usd: 8.75,
+            cpu_usage: 89,
+            memory_usage: 92,
+          },
+          config_json: {
+            profile: 'exec',
+            skills: ['monitor', 'alert'],
+            model: 'gpt-3.5-turbo',
+            data_scope: 'summary-only',
+          },
+          last_heartbeat: new Date(now - 1800000).toISOString(),
+        },
+        {
+          name: 'epsilon-analyst',
+          policy_profile: 'dev',
+          gateway_url: 'http://10.0.2.100:8080',
+          status: 'offline',
+          model: 'gpt-4',
+          location: 'us-east-2',
+          machine_id: 'droplet-epsilon-005',
+          metrics_json: {
+            latency_ms: 0,
+            tasks_completed: 89,
+            errors_count: 0,
+            uptime_hours: 48,
+            cost_usd: 5.2,
+            cpu_usage: 0,
+            memory_usage: 0,
+          },
+          config_json: {
+            profile: 'dev',
+            skills: ['analyze', 'report', 'visualize'],
+            model: 'gpt-4',
+            data_scope: 'full',
+          },
+          last_heartbeat: new Date(now - 7200000).toISOString(),
+        },
       ];
 
-      const agentDocs = demoAgents.map(a => ({
-        id: uuidv4(), fleet_id: fleet.id, user_id: user.id,
-        ...a, created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      const agentDocs = demoAgents.map((a) => ({
+        id: uuidv4(),
+        fleet_id: fleet.id,
+        user_id: user.id,
+        ...a,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       }));
       await supabaseAdmin.from('agents').insert(agentDocs);
 
       const demoAlerts = [
-        { agent_id: agentDocs[3].id, agent_name: 'delta-monitor', type: 'high-error', message: 'Error rate exceeded threshold: 28 errors in 24h', resolved: false },
-        { agent_id: agentDocs[4].id, agent_name: 'epsilon-analyst', type: 'downtime', message: 'Agent offline - no heartbeat for 2 hours', resolved: false },
-        { agent_id: agentDocs[0].id, agent_name: 'alpha-coder', type: 'high-latency', message: 'Avg latency exceeded 500ms for 5 minutes', resolved: true, resolved_at: new Date(now - 3600000).toISOString() },
+        {
+          agent_id: agentDocs[3].id,
+          agent_name: 'delta-monitor',
+          type: 'high-error',
+          message: 'Error rate exceeded threshold: 28 errors in 24h',
+          resolved: false,
+        },
+        {
+          agent_id: agentDocs[4].id,
+          agent_name: 'epsilon-analyst',
+          type: 'downtime',
+          message: 'Agent offline - no heartbeat for 2 hours',
+          resolved: false,
+        },
+        {
+          agent_id: agentDocs[0].id,
+          agent_name: 'alpha-coder',
+          type: 'high-latency',
+          message: 'Avg latency exceeded 500ms for 5 minutes',
+          resolved: true,
+          resolved_at: new Date(now - 3600000).toISOString(),
+        },
       ];
-      const alertDocs = demoAlerts.map(a => ({
-        id: uuidv4(), user_id: user.id, ...a,
+      const alertDocs = demoAlerts.map((a) => ({
+        id: uuidv4(),
+        user_id: user.id,
+        ...a,
         created_at: new Date(now - Math.random() * 86400000).toISOString(),
       }));
       await supabaseAdmin.from('alerts').insert(alertDocs);
@@ -1415,7 +1663,7 @@ export async function POST(request, context) {
       const metricsDocs = [];
       const historyHours = 24;
 
-      agentDocs.forEach(agent => {
+      agentDocs.forEach((agent) => {
         const baseLatency = agent.metrics_json?.latency_ms || 100;
         const baseErrors = agent.metrics_json?.errors_count || 0;
         const baseTasks = agent.metrics_json?.tasks_completed || 0;
@@ -1434,7 +1682,7 @@ export async function POST(request, context) {
             uptime_hours: Math.floor((agent.metrics_json?.uptime_hours || 0) * progress),
             tasks_completed: Math.floor(baseTasks * progress),
             errors_count: Math.floor(baseErrors * progress),
-            created_at: timestamp
+            created_at: timestamp,
           });
         }
       });
@@ -1446,7 +1694,11 @@ export async function POST(request, context) {
         console.error('Demo metrics seed error (table likely missing):', e);
       }
 
-      return json({ message: 'Demo data loaded', agents: agentDocs.length, alerts: alertDocs.length });
+      return json({
+        message: 'Demo data loaded',
+        agents: agentDocs.length,
+        alerts: alertDocs.length,
+      });
     }
 
     // ============ LEMON SQUEEZY CHECKOUT ============
@@ -1455,16 +1707,28 @@ export async function POST(request, context) {
       if (!user) return json({ error: 'Unauthorized' }, 401);
       const body = await request.json();
       const plan = body.plan || 'pro';
+      const isYearly = body.yearly === true;
+
       const LEMON_KEY = process.env.LEMON_SQUEEZY_API_KEY;
-      const STORE_ID = '139983';
-      const VARIANT_ID = '626520';
+      const STORE_ID = process.env.LEMON_SQUEEZY_STORE_ID || '139983';
+
+      // Mapping plans to LS Variants (Verified Variant IDs for Store 288152)
+      const VARIANTS = {
+        pro_monthly: '1291188',
+        pro_yearly: '1291221',
+        enterprise_monthly: '1291241',
+        enterprise_yearly: '1291250',
+      };
+
+      const variantKey = `${plan}_${isYearly ? 'yearly' : 'monthly'}`;
+      const VARIANT_ID = VARIANTS[variantKey] || VARIANTS.pro_monthly;
 
       try {
         const checkoutRes = await fetch('https://api.lemonsqueezy.com/v1/checkouts', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${LEMON_KEY}`,
-            'Accept': 'application/vnd.api+json',
+            Authorization: `Bearer ${LEMON_KEY}`,
+            Accept: 'application/vnd.api+json',
             'Content-Type': 'application/vnd.api+json',
           },
           body: JSON.stringify({
@@ -1472,55 +1736,95 @@ export async function POST(request, context) {
               type: 'checkouts',
               attributes: {
                 checkout_data: {
-                  email: user.email,
-                  custom: { user_id: user.id, plan: plan }
+                  custom: {
+                    user_id: user.id,
+                    plan: plan,
+                  },
                 },
                 product_options: {
-                  name: plan === 'enterprise' ? 'OpenClaw Fleet Enterprise' : 'OpenClaw Fleet Pro',
-                  description: plan === 'enterprise' ? 'Unlimited agents, custom policies, SSO, priority support' : 'Unlimited agents, alerts, team collaboration',
+                  redirect_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/dashboard`,
                 },
               },
               relationships: {
-                store: { data: { type: 'stores', id: STORE_ID } },
-                variant: { data: { type: 'variants', id: VARIANT_ID } },
-              }
-            }
+                store: {
+                  data: {
+                    type: 'stores',
+                    id: String(STORE_ID),
+                  },
+                },
+                variant: {
+                  data: {
+                    type: 'variants',
+                    id: String(VARIANT_ID),
+                  },
+                },
+              },
+            },
           }),
         });
         const checkoutData = await checkoutRes.json();
         const checkoutUrl = checkoutData?.data?.attributes?.url;
-        if (!checkoutUrl) return json({ error: 'Failed to create checkout' }, 500);
+        if (!checkoutUrl) throw new Error(JSON.stringify(checkoutData));
         return json({ checkout_url: checkoutUrl, plan });
       } catch (err) {
         console.error('Lemon Squeezy error:', err);
-        return json({ error: 'Payment service unavailable' }, 500);
+        return json({ error: 'Payment service unavailable', details: err.message }, 500);
       }
     }
 
     // ============ LEMON SQUEEZY WEBHOOK ============
-    if (path === '/webhooks/lemonsqueezy') {
-      const body = await request.json();
-      const eventName = body?.meta?.event_name;
-      const customData = body?.meta?.custom_data || {};
+    if (path === '/billing/webhook') {
+      const crypto = await import('node:crypto');
+      const rawBody = await request.text();
+      const secret = process.env.LEMON_SQUEEZY_WEBHOOK_SECRET;
+      const hmac = crypto.createHmac('sha256', secret);
+      const digest = Buffer.from(hmac.update(rawBody).digest('hex'), 'utf8');
+      const signature = Buffer.from(request.headers.get('x-signature') || '', 'utf8');
+
+      if (!crypto.timingSafeEqual(digest, signature)) {
+        return json({ error: 'Invalid signature.' }, 400);
+      }
+
+      const body = JSON.parse(rawBody);
+      const eventName = body.meta.event_name;
+      const customData = body.meta.custom_data;
+
+      if (!customData || !customData.user_id) {
+        console.error('Webhook received without custom_data.user_id:', body);
+        return json({ error: 'Missing user_id in custom data.' }, 400);
+      }
 
       if (eventName === 'subscription_created' || eventName === 'subscription_updated') {
         const attrs = body?.data?.attributes || {};
-        await supabaseAdmin.from('subscriptions').upsert({
-          user_id: customData.user_id,
-          plan: customData.plan || 'pro',
-          status: attrs.status === 'active' ? 'active' : attrs.status,
-          lemon_subscription_id: body?.data?.id,
-          customer_id: attrs.customer_id,
-          variant_id: attrs.variant_id,
-          current_period_end: attrs.renews_at,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_id' });
+        const { error: upsertError } = await supabaseAdmin.from('subscriptions').upsert(
+          {
+            user_id: customData.user_id,
+            plan: customData.plan || 'pro',
+            status: attrs.status === 'active' ? 'active' : attrs.status,
+            lemon_subscription_id: String(body?.data?.id),
+            lemon_customer_id: String(attrs.customer_id),
+            variant_id: String(attrs.variant_id),
+            current_period_end: attrs.renews_at,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id' }
+        );
+
+        if (upsertError) {
+          console.error('Supabase Upsert Error:', upsertError);
+        } else {
+          console.log('Subscription upserted successfully for user:', customData.user_id);
+        }
       }
 
       if (eventName === 'subscription_cancelled' || eventName === 'subscription_expired') {
-        await supabaseAdmin.from('subscriptions')
+        const attrs = body?.data?.attributes || {};
+        // Only cancel if the subscription ID matches (prevent overwriting modern sub with old expired one)
+        await supabaseAdmin
+          .from('subscriptions')
           .update({ status: 'cancelled', updated_at: new Date().toISOString() })
-          .eq('user_id', customData.user_id);
+          .eq('user_id', customData.user_id)
+          .eq('lemon_subscription_id', String(body?.data?.id));
       }
 
       return json({ received: true });
@@ -1531,13 +1835,26 @@ export async function POST(request, context) {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
       const body = await request.json();
-      const { data: team } = await supabaseAdmin.from('teams').select('*').eq('owner_id', user.id).maybeSingle();
+      const { data: team } = await supabaseAdmin
+        .from('teams')
+        .select('*')
+        .eq('owner_id', user.id)
+        .maybeSingle();
       if (!team) return json({ error: 'Only team owners can invite members' }, 403);
 
-      const existing = team.members?.find(m => m.email === body.email);
+      const existing = team.members?.find((m) => m.email === body.email);
       if (existing) return json({ error: 'Member already in team' }, 409);
 
-      const newMembers = [...(team.members || []), { user_id: null, email: body.email, role: body.role || 'member', invited_by: user.id, joined_at: new Date().toISOString() }];
+      const newMembers = [
+        ...(team.members || []),
+        {
+          user_id: null,
+          email: body.email,
+          role: body.role || 'member',
+          invited_by: user.id,
+          joined_at: new Date().toISOString(),
+        },
+      ];
       await supabaseAdmin.from('teams').update({ members: newMembers }).eq('id', team.id);
 
       return json({ message: 'Invite sent' });
@@ -1547,6 +1864,12 @@ export async function POST(request, context) {
     if (path === '/alert-channels') {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
+
+      const tier = await getTier(user.id);
+      if (tier === 'free') {
+        return json({ error: 'Alert channels requires a PRO or ENTERPRISE plan' }, 403);
+      }
+
       const body = await request.json();
       const channel = {
         id: uuidv4(),
@@ -1556,7 +1879,7 @@ export async function POST(request, context) {
         config: body.config || {},
         active: true,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       };
       const { error } = await supabaseAdmin.from('alert_channels').insert(channel);
       if (error) throw error;
@@ -1567,6 +1890,12 @@ export async function POST(request, context) {
     if (path === '/alert-configs') {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
+
+      const tier = await getTier(user.id);
+      if (tier === 'free') {
+        return json({ error: 'Agent alerts require a PRO or ENTERPRISE plan' }, 403);
+      }
+
       const body = await request.json();
       const config = {
         id: uuidv4(),
@@ -1581,7 +1910,7 @@ export async function POST(request, context) {
         error_alert: body.error_alert !== undefined ? body.error_alert : true,
         cooldown_minutes: body.cooldown_minutes || 60,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       };
       const { error } = await supabaseAdmin.from('alert_configs').insert(config);
       if (error) throw error;
@@ -1593,11 +1922,15 @@ export async function POST(request, context) {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
       const body = await request.json();
-      const { data: team } = await supabaseAdmin.from('teams').select('*').eq('owner_id', user.id).maybeSingle();
+      const { data: team } = await supabaseAdmin
+        .from('teams')
+        .select('*')
+        .eq('owner_id', user.id)
+        .maybeSingle();
       if (!team) return json({ error: 'Only team owners can remove members' }, 403);
       if (body.email === user.email) return json({ error: 'Cannot remove yourself' }, 400);
 
-      const newMembers = team.members?.filter(m => m.email !== body.email) || [];
+      const newMembers = team.members?.filter((m) => m.email !== body.email) || [];
       await supabaseAdmin.from('teams').update({ members: newMembers }).eq('id', team.id);
 
       return json({ message: `Removed ${body.email}` });
@@ -1616,12 +1949,15 @@ export async function POST(request, context) {
       const body = await request.json();
       const { data: branding, error } = await supabaseAdmin
         .from('enterprise_branding')
-        .upsert({
-          user_id: user.id,
-          domain: body.domain,
-          name: body.name,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id' })
+        .upsert(
+          {
+            user_id: user.id,
+            domain: body.domain,
+            name: body.name,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id' }
+        )
         .select()
         .single();
 
@@ -1717,7 +2053,8 @@ export async function PUT(request, context) {
       if (body.skills !== undefined) updateFields.skills = body.skills;
       if (body.tools !== undefined) updateFields.tools = body.tools;
       if (body.data_access !== undefined) updateFields.data_access = body.data_access;
-      if (body.heartbeat_interval !== undefined) updateFields.heartbeat_interval = parseInt(body.heartbeat_interval);
+      if (body.heartbeat_interval !== undefined)
+        updateFields.heartbeat_interval = parseInt(body.heartbeat_interval);
       if (body.is_active !== undefined) updateFields.is_active = body.is_active;
 
       const { data: policy, error } = await supabaseAdmin
@@ -1748,9 +2085,17 @@ export async function DELETE(request, context) {
     if (agentMatch) {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
-      const { error: deleteError } = await supabaseAdmin.from('agents').delete().eq('id', agentMatch[1]).eq('user_id', user.id);
+      const { error: deleteError } = await supabaseAdmin
+        .from('agents')
+        .delete()
+        .eq('id', agentMatch[1])
+        .eq('user_id', user.id);
       if (deleteError) throw deleteError;
-      await supabaseAdmin.from('alerts').delete().eq('agent_id', agentMatch[1]).eq('user_id', user.id);
+      await supabaseAdmin
+        .from('alerts')
+        .delete()
+        .eq('agent_id', agentMatch[1])
+        .eq('user_id', user.id);
       return json({ message: 'Agent deleted' });
     }
 
@@ -1758,9 +2103,21 @@ export async function DELETE(request, context) {
     if (fleetMatch) {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
-      await supabaseAdmin.from('agents').delete().eq('fleet_id', fleetMatch[1]).eq('user_id', user.id);
-      await supabaseAdmin.from('alerts').delete().eq('fleet_id', fleetMatch[1]).eq('user_id', user.id);
-      const { error: deleteError } = await supabaseAdmin.from('fleets').delete().eq('id', fleetMatch[1]).eq('user_id', user.id);
+      await supabaseAdmin
+        .from('agents')
+        .delete()
+        .eq('fleet_id', fleetMatch[1])
+        .eq('user_id', user.id);
+      await supabaseAdmin
+        .from('alerts')
+        .delete()
+        .eq('fleet_id', fleetMatch[1])
+        .eq('user_id', user.id);
+      const { error: deleteError } = await supabaseAdmin
+        .from('fleets')
+        .delete()
+        .eq('id', fleetMatch[1])
+        .eq('user_id', user.id);
       if (deleteError) throw deleteError;
       return json({ message: 'Fleet and associated agents deleted' });
     }
@@ -1769,7 +2126,11 @@ export async function DELETE(request, context) {
     if (customPolicyMatch) {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
-      const { error: deleteError } = await supabaseAdmin.from('custom_policies').delete().eq('id', customPolicyMatch[1]).eq('user_id', user.id);
+      const { error: deleteError } = await supabaseAdmin
+        .from('custom_policies')
+        .delete()
+        .eq('id', customPolicyMatch[1])
+        .eq('user_id', user.id);
       if (deleteError) throw deleteError;
       return json({ message: 'Custom policy deleted' });
     }
