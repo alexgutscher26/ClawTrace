@@ -44,6 +44,16 @@ const RATE_LIMIT_CONFIG = {
   },
 };
 
+/**
+ * Retrieves the subscription tier for a given user.
+ *
+ * This function checks if a userId is provided. If not, it defaults to returning 'free'.
+ * If a userId is present, it queries the 'subscriptions' table in the Supabase database
+ * to find the user's current plan, ensuring that the subscription status is not 'cancelled'.
+ * It returns the plan if found, or 'free' if no valid plan exists.
+ *
+ * @param {string} userId - The ID of the user whose subscription tier is to be retrieved.
+ */
 async function getTier(userId) {
   if (!userId) return 'free';
   const { data } = await supabaseAdmin
@@ -55,6 +65,19 @@ async function getTier(userId) {
   return (data?.plan || 'free').toLowerCase();
 }
 
+/**
+ * Check the rate limit for a given request and identifier.
+ *
+ * This function retrieves the current rate limit tier for the user and checks the number of available tokens.
+ * It updates the token bucket based on the elapsed time since the last refill and either allows or denies the request
+ * based on the token availability. If the request is denied, it provides a retry-after duration.
+ *
+ * @param request - The incoming request object.
+ * @param identifier - A unique identifier for the rate limit check.
+ * @param type - The type of rate limit to check (default is 'global').
+ * @param userId - The ID of the user (optional).
+ * @returns An object indicating whether the request is allowed and, if not, the error response.
+ */
 async function checkRateLimit(request, identifier, type = 'global', userId = null) {
   const tier = await getTier(userId);
   const tierConfig = RATE_LIMIT_CONFIG[tier] || RATE_LIMIT_CONFIG.free;
@@ -92,6 +115,9 @@ async function checkRateLimit(request, identifier, type = 'global', userId = nul
   return { allowed: true };
 }
 
+/**
+ * Creates a JWT token for the specified agent and fleet.
+ */
 async function createAgentToken(agentId, fleetId) {
   return await new SignJWT({ agent_id: agentId, fleet_id: fleetId })
     .setProtectedHeader({ alg: 'HS256' })
@@ -149,6 +175,18 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
 }
 
+/**
+ * Handle GET requests for various API endpoints and return appropriate responses.
+ *
+ * This function processes incoming requests, checks rate limits, and serves different responses based on the request path.
+ * It includes health checks, agent installation scripts, user authentication, and data retrieval from the database.
+ * The function also manages session tokens and handles errors gracefully.
+ *
+ * @param request - The incoming request object.
+ * @param context - The context object containing parameters and other relevant data.
+ * @returns A JSON response based on the requested path and processed data.
+ * @throws Error If an internal error occurs during processing.
+ */
 export async function GET(request, context) {
   const params = await context.params;
   const path = getPath(params);
