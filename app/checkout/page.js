@@ -7,9 +7,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Zap, Shield, CreditCard } from 'lucide-react';
 
+/**
+ * Renders the checkout page for purchasing a Pro subscription.
+ */
 export default function CheckoutPage() {
     const { session, branding } = useFleet();
 
+    /**
+     * Captures a purchase event in PostHog.
+     */
     function handlePurchase() {
         posthog.capture('purchase_completed', {
             amount: 99,
