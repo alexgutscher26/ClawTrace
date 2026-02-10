@@ -134,6 +134,45 @@ function printStatus(metrics) {
 
 // ============ COMMANDS ============
 
+function redactConfig(config) {
+  if (typeof config !== 'object' || config === null) {
+    return config;
+  }
+
+  if (Array.isArray(config)) {
+    return config.map(redactConfig);
+  }
+
+  const redacted = { ...config };
+  const sensitivePatterns = /key|secret|password|token|credential|auth|private/i;
+
+  for (const key in redacted) {
+    if (Object.prototype.hasOwnProperty.call(redacted, key)) {
+      if (sensitivePatterns.test(key)) {
+        redacted[key] = '[REDACTED]';
+      } else if (typeof redacted[key] === 'object') {
+        redacted[key] = redactConfig(redacted[key]);
+      }
+    }
+  }
+  return redacted;
+}
+
+/**
+ * Monitors the agent's status and sends heartbeat signals to the specified SaaS URL.
+ *
+ * This function initializes the monitoring process by performing a handshake to obtain a session token.
+ * It then enters a loop where it periodically sends heartbeat signals with the agent's status and metrics.
+ * If the session token expires, it retries the handshake once before logging an error.
+ * The function requires specific arguments to be provided and will exit if any are missing.
+ *
+ * @param args - An object containing the necessary parameters for monitoring.
+ * @param args.saas_url - The SaaS URL for the fleet monitoring service (required).
+ * @param args.agent_id - The UUID of the agent (required).
+ * @param args.agent_secret - The secret associated with the agent (required).
+ * @param args.interval - The heartbeat interval in seconds (default: 300).
+ * @param args.status - The status of the agent (default: 'healthy').
+ */
 async function monitorCommand(args) {
   const saasUrl = args.saas_url;
   const agentId = args.agent_id;
@@ -243,6 +282,49 @@ async function configCommand(args) {
   }
 }
 
+/**
+ * Redact sensitive information from a configuration object.
+ *
+ * This function checks if the input is an object or an array. If it is an array, it recursively applies the redaction to each element. For objects, it creates a shallow copy and iterates through its keys, replacing any key that matches sensitive patterns with '[REDACTED]'. If a value is an object, it recursively redacts that value as well.
+ *
+ * @param config - The configuration object or array to be redacted.
+ * @returns A new object or array with sensitive information redacted.
+ */
+function redactConfig(config) {
+  if (typeof config !== 'object' || config === null) {
+    return config;
+  }
+
+  if (Array.isArray(config)) {
+    return config.map(redactConfig);
+  }
+
+  const redacted = { ...config };
+  const sensitivePatterns = /key|secret|password|token|credential|auth|private/i;
+
+  for (const key in redacted) {
+    if (Object.prototype.hasOwnProperty.call(redacted, key)) {
+      if (sensitivePatterns.test(key)) {
+        redacted[key] = '[REDACTED]';
+      } else if (typeof redacted[key] === 'object') {
+        redacted[key] = redactConfig(redacted[key]);
+      }
+    }
+  }
+  return redacted;
+}
+
+/**
+ * Push configuration for an agent to the specified SaaS URL.
+ *
+ * This function validates required parameters, handles configuration from various sources (file, JSON string, or individual flags),
+ * and performs an authentication handshake before pushing the configuration to the server.
+ * It also manages error handling for file reading, JSON parsing, and API requests.
+ *
+ * @param args - An object containing the configuration parameters including saas_url, agent_id, agent_secret, config, config_file, model, skills, profile, and data_scope.
+ * @returns {Promise<void>} A promise that resolves when the configuration has been successfully pushed.
+ * @throws Error If required parameters are missing, if there are issues reading the config file, if JSON parsing fails, or if authentication fails.
+ */
 async function configPushCommand(args) {
   const saasUrl = args.saas_url;
   const agentId = args.agent_id;
@@ -332,7 +414,7 @@ async function configPushCommand(args) {
   }
 
   console.log(`${COLORS.cyan}Configuration to push:${COLORS.reset}`);
-  console.log(JSON.stringify(config, null, 2));
+  console.log(JSON.stringify(redactConfig(config), null, 2));
   console.log();
 
   // Perform handshake first
@@ -363,7 +445,7 @@ async function configPushCommand(args) {
       log(`${COLORS.green}✓ Configuration pushed successfully!${COLORS.reset}`);
       console.log();
       console.log(`${COLORS.dim}Updated configuration:${COLORS.reset}`);
-      console.log(JSON.stringify(result.body.agent.config_json, null, 2));
+      console.log(JSON.stringify(redactConfig(result.body.agent.config_json), null, 2));
     } else {
       console.error(`${COLORS.red}✗ Failed to push configuration (${result.status}): ${JSON.stringify(result.body)}${COLORS.reset}`);
       process.exit(1);
