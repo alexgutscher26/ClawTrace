@@ -60,6 +60,15 @@ const decryptAgent = async (a) => {
 
 /**
  * Processes items in batches to avoid blocking the event loop.
+ *
+ * This function takes an array of items and processes them in smaller batches defined by the batchSize parameter.
+ * It uses the provided function fn to process each item in the batch concurrently with Promise.all.
+ * After processing each batch, it ensures that the event loop remains unblocked by awaiting a setImmediate call
+ * before proceeding to the next batch, if there are more items to process.
+ *
+ * @param {Array} items - The array of items to be processed.
+ * @param {number} batchSize - The size of each batch to process.
+ * @param {Function} fn - The function to apply to each item in the batch.
  */
 async function processInBatches(items, batchSize, fn) {
   const results = [];
@@ -255,7 +264,7 @@ export async function OPTIONS() {
  *
  * This function processes incoming requests by checking rate limits and serving different responses based on the request path.
  * It includes health checks, agent installation scripts, user authentication, and data retrieval from the database.
- * The function also manages session tokens and handles errors gracefully, ensuring that unauthorized access is restricted.
+ * The function also manages session tokens and handles errors gracefully, ensuring proper responses for each endpoint.
  *
  * @param request - The incoming request object.
  * @param context - The context object containing parameters and other relevant data.
@@ -1696,6 +1705,18 @@ export async function POST(request, context) {
   }
 }
 
+/**
+ * Handles the PUT request for updating agents, fleets, or custom policies.
+ *
+ * This function first extracts the path from the request context and matches it against predefined routes for agents, fleets, and custom policies.
+ * It checks user authentication and authorization, processes the request body for updates, and interacts with the Supabase database to perform the updates.
+ * If the requested resource is not found or if there are any errors during the process, appropriate error responses are returned.
+ *
+ * @param request - The incoming request object containing the data to be updated.
+ * @param context - The context object containing parameters and other relevant data.
+ * @returns A JSON response indicating the result of the update operation or an error message.
+ * @throws Error If there is an internal server error during the operation.
+ */
 export async function PUT(request, context) {
   const params = await context.params;
   const path = getPath(params);
