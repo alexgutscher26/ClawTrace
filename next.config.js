@@ -36,31 +36,19 @@ const nextConfig = {
       },
     ];
   },
-  async rewrites() {
-    return [
-      {
-        source: '/ingest/static/:path*',
-        destination: 'https://us-assets.i.posthog.com/static/:path*',
-      },
-      {
-        source: '/ingest/:path*',
-        destination: 'https://us.i.posthog.com/:path*',
-      },
-    ];
-  },
 };
 
 const isProd = process.env.NODE_ENV === 'production';
 
 module.exports = isProd
   ? withPostHogConfig(nextConfig, {
-    personalApiKey: process.env.POSTHOG_API_KEY,
-    personalApiKeyWrite: true,
-    personalApiKeyErrorTracking: true,
-    envId: process.env.POSTHOG_ENV_ID,
-    sourcemaps: {
-      project: 'claw-fleet',
-      deleteAfterUpload: true,
-    },
-  })
+      personalApiKey: process.env.POSTHOG_API_KEY,
+      personalApiKeyWrite: true,
+      personalApiKeyErrorTracking: true,
+      envId: process.env.POSTHOG_ENV_ID,
+      sourcemaps: {
+        project: 'claw-fleet',
+        deleteAfterUpload: true,
+      },
+    })
   : nextConfig;

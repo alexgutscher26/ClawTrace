@@ -1,8 +1,8 @@
 'use client';
 
 import posthog from 'posthog-js';
-import { PostHogProvider as PHProvider } from '@posthog/react';
-import { useEffect } from 'react';
+import { PostHogProvider as PHProvider } from 'posthog-js/react';
+import { useEffect, Suspense } from 'react';
 import { useFleet } from './FleetContext';
 import { usePathname, useSearchParams } from 'next/navigation';
 
@@ -20,22 +20,23 @@ export function AnalyticsProvider({ children }) {
     if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY && !posthog.__loaded) {
       try {
         posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
-          api_host: '/ingest',
+          api_host: '/api/ph', // Proxied path to bypass ad blockers
           ui_host: 'https://us.posthog.com',
           person_profiles: 'always',
           capture_pageview: false, // We handle it manually for hash routing support
+          capture_pageleave: true,
           persistence: 'localStorage',
           autocapture: true,
           capture_performance: true,
           enable_external_api_event_tracking: true,
           session_recording: {
             maskAllInputFields: false,
-            maskTextSelector: ".sensitive",
+            maskTextSelector: '.sensitive',
           },
           loaded: (ph) => {
             if (process.env.NODE_ENV === 'development') ph.debug();
             posthog.__loaded = true;
-          }
+          },
         });
       } catch (e) {
         console.warn('PostHog init failed:', e);
@@ -46,14 +47,15 @@ export function AnalyticsProvider({ children }) {
   const { session } = useFleet();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { session } = useFleet();
 
-  // Handle manual pageview tracking for both App Router state and Hash changes
   useEffect(() => {
-    if (typeof window !== 'undefined' && posthog) {
+    if (typeof window !== 'undefined' && posthog.__loaded) {
       let url = window.origin + pathname;
       if (searchParams.toString()) {
         url = url + `?${searchParams.toString()}`;
       }
+      // Include hash if present (for virtual routes)
       if (window.location.hash) {
         url = url + window.location.hash;
       }
@@ -62,11 +64,45 @@ export function AnalyticsProvider({ children }) {
         $current_url: url,
       });
     }
-  }, [pathname, searchParams]);
+  }, [pathname, searchParams, session]);
 
-  // Handle hash changes for legacy hash-routing support
+  return null;
+}
+
+export function AnalyticsProvider({ children }) {
+  const { session } = useFleet();
+
   useEffect(() => {
-    const handleHashChange = () => {
+    if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY) {
+      posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
+        api_host: '/ingest',
+        ui_host: 'https://us.posthog.com',
+        person_profiles: 'always',
+        capture_pageview: false, // We'll handle it manually to support hash routing
+        persistence: 'localStorage',
+        autocapture: true,
+        capture_performance: true, // Enable performance/web vitals tracking
+        enable_external_api_event_tracking: true, // Captures API errors
+        session_recording: {
+          maskAllInputFields: false,
+          maskTextSelector: ".sensitive",
+        },
+        enable_recording_console_log: true, // Required for advanced Error Tracking
+      });
+      window.posthog = posthog;
+    }
+  }, []);
+
+  // Additional listener for hash-only changes (common in this app)
+  useEffect(() => {
+    const handleHashChange = (event) => {
+      // Capture pageleave for the old URL
+      if (event?.oldURL) {
+        posthog.capture('$pageleave', {
+          $current_url: event.oldURL,
+        });
+      }
+
       posthog.capture('$pageview', {
         $current_url: window.location.href,
       });
@@ -89,5 +125,12 @@ export function AnalyticsProvider({ children }) {
     }
   }, [session]);
 
-  return <PHProvider client={posthog}>{children}</PHProvider>;
+  return (
+    <PHProvider client={posthog}>
+      <Suspense fallback={null}>
+        <PostHogPageview />
+      </Suspense>
+      {children}
+    </PHProvider>
+  );
 }
