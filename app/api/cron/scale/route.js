@@ -5,7 +5,7 @@ import { runScalingCheck } from '@/lib/scaling-engine';
  * Handles the POST request for the scaling engine.
  *
  * This function verifies the authentication of the request using a secret key from the headers.
- * If the authentication is successful, it proceeds to run the scaling check and returns the results.
+ * If the authentication is successful, it runs the scaling check asynchronously and returns the results.
  * In case of an error during the scaling process, it logs the error and returns a 500 status with the error message.
  *
  * @param {Request} request - The incoming request object containing headers for authentication.
