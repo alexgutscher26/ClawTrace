@@ -6,6 +6,14 @@ import { useEffect } from 'react';
 import { useFleet } from './FleetContext';
 import { usePathname, useSearchParams } from 'next/navigation';
 
+/**
+ * Provides analytics tracking using PostHog for the application.
+ *
+ * This component initializes the PostHog client when the component mounts, handling both pageview tracking and user identity management. It captures pageviews based on the current pathname and search parameters, and also listens for hash changes to support legacy routing. Additionally, it manages user session state by identifying users or resetting the PostHog instance when no session is present.
+ *
+ * @param {Object} props - The component props.
+ * @param {ReactNode} props.children - The child components to be rendered within the provider.
+ */
 export function AnalyticsProvider({ children }) {
   // Initialize PostHog client-side only
   useEffect(() => {
