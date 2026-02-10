@@ -13,6 +13,7 @@ import { Suspense } from 'react';
 import { FleetProvider } from '@/context/FleetContext';
 import { AnalyticsProvider } from '@/context/AnalyticsProvider';
 import { Toaster } from 'sonner';
+import { CommandPalette } from '@/components/CommandPalette';
 
 /**
  * Renders the root layout of the application with children components.
@@ -28,6 +29,7 @@ export default function RootLayout({ children }) {
           <Suspense fallback={null}>
             <AnalyticsProvider>
               <Toaster richColors position="top-right" theme="dark" />
+              <CommandPalette />
               {children}
             </AnalyticsProvider>
           </Suspense>

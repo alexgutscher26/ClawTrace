@@ -6,6 +6,25 @@ import { Card, CardContent } from '@/components/ui/card';
 const CHANGELOG_DATA = [
   {
     date: 'February 2026',
+    version: 'v1.5.1',
+    title: 'Accessibility & Navigation',
+    items: [
+      {
+        type: 'feature',
+        text: 'Added global Command Palette (Cmd+K) for instant navigation and agent search.',
+      },
+      {
+        type: 'improvement',
+        text: 'Implemented comprehensive ARIA labels and semantic structure for better screen reader support.',
+      },
+      {
+        type: 'improvement',
+        text: 'Enhanced keyboard navigation within complex data tables and interactive elements.',
+      },
+    ],
+  },
+  {
+    date: 'February 2026',
     version: 'v1.5.0',
     title: 'App Router & Global Context Architecture',
     items: [
@@ -149,11 +168,10 @@ export default function ChangelogView() {
                     {release.items.map((item, i) => (
                       <div key={i} className="group flex gap-4">
                         <div
-                          className={`mt-0.5 h-fit flex-shrink-0 rounded-sm px-2 py-1 font-mono text-[9px] font-bold tracking-tighter uppercase ${
-                            item.type === 'feature'
-                              ? 'bg-white text-black'
-                              : 'bg-zinc-800 text-zinc-400'
-                          }`}
+                          className={`mt-0.5 h-fit shrink-0 rounded-sm px-2 py-1 font-mono text-[9px] font-bold tracking-tighter uppercase ${item.type === 'feature'
+                            ? 'bg-white text-black'
+                            : 'bg-zinc-800 text-zinc-400'
+                            }`}
                         >
                           {item.type}
                         </div>

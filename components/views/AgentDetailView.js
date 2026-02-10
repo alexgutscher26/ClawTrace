@@ -67,14 +67,14 @@ export default function AgentDetailView() {
         const p = res.subscription?.plan || 'free';
         setTier(p.toLowerCase());
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [api]);
 
   useEffect(() => {
     if (tier === 'enterprise' || tier === 'pro') {
       api('/api/custom-policies')
         .then((res) => setCustomPolicies(res.policies || []))
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [api, tier]);
 
@@ -424,6 +424,7 @@ export default function AgentDetailView() {
                         navigator.clipboard.writeText(agent.id);
                         toast.success('Agent ID copied!');
                       }}
+                      aria-label="Copy Agent ID"
                     >
                       <Copy className="h-4 w-4" />
                     </Button>
