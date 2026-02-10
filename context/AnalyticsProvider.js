@@ -9,7 +9,7 @@ import { usePathname, useSearchParams } from 'next/navigation';
 /**
  * Provides analytics tracking using PostHog for the application.
  *
- * This component initializes the PostHog client when the component mounts, handling pageview and pageleave events manually for both App Router state and hash changes. It also manages user identity and session state, ensuring that the correct user information is sent to PostHog. The component uses various hooks to track changes in the session, pathname, and search parameters.
+ * This component initializes the PostHog client when the component mounts, handling pageview and pageleave events manually for both App Router state and hash changes. It manages user identity and session state, ensuring that the correct user information is sent to PostHog. The component utilizes various hooks to track changes in the session, pathname, and search parameters, and sets up event listeners for hash changes.
  *
  * @param {Object} props - The component props.
  * @param {ReactNode} props.children - The child components to be rendered within the provider.
@@ -71,6 +71,9 @@ export function AnalyticsProvider({ children }) {
 
   // Listener for hash-only changes (common in this app)
   useEffect(() => {
+    /**
+     * Handles the hash change event by capturing pageleave and pageview events.
+     */
     const handleHashChange = (event) => {
       // Capture pageleave for the old URL
       if (event?.oldURL) {
