@@ -275,7 +275,7 @@ export async function GET(request, context) {
       const validation = validateInstallParams(agentId, agentSecret, interval);
       if (validation) return json({ error: validation.error }, validation.status);
 
-      if (!validateUuid(agentId) || !validateUuid(agentSecret)) {
+      if (!uuidValidate(agentId) || !uuidValidate(agentSecret)) {
         return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
       }
 
@@ -354,7 +354,7 @@ export async function GET(request, context) {
       const validation = validateInstallParams(agentId, agentSecret, interval);
       if (validation) return json({ error: validation.error }, validation.status);
 
-      if (!validateUuid(agentId) || !validateUuid(agentSecret)) {
+      if (!uuidValidate(agentId) || !uuidValidate(agentSecret)) {
         return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
       }
 
@@ -436,7 +436,7 @@ export async function GET(request, context) {
       const validation = validateInstallParams(agentId, agentSecret, interval);
       if (validation) return json({ error: validation.error }, validation.status);
 
-      if (!validateUuid(agentId) || !validateUuid(agentSecret)) {
+      if (!uuidValidate(agentId) || !uuidValidate(agentSecret)) {
         return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
       }
 
