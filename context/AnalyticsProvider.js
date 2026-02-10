@@ -6,29 +6,35 @@ import { useEffect } from 'react';
 import { useFleet } from './FleetContext';
 import { usePathname, useSearchParams } from 'next/navigation';
 
-// Initialize PostHog outside the component to ensure it's ready before the provider renders
-if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY) {
-  posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
-    api_host: '/ingest',
-    ui_host: 'https://us.posthog.com',
-    person_profiles: 'always',
-    capture_pageview: false, // We handle it manually for hash routing support
-    persistence: 'localStorage',
-    autocapture: true,
-    capture_performance: true,
-    enable_external_api_event_tracking: true,
-    session_recording: {
-      maskAllInputFields: false,
-      maskTextSelector: ".sensitive",
-    },
-    loaded: (ph) => {
-      if (process.env.NODE_ENV === 'development') ph.debug();
-    }
-  });
-  window.posthog = posthog;
-}
-
 export function AnalyticsProvider({ children }) {
+  // Initialize PostHog client-side only
+  useEffect(() => {
+    if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY && !posthog.__loaded) {
+      try {
+        posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
+          api_host: '/ingest',
+          ui_host: 'https://us.posthog.com',
+          person_profiles: 'always',
+          capture_pageview: false, // We handle it manually for hash routing support
+          persistence: 'localStorage',
+          autocapture: true,
+          capture_performance: true,
+          enable_external_api_event_tracking: true,
+          session_recording: {
+            maskAllInputFields: false,
+            maskTextSelector: ".sensitive",
+          },
+          loaded: (ph) => {
+            if (process.env.NODE_ENV === 'development') ph.debug();
+            posthog.__loaded = true;
+          }
+        });
+      } catch (e) {
+        console.warn('PostHog init failed:', e);
+      }
+    }
+  }, []);
+
   const { session } = useFleet();
   const pathname = usePathname();
   const searchParams = useSearchParams();
