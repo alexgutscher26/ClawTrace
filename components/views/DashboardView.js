@@ -73,6 +73,13 @@ export default function DashboardView() {
   const [newAgent, setNewAgent] = useState({ name: '', gateway_url: '', policy_profile: 'dev' });
 
   useEffect(() => {
+    if (!loading && !session) {
+      navigate('/');
+    }
+  }, [loading, session]);
+
+  useEffect(() => {
+    if (!session) return;
     api('/api/billing')
       .then((res) => {
         const p = res.subscription?.plan || 'free';
@@ -595,7 +602,7 @@ export default function DashboardView() {
 
       {/* Add Agent Dialog */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md border-zinc-800 bg-zinc-950 text-white shadow-2xl">
           <DialogHeader>
             <DialogTitle>Register New Agent</DialogTitle>
             <DialogDescription>
