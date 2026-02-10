@@ -9,6 +9,21 @@ import { DayPicker, getDefaultClassNames } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import { Button, buttonVariants } from '@/components/ui/button';
 
+/**
+ * Renders a customizable calendar component.
+ *
+ * The Calendar function accepts various props to configure its appearance and behavior, including class names, layout options, and custom components. It utilizes the DayPicker component to display the calendar, applying default styles and merging them with user-defined class names. The function also defines formatters for date display and custom components for rendering specific parts of the calendar.
+ *
+ * @param {Object} props - The properties for the Calendar component.
+ * @param {string} [props.className] - Additional class names for the calendar.
+ * @param {Object} [props.classNames] - Custom class names for various parts of the calendar.
+ * @param {boolean} [props.showOutsideDays=true] - Whether to show days outside the current month.
+ * @param {string} [props.captionLayout='label'] - The layout style for the caption.
+ * @param {string} [props.buttonVariant='ghost'] - The variant style for buttons.
+ * @param {Object} [props.formatters] - Custom formatters for date display.
+ * @param {Object} [props.components] - Custom components to override default rendering.
+ * @param {...any} props - Additional props to be passed to the DayPicker component.
+ */
 function Calendar({
   className,
   classNames,
