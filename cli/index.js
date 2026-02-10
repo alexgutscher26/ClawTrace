@@ -25,6 +25,16 @@ function parseArgs(argv) {
 // ============ SYSTEM METRICS COLLECTOR ============
 // ============ SYSTEM METRICS COLLECTOR ============
 
+/**
+ * Executes a plugin script based on the provided file path.
+ *
+ * This function determines the appropriate command to run a script based on its file extension,
+ * supporting JavaScript and Python files. It executes the command with a timeout and handles
+ * potential errors by logging them. If the output is valid JSON, it resolves the promise with
+ * the parsed JSON; otherwise, it logs an error and resolves with an empty object.
+ *
+ * @param {string} path - The file path of the plugin script to execute.
+ */
 async function runPlugin(path) {
   return new Promise((resolve) => {
     let cmd;
@@ -49,6 +59,15 @@ async function runPlugin(path) {
   });
 }
 
+/**
+ * Collects system metrics including CPU and memory usage.
+ *
+ * This function retrieves the current CPU and memory usage statistics, calculates the latency, and uptime.
+ * If any plugins are provided, it runs them asynchronously and merges their results into the metrics object.
+ * The final metrics object includes cpu_usage, memory_usage, latency_ms, and uptime_hours.
+ *
+ * @param {Array} plugins - An array of plugin functions to run for additional metrics.
+ */
 async function collectMetrics(plugins = []) {
   const cpus = os.cpus();
   let totalIdle = 0, totalTick = 0;
@@ -158,6 +177,9 @@ ${COLORS.green}${COLORS.bold}  ⚡ Fleet Monitor${COLORS.reset}`);
   console.log(`${COLORS.dim}  ─────────────────────────────${COLORS.reset}`);
 }
 
+/**
+ * Prints the status of system metrics including CPU, memory, latency, and uptime.
+ */
 function printStatus(metrics) {
   console.log(`  ${COLORS.cyan}CPU${COLORS.reset}    ${metrics.cpu_usage}%`);
   console.log(`  ${COLORS.magenta}MEM${COLORS.reset}    ${metrics.memory_usage}%`);
@@ -207,9 +229,9 @@ function redactConfig(config) {
  * Monitors the agent's status and sends heartbeat signals to the specified SaaS URL.
  *
  * This function initializes the monitoring process by performing a handshake to obtain a session token.
- * It then enters a loop where it periodically sends heartbeat signals with the agent's status and metrics.
- * If the session token expires, it retries the handshake once before logging an error.
- * The function requires specific arguments to be provided and will exit if any are missing.
+ * It enters a loop where it periodically sends heartbeat signals with the agent's status and metrics.
+ * If the session token expires, it retries the handshake once before logging an error. The function requires
+ * specific arguments to be provided and will exit if any are missing.
  *
  * @param args - An object containing the necessary parameters for monitoring.
  * @param args.saas_url - The SaaS URL for the fleet monitoring service (required).
@@ -217,6 +239,7 @@ function redactConfig(config) {
  * @param args.agent_secret - The secret associated with the agent (required).
  * @param args.interval - The heartbeat interval in seconds (default: 300).
  * @param args.status - The status of the agent (default: 'healthy').
+ * @param args.plugins - A comma-separated list of plugins to be used (optional).
  */
 async function monitorCommand(args) {
   const saasUrl = args.saas_url;
@@ -269,6 +292,17 @@ async function monitorCommand(args) {
     }
   }
 
+  /**
+   * Sends a heartbeat signal to the server with collected metrics.
+   *
+   * The function first checks for a valid session token and performs a handshake if necessary.
+   * It then collects metrics from the specified plugins and attempts to post the heartbeat to the server.
+   * Depending on the response status, it logs the result, handles session expiration by retrying the handshake,
+   * and catches any connection errors that may occur during the process.
+   *
+   * @returns {Promise<void>} A promise that resolves when the heartbeat has been sent or retried.
+   * @throws {Error} If there is a connection error while sending the heartbeat.
+   */
   async function sendHeartbeat() {
     if (!sessionToken) {
       const ok = await performHandshake();
@@ -598,6 +632,9 @@ async function discoverCommand(args) {
   }
 }
 
+/**
+ * Displays the help information and usage instructions for the commands.
+ */
 function helpCommand() {
   printBanner();
   console.log(`
