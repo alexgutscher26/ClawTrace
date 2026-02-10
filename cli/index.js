@@ -134,6 +134,30 @@ function printStatus(metrics) {
 
 // ============ COMMANDS ============
 
+function redactConfig(config) {
+  if (typeof config !== 'object' || config === null) {
+    return config;
+  }
+
+  if (Array.isArray(config)) {
+    return config.map(redactConfig);
+  }
+
+  const redacted = { ...config };
+  const sensitivePatterns = /key|secret|password|token|credential|auth|private/i;
+
+  for (const key in redacted) {
+    if (Object.prototype.hasOwnProperty.call(redacted, key)) {
+      if (sensitivePatterns.test(key)) {
+        redacted[key] = '[REDACTED]';
+      } else if (typeof redacted[key] === 'object') {
+        redacted[key] = redactConfig(redacted[key]);
+      }
+    }
+  }
+  return redacted;
+}
+
 async function monitorCommand(args) {
   const saasUrl = args.saas_url;
   const agentId = args.agent_id;
@@ -332,7 +356,7 @@ async function configPushCommand(args) {
   }
 
   console.log(`${COLORS.cyan}Configuration to push:${COLORS.reset}`);
-  console.log(JSON.stringify(config, null, 2));
+  console.log(JSON.stringify(redactConfig(config), null, 2));
   console.log();
 
   // Perform handshake first
@@ -363,7 +387,7 @@ async function configPushCommand(args) {
       log(`${COLORS.green}✓ Configuration pushed successfully!${COLORS.reset}`);
       console.log();
       console.log(`${COLORS.dim}Updated configuration:${COLORS.reset}`);
-      console.log(JSON.stringify(result.body.agent.config_json, null, 2));
+      console.log(JSON.stringify(redactConfig(result.body.agent.config_json), null, 2));
     } else {
       console.error(`${COLORS.red}✗ Failed to push configuration (${result.status}): ${JSON.stringify(result.body)}${COLORS.reset}`);
       process.exit(1);
