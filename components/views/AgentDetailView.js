@@ -36,6 +36,7 @@ import SetupInstructions from '@/components/SetupInstructions';
 import { STATUS_CONFIG, timeAgo } from '@/lib/view-utils';
 import { getPolicy } from '@/lib/policies';
 import { encryptE2EE } from '@/lib/client-crypto';
+import OpenClawTerminal from '@/components/views/TerminalView'; // OpenClaw Terminal
 
 import { useFleet } from '@/context/FleetContext';
 import { useRouter, useParams } from 'next/navigation';
@@ -60,6 +61,7 @@ export default function AgentDetailView() {
   const [tier, setTier] = useState('free');
   const [customPolicies, setCustomPolicies] = useState([]);
   const [configEdit, setConfigEdit] = useState('');
+  const [terminalOpen, setTerminalOpen] = useState(false);
 
   useEffect(() => {
     api('/api/billing')
@@ -199,6 +201,15 @@ export default function AgentDetailView() {
             <Button
               variant="outline"
               size="sm"
+              className="border-emerald-500/30 bg-emerald-500/5 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
+              onClick={() => setTerminalOpen(true)}
+            >
+              <Terminal className="mr-1 h-4 w-4" />
+              SSH
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => {
                 navigator.clipboard.writeText(agent.id);
                 toast.success('Agent ID copied!');
@@ -209,6 +220,26 @@ export default function AgentDetailView() {
             </Button>
           </div>
         </div>
+
+        {terminalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <div className="relative h-3/4 w-3/4 max-w-5xl rounded-lg border border-white/20 bg-zinc-950 shadow-2xl flex flex-col">
+              <div className="flex items-center justify-between border-b border-white/10 bg-zinc-900 px-4 py-2">
+                <div className="flex items-center gap-2">
+                  <Terminal className="h-4 w-4 text-emerald-500" />
+                  <span className="font-mono text-xs font-bold text-white">OpenClaw Secure Shell</span>
+                  <Badge variant="outline" className="ml-2 border-emerald-500/30 text-[10px] text-emerald-400">E2EE ACTIVE</Badge>
+                </div>
+                <Button variant="ghost" size="icon" className="h-6 w-6 text-zinc-400 hover:text-white" onClick={() => setTerminalOpen(false)}>
+                  <XCircle className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="flex-1 overflow-hidden p-0">
+                <OpenClawTerminal agentId={agentId} onClose={() => setTerminalOpen(false)} />
+              </div>
+            </div>
+          </div>
+        )}
 
         <Tabs defaultValue="overview">
           <TabsList className="mb-6">

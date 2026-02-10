@@ -2,9 +2,11 @@
 
 const os = require('os');
 const fs = require('fs');
+const path = require('path');
 const https = require('https');
 const http = require('http');
 const { exec } = require('child_process');
+const { performance } = require('perf_hooks');
 
 // ============ CLI ARGUMENT PARSER ============
 function parseArgs(argv) {
@@ -81,11 +83,19 @@ async function collectMetrics(plugins = []) {
   const freeMem = os.freemem();
   const memoryUsage = Math.round(((totalMem - freeMem) / totalMem) * 100);
 
+  const latency = await measureLatency(saasUrl);
+  const diskUsage = await getDiskUsage();
+  const diskIO = await getDiskIO();
+
   const metrics = {
     cpu_usage: cpuUsage,
     memory_usage: memoryUsage,
-    latency_ms: Math.round(Math.random() * 100 + 50),
+    latency_ms: latency,
     uptime_hours: Math.round(os.uptime() / 3600),
+    disk_usage: diskUsage,
+    disk_io_read: diskIO.read_kbps,
+    disk_io_write: diskIO.write_kbps,
+    memory_pressure: memoryUsage > 80,
   };
 
   if (plugins && plugins.length > 0) {
@@ -185,9 +195,10 @@ function printStatus(metrics) {
   console.log(`  ${COLORS.magenta}MEM${COLORS.reset}    ${metrics.memory_usage}%`);
   console.log(`  ${COLORS.yellow}LAT${COLORS.reset}    ${metrics.latency_ms}ms`);
   console.log(`  ${COLORS.dim}UPTIME ${metrics.uptime_hours}h${COLORS.reset}`);
+  console.log(`  ${COLORS.cyan}DISK${COLORS.reset}   ${metrics.disk_usage}%`);
 
   // Print custom metrics from plugins
-  const standardKeys = ['cpu_usage', 'memory_usage', 'latency_ms', 'uptime_hours'];
+  const standardKeys = ['cpu_usage', 'memory_usage', 'latency_ms', 'uptime_hours', 'disk_usage', 'disk_io_read', 'disk_io_write', 'memory_pressure'];
   const customKeys = Object.keys(metrics).filter(k => !standardKeys.includes(k));
 
   if (customKeys.length > 0) {
@@ -201,6 +212,14 @@ function printStatus(metrics) {
 
 // ============ COMMANDS ============
 
+/**
+ * Redact sensitive information from a configuration object.
+ *
+ * The function checks if the input is an object or an array. If it is an array, it recursively applies the redaction to each element. For objects, it creates a shallow copy and iterates through its keys, replacing any key that matches sensitive patterns with '[REDACTED]'. If a value is an object, it recursively redacts that value as well.
+ *
+ * @param config - The configuration object or array to be redacted.
+ * @returns A new object or array with sensitive information redacted.
+ */
 function redactConfig(config) {
   if (typeof config !== 'object' || config === null) {
     return config;
@@ -309,7 +328,7 @@ async function monitorCommand(args) {
       if (!ok) return;
     }
 
-    const metrics = await collectMetrics(plugins);
+    const metrics = await collectMetrics(saasUrl, plugins);
     try {
       const result = await postHeartbeat(saasUrl, agentId, status, metrics, sessionToken);
       if (result.status === 200) {
@@ -339,10 +358,13 @@ async function monitorCommand(args) {
   }
 }
 
+/**
+ * Displays the system status and metrics based on provided arguments.
+ */
 async function statusCommand(args) {
   printBanner();
   const plugins = args.plugins ? args.plugins.split(',').map(p => p.trim()) : [];
-  const metrics = await collectMetrics(plugins);
+  const metrics = await collectMetrics(args.saas_url, plugins);
   console.log(`\n  ${COLORS.bold}System Status${COLORS.reset}`);
   console.log(`  ${COLORS.dim}────────────────${COLORS.reset}`);
   printStatus(metrics);
@@ -543,6 +565,16 @@ async function configPushCommand(args) {
   }
 }
 
+/**
+ * Checks the health of a gateway by sending a request to its health API.
+ *
+ * This function constructs a URL using the provided IP and port, then makes an HTTP GET request to the health endpoint.
+ * It resolves with the gateway URL if the response status is 200 and the JSON response indicates a status of 'ok'.
+ * In case of any errors or unexpected responses, it resolves with null.
+ *
+ * @param {string} ip - The IP address of the gateway.
+ * @param {number} port - The port number of the gateway.
+ */
 async function checkGateway(ip, port) {
   const url = `http://${ip}:${port}/api/health`;
   return new Promise((resolve) => {
@@ -566,6 +598,14 @@ async function checkGateway(ip, port) {
   });
 }
 
+/**
+ * Discover OpenClaw gateways on the local network.
+ *
+ * This function scans the local network interfaces for IPv4 addresses, generates a list of potential gateway targets based on common ports, and checks each target for an OpenClaw gateway. It logs the results, including any found gateways and instructions for pairing. The scanning is performed in batches to manage the number of concurrent checks.
+ *
+ * @param args - The arguments passed to the command, which may include options for the discovery process.
+ * @returns {Promise<void>} A promise that resolves when the discovery process is complete.
+ */
 async function discoverCommand(args) {
   printBanner();
   log(`${COLORS.green}Auto-Discovery: Scanning local network for OpenClaw gateways...${COLORS.reset}`);
@@ -639,11 +679,12 @@ function helpCommand() {
   printBanner();
   console.log(`
   ${COLORS.bold}Commands:${COLORS.reset}`);
-  console.log(`    ${COLORS.green}monitor${COLORS.reset}    Start sending heartbeats to your Fleet dashboard`);
-  console.log(`    ${COLORS.green}config${COLORS.reset}     Manage agent configuration`);
-  console.log(`    ${COLORS.green}discover${COLORS.reset}   Scan local network for OpenClaw gateways`);
-  console.log(`    ${COLORS.green}status${COLORS.reset}     Show local system metrics`);
-  console.log(`    ${COLORS.green}help${COLORS.reset}       Show this help message`);
+  console.log(`    ${COLORS.green}monitor${COLORS.reset}           Start sending heartbeats to your Fleet dashboard`);
+  console.log(`    ${COLORS.green}config${COLORS.reset}            Manage agent configuration`);
+  console.log(`    ${COLORS.green}discover${COLORS.reset}          Scan local network for OpenClaw gateways`);
+  console.log(`    ${COLORS.green}install-service${COLORS.reset}   Auto-configure systemd/LaunchAgent persistence`);
+  console.log(`    ${COLORS.green}status${COLORS.reset}            Show local system metrics`);
+  console.log(`    ${COLORS.green}help${COLORS.reset}              Show this help message`);
   console.log(`
   ${COLORS.bold}Monitor Usage:${COLORS.reset}`);
   console.log(`  fleet-monitor monitor --saas-url=https://your-app.com --agent-id=<UUID> --agent-secret=<SECRET>`);
@@ -694,6 +735,9 @@ switch (command) {
     break;
   case 'discover':
     discoverCommand(args);
+    break;
+  case 'install-service':
+    installServiceCommand(args);
     break;
   case 'help':
   case '--help':

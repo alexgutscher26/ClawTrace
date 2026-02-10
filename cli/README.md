@@ -25,6 +25,7 @@ fleet-monitor monitor --saas-url=https://your-fleet-app.com --agent-id=YOUR_AGEN
 | `monitor` | Start sending heartbeats to the dashboard|
 | `config`  | Push configuration updates to the agent  |
 | `discover`| Scan local network for OpenClaw gateways |
+| `install-service`| Auto-configure systemd/LaunchAgent persistence |
 | `status`  | Show local system metrics                |
 | `help`    | Show help message                        |
 
@@ -72,6 +73,18 @@ print(json.dumps({"queue_length": 42, "db_status": "ok"}))
 ```bash
 fleet-monitor monitor ... --plugins=./queue.py
 ```
+
+## Service Mode
+
+Install the agent as a background service (Linux/macOS):
+
+```bash
+fleet-monitor install-service --saas-url=... --agent-id=... --agent-secret=...
+```
+
+This will automatically create and enable:
+- **Linux**: systemd unit (`/etc/systemd/system/fleet-monitor.service`)
+- **macOS**: LaunchAgent (`~/Library/LaunchAgents/com.openclaw.monitor.plist`)
 
 ## Examples
 

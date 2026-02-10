@@ -1,4 +1,4 @@
-const { withPostHogConfig } = require('@posthog/nextjs-config');
+// const { withPostHogConfig } = require('@posthog/nextjs-config');
 
 const nextConfig = {
   output: 'standalone',
@@ -56,15 +56,4 @@ const nextConfig = {
 
 const isProd = process.env.NODE_ENV === 'production';
 
-module.exports = isProd
-  ? withPostHogConfig(nextConfig, {
-    personalApiKey: process.env.POSTHOG_API_KEY,
-    personalApiKeyWrite: true,
-    personalApiKeyErrorTracking: true,
-    envId: process.env.POSTHOG_ENV_ID,
-    sourcemaps: {
-      project: 'claw-fleet',
-      deleteAfterUpload: true,
-    },
-  })
-  : nextConfig;
+module.exports = nextConfig;

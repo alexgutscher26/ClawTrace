@@ -144,6 +144,29 @@ mock.module("next/server", () => ({
   },
 }));
 
+mock.module("next/cache", () => ({
+  unstable_cache: (fn) => fn,
+}));
+
+mock.module("uuid", () => ({
+  v4: () => "00000000-0000-0000-0000-000000000000",
+  validate: (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str),
+}));
+
+mock.module("jose", () => ({
+  SignJWT: class {
+    setProtectedHeader() { return this; }
+    setIssuedAt() { return this; }
+    setExpirationTime() { return this; }
+    sign() { return Promise.resolve('mock-token'); }
+  },
+  jwtVerify: () => Promise.resolve({ payload: { user_id: 'mock-user' } }),
+}));
+
+mock.module("@/lib/alerts", () => ({
+  processSmartAlerts: () => Promise.resolve(),
+}));
+
 describe("Dashboard Stats", () => {
   test("should call get_dashboard_stats RPC and return stats", async () => {
     // Import the route handler dynamically after mocking
