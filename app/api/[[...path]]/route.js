@@ -70,6 +70,16 @@ async function getTier(userId) {
 
 /**
  * Validates parameters for agent installation scripts.
+ *
+ * This function checks for the presence of agentId and agentSecret, ensuring they are not empty.
+ * It also validates the format of these parameters using uuidValidate. Additionally, if an interval is provided,
+ * it checks that the interval is a positive integer. If any validation fails, an error object is returned;
+ * otherwise, null is returned.
+ *
+ * @param agentId - The unique identifier for the agent.
+ * @param agentSecret - The secret key associated with the agent.
+ * @param interval - An optional parameter representing the interval, expected to be a positive integer.
+ * @returns An error object if validation fails, or null if all parameters are valid.
  */
 function validateInstallParams(agentId, agentSecret, interval) {
   if (!agentId || !agentSecret) {
