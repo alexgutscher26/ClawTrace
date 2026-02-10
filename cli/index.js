@@ -245,30 +245,6 @@ function printStatus(metrics) {
 
 // ============ COMMANDS ============
 
-function redactConfig(config) {
-  if (typeof config !== 'object' || config === null) {
-    return config;
-  }
-
-  if (Array.isArray(config)) {
-    return config.map(redactConfig);
-  }
-
-  const redacted = { ...config };
-  const sensitivePatterns = /key|secret|password|token|credential|auth|private/i;
-
-  for (const key in redacted) {
-    if (Object.prototype.hasOwnProperty.call(redacted, key)) {
-      if (sensitivePatterns.test(key)) {
-        redacted[key] = '[REDACTED]';
-      } else if (typeof redacted[key] === 'object') {
-        redacted[key] = redactConfig(redacted[key]);
-      }
-    }
-  }
-  return redacted;
-}
-
 /**
  * Monitors the agent's status and sends heartbeat signals to the specified SaaS URL.
  *
