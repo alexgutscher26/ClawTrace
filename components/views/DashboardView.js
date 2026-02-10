@@ -13,6 +13,8 @@ import {
   Trash2,
   Eye,
   AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -63,6 +65,8 @@ export default function DashboardView() {
   const [addOpen, setAddOpen] = useState(false);
   const [seeding, setSeeding] = useState(false);
   const [agents, setAgents] = useState([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [newAgent, setNewAgent] = useState({ name: '', gateway_url: '', policy_profile: 'dev' });
 
   useEffect(() => {
@@ -166,19 +170,25 @@ export default function DashboardView() {
 
   const loadAgents = useCallback(async () => {
     try {
-      const url = selectedFleet ? `/api/agents?fleet_id=${selectedFleet}` : '/api/agents';
+      let url = selectedFleet ? `/api/agents?fleet_id=${selectedFleet}` : '/api/agents';
+      url += (url.includes('?') ? '&' : '?') + `page=${page}&limit=50`;
       const res = await api(url);
       setAgents(res.agents);
+      if (res.meta) setTotalPages(res.meta.pages);
     } catch (err) {
       if (err.message === 'Unauthorized') return;
       toast.error('Failed to load agents');
       console.error(err);
     }
-  }, [api, selectedFleet]);
+  }, [api, selectedFleet, page]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [selectedFleet]);
 
   useEffect(() => {
     if (!loading) loadAgents();
-  }, [loadAgents, loading, selectedFleet]);
+  }, [loadAgents, loading, selectedFleet, page]);
 
   /**
    * Seeds the demo environment and handles success or error notifications.
@@ -227,6 +237,7 @@ export default function DashboardView() {
       });
       setAddOpen(false);
       setNewAgent({ name: '', gateway_url: '' });
+      setPage(1);
       loadAgents();
       loadData();
     } catch (err) {
@@ -491,6 +502,33 @@ export default function DashboardView() {
                 </table>
               </div>
             </CardContent>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-end gap-2 border-t border-white/10 p-2">
+                <span className="text-xs text-zinc-500">
+                  Page {page} of {totalPages}
+                </span>
+                <div className="flex gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </Card>
         )}
 
