@@ -48,8 +48,8 @@ export function AnalyticsProvider({ children }) {
   const { session } = useFleet();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { session } = useFleet();
 
+  // Track pageviews on route change
   useEffect(() => {
     if (typeof window !== 'undefined' && posthog.__loaded) {
       let url = window.origin + pathname;
@@ -65,34 +65,7 @@ export function AnalyticsProvider({ children }) {
         $current_url: url,
       });
     }
-  }, [pathname, searchParams, session]);
-
-  return null;
-}
-
-export function AnalyticsProvider({ children }) {
-  const { session } = useFleet();
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY) {
-      posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
-        api_host: '/ingest',
-        ui_host: 'https://us.posthog.com',
-        person_profiles: 'always',
-        capture_pageview: false, // We'll handle it manually to support hash routing
-        persistence: 'localStorage',
-        autocapture: true,
-        capture_performance: true, // Enable performance/web vitals tracking
-        enable_external_api_event_tracking: true, // Captures API errors
-        session_recording: {
-          maskAllInputFields: false,
-          maskTextSelector: ".sensitive",
-        },
-        enable_recording_console_log: true, // Required for advanced Error Tracking
-      });
-      window.posthog = posthog;
-    }
-  }, []);
+  }, [pathname, searchParams]);
 
   // Additional listener for hash-only changes (common in this app)
   useEffect(() => {
@@ -129,12 +102,5 @@ export function AnalyticsProvider({ children }) {
     }
   }, [session]);
 
-  return (
-    <PHProvider client={posthog}>
-      <Suspense fallback={null}>
-        <PostHogPageview />
-      </Suspense>
-      {children}
-    </PHProvider>
-  );
+  return <PHProvider client={posthog}>{children}</PHProvider>;
 }
