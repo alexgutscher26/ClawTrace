@@ -72,14 +72,14 @@ export default function DashboardView() {
         setTier(p.toLowerCase());
         if (res.limits) setLimits(res.limits[p.toLowerCase()] || res.limits.free);
       })
-      .catch(() => { });
+      .catch(() => {});
   }, [api]);
 
   useEffect(() => {
     if (tier === 'enterprise' || tier === 'pro') {
       api('/api/custom-policies')
         .then((res) => setCustomPolicies(res.policies || []))
-        .catch(() => { });
+        .catch(() => {});
     }
   }, [api, tier]);
 
@@ -127,7 +127,9 @@ export default function DashboardView() {
         },
         (payload) => {
           setAlerts((prev) => [payload.new, ...prev]);
-          toast.message('New Alert', { description: `${payload.new.type}: ${payload.new.message}` });
+          toast.message('New Alert', {
+            description: `${payload.new.type}: ${payload.new.message}`,
+          });
         }
       )
       .subscribe();
@@ -277,10 +279,13 @@ export default function DashboardView() {
             <p className="text-muted-foreground text-sm">Monitor and manage your AI agent fleet</p>
           </div>
           <div className="flex gap-2">
-            <Badge variant="outline" className="border-emerald-500/50 text-emerald-400 animate-pulse bg-emerald-500/10 gap-1.5 py-1">
+            <Badge
+              variant="outline"
+              className="animate-pulse gap-1.5 border-emerald-500/50 bg-emerald-500/10 py-1 text-emerald-400"
+            >
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
               </span>
               LIVE
             </Badge>

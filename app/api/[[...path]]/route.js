@@ -56,9 +56,7 @@ if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error('SUPABASE_SERVICE_ROLE_KEY is required');
 }
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+const JWT_SECRET = new TextEncoder().encode(process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 /**
  * Retrieves the subscription tier for a given user.
@@ -107,10 +105,9 @@ function validateInstallParams(agentId, agentSecret, interval) {
   return null;
 }
 
-
 /**
  * Configuration for rate limiting based on subscription tiers.
- * 
+ *
  * capacity: Maximum number of request tokens in the bucket.
  * refillRate: The rate at which tokens are refilled per second.
  */
@@ -1047,7 +1044,7 @@ export async function POST(request, context) {
 
       const { data: agent, error: fetchError } = await supabaseAdmin
         .from('agents')
-        .select('*')
+        .select('*, alert_configs(*, channel:alert_channels(*))')
         .eq('id', body.agent_id)
         .maybeSingle();
 
@@ -1127,9 +1124,16 @@ export async function POST(request, context) {
 
       // Trigger smart alerts
       if (body.metrics) {
-        processSmartAlerts(body.agent_id, update.status, body.metrics).catch((e) =>
-          console.error('Alert processing error:', e)
-        );
+        const activeConfigs =
+          agent.alert_configs?.filter((c) => c.channel && c.channel.active) || [];
+
+        processSmartAlerts(
+          body.agent_id,
+          update.status,
+          body.metrics,
+          activeConfigs,
+          agent.name
+        ).catch((e) => console.error('Alert processing error:', e));
       }
 
       return json({
