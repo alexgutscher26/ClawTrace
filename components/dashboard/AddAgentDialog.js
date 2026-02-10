@@ -19,6 +19,22 @@ import {
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 
+/**
+ * Renders a dialog for adding a new agent to the fleet.
+ *
+ * This component displays a form where users can input the agent's name, gateway URL, and select a policy profile.
+ * It utilizes the provided `handleAddAgent` function to handle form submission and updates the `newAgent` state
+ * based on user input. The dialog also conditionally displays custom policies based on the user's tier.
+ *
+ * @param {Object} props - The properties for the component.
+ * @param {boolean} props.open - Indicates if the dialog is open.
+ * @param {function} props.onOpenChange - Function to handle dialog open state changes.
+ * @param {function} props.handleAddAgent - Function to handle the addition of a new agent.
+ * @param {Object} props.newAgent - The current state of the new agent being added.
+ * @param {function} props.setNewAgent - Function to update the new agent state.
+ * @param {string} props.tier - The tier of the user, which affects available policies.
+ * @param {Array} props.customPolicies - List of custom policies available for selection.
+ */
 export function AddAgentDialog({ open, onOpenChange, handleAddAgent, newAgent, setNewAgent, tier, customPolicies }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

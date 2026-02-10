@@ -5,6 +5,18 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { timeAgo } from '@/lib/view-utils';
 
+/**
+ * Renders a component displaying recent alerts.
+ *
+ * The RecentAlerts component takes in a list of alerts and a function to handle resolving alerts.
+ * If there are no alerts, it returns null. It displays the first five alerts, showing their details
+ * and providing an option to resolve them if they are not already resolved. The alerts are styled
+ * based on their resolved status.
+ *
+ * @param {Object} props - The component props.
+ * @param {Array} props.alerts - The list of alerts to display.
+ * @param {Function} props.handleResolveAlert - The function to call when resolving an alert.
+ */
 export function RecentAlerts({ alerts, handleResolveAlert }) {
   if (alerts.length === 0) return null;
 

@@ -6,6 +6,12 @@ import {
   BarChart3,
 } from 'lucide-react';
 
+/**
+ * Renders a grid of statistics cards based on the provided stats.
+ * @param {Object} props - The component props.
+ * @param {Object} props.stats - The statistics data to display.
+ * @returns {JSX.Element|null} The rendered statistics cards or null if no stats are provided.
+ */
 export function StatsCards({ stats }) {
   if (!stats) return null;
 
