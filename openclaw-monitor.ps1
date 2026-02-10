@@ -1,5 +1,4 @@
 # OpenClaw Fleet Monitor - PowerShell Heartbeat Agent
-# Agent: 74d8ec78-6410-4495-b0ee-d051e43eee45
 # Run: powershell -ExecutionPolicy Bypass -File openclaw-monitor.ps1
 
 param (
@@ -27,6 +26,14 @@ $GatewayUrl = $null
 Write-Host ""
 Write-Host "  OpenClaw Fleet Monitor" -ForegroundColor Green
 Write-Host "  --------------------------------"
+
+if (-not $AgentId -or -not $AgentSecret) {
+    Write-Host "  Error: OPENCLAW_AGENT_ID and OPENCLAW_AGENT_SECRET must be set." -ForegroundColor Red
+    Write-Host "  Please set these environment variables and run the agent again."
+    Write-Host ""
+    exit 1
+}
+
 Write-Host "  Agent:    $AgentId"
 Write-Host "  SaaS:     $SaasUrl"
 Write-Host "  Interval: $($Interval)s"

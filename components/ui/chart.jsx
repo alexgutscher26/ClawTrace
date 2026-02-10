@@ -3,12 +3,7 @@ import * as React from 'react';
 import * as RechartsPrimitive from 'recharts';
 
 import { cn } from '@/lib/utils';
-
-// Format: { THEME_NAME: CSS_SELECTOR }
-const THEMES = {
-  light: '',
-  dark: '.dark',
-};
+import { generateChartStyles } from '@/components/ui/chart-utils';
 
 const ChartContext = React.createContext(null);
 
@@ -45,30 +40,18 @@ const ChartContainer = React.forwardRef(({ id, className, children, config, ...p
 });
 ChartContainer.displayName = 'Chart';
 
-const ChartStyle = ({ id, config }) => {
-  const colorConfig = Object.entries(config).filter(([, config]) => config.theme || config.color);
 
-  if (!colorConfig.length) {
+const ChartStyle = ({ id, config }) => {
+  const styles = generateChartStyles(id, config);
+
+  if (!styles) {
     return null;
   }
 
   return (
     <style
       dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
-${colorConfig
-  .map(([key, itemConfig]) => {
-    const color = itemConfig.theme?.[theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
-  })
-  .join('\n')}
-}
-`
-          )
-          .join('\n'),
+        __html: styles,
       }}
     />
   );
@@ -285,4 +268,5 @@ export {
   ChartLegend,
   ChartLegendContent,
   ChartStyle,
+  generateChartStyles,
 };

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """OpenClaw Fleet Monitor - Cross-platform Heartbeat Agent"""
-# Agent: 79a68826-b5af-49a3-b9db-6c322c858f17
 # Run: python3 openclaw-monitor.py
 
 import json, time, urllib.request, platform, os, hmac, hashlib, sys
@@ -104,7 +103,9 @@ def get_mem():
             for line in r.stdout.split("\n"):
                 if ":" in line:
                     k,v = line.split(":",1)
-                    d[k.strip()] = int(v.strip().rstrip("."))
+                    val = v.strip().rstrip(".")
+                    if val.isdigit():
+                        d[k.strip()] = int(val)
             active = d.get("Pages active",0)+d.get("Pages wired down",0)
             total = active+d.get("Pages free",0)+d.get("Pages speculative",0)
             return int(active/max(total,1)*100)
@@ -181,6 +182,13 @@ if __name__ == "__main__":
     print()
     print("  OpenClaw Fleet Monitor")
     print("  --------------------------------")
+
+    if not AGENT_ID or not AGENT_SECRET:
+        print("  \033[91mError: OPENCLAW_AGENT_ID and OPENCLAW_AGENT_SECRET must be set.\033[0m")
+        print("  Please set these environment variables and run the agent again.")
+        print()
+        exit(1)
+
     print(f"  Agent:    {AGENT_ID}")
     print(f"  SaaS:     {SAAS_URL}")
     print(f"  Interval: {INTERVAL}s")
