@@ -107,6 +107,7 @@ class TestGetUptime(unittest.TestCase):
     @patch('subprocess.run')
     @patch('time.time')
     def test_get_uptime_darwin(self, mock_time, mock_run, mock_system):
+        """Test the get_uptime function on Darwin systems."""
         mock_system.return_value = "Darwin"
         mock_time.return_value = 1600000000.0  # Current time
 
@@ -127,6 +128,7 @@ class TestGetUptime(unittest.TestCase):
     @patch('platform.system')
     @patch('time.monotonic')
     def test_get_uptime_windows(self, mock_monotonic, mock_system):
+        """Test the uptime calculation for Windows."""
         mock_system.return_value = "Windows"
 
         # 10 hours = 36000 seconds
@@ -138,6 +140,7 @@ class TestGetUptime(unittest.TestCase):
 
     @patch('platform.system')
     def test_get_uptime_error(self, mock_system):
+        """Test the get_uptime function when an error occurs."""
         mock_system.side_effect = Exception("Some error")
 
         uptime = monitor.get_uptime()
