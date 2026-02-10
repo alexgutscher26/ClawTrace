@@ -736,7 +736,7 @@ async function discoverCommand(args) {
 /**
  * Installs a service command based on the provided arguments.
  *
- * This function checks for required parameters, constructs the appropriate service or plist file content based on the platform (Linux or macOS), and attempts to write the file to the system. It also handles service enabling and starting, while logging relevant messages. If any errors occur during file operations or service management, they are caught and logged accordingly.
+ * This function checks for required parameters, constructs the appropriate service or plist file content based on the operating system, and attempts to write the file to the system. It handles errors related to file permissions and service management, providing feedback to the user throughout the process.
  *
  * @param args - An object containing the parameters for service installation, including saas_url, agent_id, agent_secret, interval, and plugins.
  */
@@ -848,6 +848,9 @@ WantedBy=multi-user.target
   }
 }
 
+/**
+ * Displays the help information and available commands for the application.
+ */
 function helpCommand() {
   printBanner();
   console.log(`
