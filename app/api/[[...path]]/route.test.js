@@ -1,35 +1,48 @@
 import { describe, test, expect, mock, beforeAll } from 'bun:test';
 
-// Mock uuid
-mock.module('uuid', () => {
-  return {
-    v4: () => '00000000-0000-0000-0000-000000000000',
-    validate: (val) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val),
-  };
-});
+// Mock uuid module before importing anything else
+mock.module('uuid', () => ({
+  v4: () => 'uuid-v4',
+  validate: (s) => s === 'uuid-v4',
+}));
 
 const { v4: uuidv4 } = await import('uuid');
 
-// Mock jose
-mock.module('jose', () => {
-  return {
-    SignJWT: class {
-      setProtectedHeader() { return this; }
-      setIssuedAt() { return this; }
-      setExpirationTime() { return this; }
-      sign() { return Promise.resolve('mock-jwt-token'); }
+mock.module('jose', () => ({
+  SignJWT: class {
+    setProtectedHeader() { return this; }
+    setIssuedAt() { return this; }
+    setExpirationTime() { return this; }
+    sign() { return Promise.resolve('token'); }
+  },
+  jwtVerify: () => Promise.resolve({ payload: {} }),
+}));
+
+mock.module('@/lib/encryption', () => ({
+  encrypt: (x) => x,
+  decrypt: (x) => x,
+  decryptAsync: (x) => Promise.resolve(x),
+}));
+
+mock.module('fs', () => {
+  const fs = {
+    promises: {
+      readFile: () => Promise.resolve('SCRIPT CONTENT\nAGENT_ID="{{AGENT_ID}}"\nAGENT_SECRET="{{AGENT_SECRET}}"'),
     },
-    jwtVerify: () => Promise.resolve({ payload: { user_id: 'user123', tier: 'free' } }),
+  };
+  return {
+    ...fs,
+    default: fs,
   };
 });
 
-// Mock lib/encryption
-mock.module('@/lib/encryption', () => {
+mock.module('path', () => {
+  const path = {
+    join: (...args) => args.join('/'),
+  };
   return {
-    encrypt: (val) => ({ iv: 'mock', authTag: 'mock', content: 'mock' }),
-    decrypt: (val) => 'mock-secret',
-    decryptAsync: mock(() => Promise.resolve('mock-secret')),
-    isEncrypted: () => true,
+    ...path,
+    default: path,
   };
 });
 

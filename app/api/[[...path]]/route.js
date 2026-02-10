@@ -304,19 +304,14 @@ export async function GET(request, context) {
         // Get agent's user_id to determine tier
         const { data: agent } = await supabaseAdmin
           .from('agents')
-          .select('user_id')
+          .select('user_id, policy_profile')
           .eq('id', agentId)
           .maybeSingle();
 
         if (agent) {
           const tier = await getTier(agent.user_id);
-          const { data: agentFull } = await supabaseAdmin
-            .from('agents')
-            .select('policy_profile')
-            .eq('id', agentId)
-            .single();
 
-          const profile = agentFull?.policy_profile || DEFAULT_POLICY_PROFILE;
+          const profile = agent?.policy_profile || DEFAULT_POLICY_PROFILE;
           let policyInterval = tier === 'free' ? 300 : 60;
 
           if (profile === POLICY_OPS) policyInterval = 60;
@@ -380,19 +375,14 @@ export async function GET(request, context) {
         // Get agent's user_id to determine tier
         const { data: agent } = await supabaseAdmin
           .from('agents')
-          .select('user_id')
+          .select('user_id, policy_profile')
           .eq('id', agentId)
           .maybeSingle();
 
         if (agent) {
           const tier = await getTier(agent.user_id);
-          const { data: agentFull } = await supabaseAdmin
-            .from('agents')
-            .select('policy_profile')
-            .eq('id', agentId)
-            .single();
 
-          const profile = agentFull?.policy_profile || DEFAULT_POLICY_PROFILE;
+          const profile = agent?.policy_profile || DEFAULT_POLICY_PROFILE;
           let policyInterval = tier === 'free' ? 300 : 60;
 
           if (profile === POLICY_OPS) policyInterval = 60;
@@ -459,19 +449,14 @@ export async function GET(request, context) {
         // Get agent's user_id to determine tier
         const { data: agent } = await supabaseAdmin
           .from('agents')
-          .select('user_id')
+          .select('user_id, policy_profile')
           .eq('id', agentId)
           .maybeSingle();
 
         if (agent) {
           const tier = await getTier(agent.user_id);
-          const { data: agentFull } = await supabaseAdmin
-            .from('agents')
-            .select('policy_profile')
-            .eq('id', agentId)
-            .single();
 
-          const profile = agentFull?.policy_profile || DEFAULT_POLICY_PROFILE;
+          const profile = agent?.policy_profile || DEFAULT_POLICY_PROFILE;
           let policyInterval = tier === 'free' ? 300 : 60;
 
           if (profile === POLICY_OPS) policyInterval = 60;
