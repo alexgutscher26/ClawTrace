@@ -1,10 +1,10 @@
 # ClawFleet Agent - PowerShell Heartbeat Agent
-# Agent: f91c8b47-21f4-4a11-9f62-69ab913b6dd2
+# Agent: e2a4b8bb-5016-4fd4-a60f-a1749648f325
 # Run: powershell -ExecutionPolicy Bypass -File clawfleet-agent.ps1
 
 $SaasUrl = "http://localhost:3000"
-$AgentId = "f91c8b47-21f4-4a11-9f62-69ab913b6dd2"
-$AgentSecret = "1dff9a14-61dc-42d1-9d5c-13901f5fac37"
+$AgentId = "e2a4b8bb-5016-4fd4-a60f-a1749648f325"
+$AgentSecret = "b7ccabf1-b4a3-473c-8ce3-7b63b65b76b5"
 
 if ([string]::IsNullOrEmpty($AgentSecret)) {
     $AgentSecret = $env:CLAWFLEET_AGENT_SECRET
@@ -14,7 +14,7 @@ if ([string]::IsNullOrEmpty($AgentSecret)) {
     exit 1
 }
 
-$Interval = 300
+$Interval = 60
 $SessionToken = $null
 $GatewayUrl = $null
 

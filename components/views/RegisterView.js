@@ -22,6 +22,7 @@ export default function RegisterView() {
   const router = useRouter();
   const navigate = (path) => router.push(path);
   const [email, setEmail] = useState('');
+  const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -33,7 +34,15 @@ export default function RegisterView() {
     e.preventDefault();
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+          },
+        },
+      });
       if (error) throw error;
       if (data.session) {
         toast.success('Account created! Redirecting...');
@@ -68,6 +77,20 @@ export default function RegisterView() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleRegister} className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="reg-name" className="font-mono text-xs text-zinc-400 uppercase">
+                Full Name
+              </Label>
+              <Input
+                id="reg-name"
+                type="text"
+                className="h-10 rounded-none border-white/10 bg-zinc-900 text-white focus:border-white/40"
+                placeholder="JOHN DOE"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="reg-email" className="font-mono text-xs text-zinc-400 uppercase">
                 Email Address
