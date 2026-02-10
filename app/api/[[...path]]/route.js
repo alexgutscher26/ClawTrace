@@ -15,6 +15,9 @@ import { processSmartAlerts } from '@/lib/alerts';
 import { promises as fs } from 'fs';
 import path from 'path';
 
+/**
+ * Reads a script file and replaces placeholders with specified values.
+ */
 async function getScript(filename, replacements) {
   const filePath = path.join(process.cwd(), 'lib/scripts', filename);
   let content = await fs.readFile(filePath, 'utf8');
@@ -24,6 +27,16 @@ async function getScript(filename, replacements) {
   return content;
 }
 
+/**
+ * Decrypts the agent's configuration and secret.
+ *
+ * This function takes an agent object, checks for the presence of a config_json and agent_secret,
+ * and attempts to decrypt them using the decrypt function. If decryption is successful, the
+ * decrypted values are parsed and assigned to a new object. In case of any errors during decryption,
+ * an error message is logged to the console, and the original values are retained.
+ *
+ * @param {Object} a - The agent object containing configuration and secret to be decrypted.
+ */
 const decryptAgent = (a) => {
   if (!a) return a;
   const decrypted = { ...a };
@@ -70,6 +83,16 @@ async function getTier(userId) {
 
 /**
  * Validates parameters for agent installation scripts.
+ *
+ * This function checks for the presence of agentId and agentSecret, ensuring they are not empty.
+ * It also validates the format of these parameters using uuidValidate. Additionally, if an interval is provided,
+ * it checks that the interval is a positive integer. If any validation fails, an error object is returned;
+ * otherwise, null is returned.
+ *
+ * @param agentId - The unique identifier for the agent.
+ * @param agentSecret - The secret key associated with the agent.
+ * @param interval - An optional parameter representing the interval, expected to be a positive integer.
+ * @returns An error object if validation fails, or null if all parameters are valid.
  */
 function validateInstallParams(agentId, agentSecret, interval) {
   if (!agentId || !agentSecret) {
@@ -83,6 +106,28 @@ function validateInstallParams(agentId, agentSecret, interval) {
   }
   return null;
 }
+
+
+/**
+ * Configuration for rate limiting based on subscription tiers.
+ * 
+ * capacity: Maximum number of request tokens in the bucket.
+ * refillRate: The rate at which tokens are refilled per second.
+ */
+const RATE_LIMIT_CONFIG = {
+  free: {
+    global: { capacity: 60, refillRate: 1 }, // 60 requests burst, 1 req/sec
+    agent_heartbeat: { capacity: 10, refillRate: 0.2 }, // 1 heartbeat every 5s
+  },
+  pro: {
+    global: { capacity: 600, refillRate: 10 }, // 600 requests burst, 10 req/sec
+    agent_heartbeat: { capacity: 100, refillRate: 2 },
+  },
+  enterprise: {
+    global: { capacity: 6000, refillRate: 100 }, // High throughput
+    agent_heartbeat: { capacity: 1000, refillRate: 20 },
+  },
+};
 
 /**
  * Check the rate limit for a given request and identifier.

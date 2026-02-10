@@ -48,8 +48,8 @@ export function AnalyticsProvider({ children }) {
   const { session } = useFleet();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { session } = useFleet();
 
+  // Track pageviews on route change
   useEffect(() => {
     if (typeof window !== 'undefined' && posthog.__loaded) {
       let url = window.origin + pathname;
@@ -139,12 +139,5 @@ export function AnalyticsProvider({ children }) {
     }
   }, [session]);
 
-  return (
-    <PHProvider client={posthog}>
-      <Suspense fallback={null}>
-        <PostHogPageview />
-      </Suspense>
-      {children}
-    </PHProvider>
-  );
+  return <PHProvider client={posthog}>{children}</PHProvider>;
 }
