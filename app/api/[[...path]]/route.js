@@ -248,7 +248,7 @@ export async function OPTIONS() {
  *
  * This function processes incoming requests, checks rate limits, and serves different responses based on the request path.
  * It includes health checks, agent installation scripts, user authentication, and data retrieval from the database.
- * The function also manages session tokens and handles errors gracefully.
+ * The function also manages session tokens and handles errors gracefully, ensuring that unauthorized access is restricted.
  *
  * @param request - The incoming request object.
  * @param context - The context object containing parameters and other relevant data.
