@@ -12,7 +12,7 @@ export function AnalyticsProvider({ children }) {
     if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY && !posthog.__loaded) {
       try {
         posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
-          api_host: '/ingest',
+          api_host: '/api/ph', // Proxied path to bypass ad blockers
           ui_host: 'https://us.posthog.com',
           person_profiles: 'always',
           capture_pageview: false, // We handle it manually for hash routing support
