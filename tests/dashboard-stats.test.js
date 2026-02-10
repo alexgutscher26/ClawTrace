@@ -1,6 +1,26 @@
 
 import { describe, test, expect, mock, beforeAll, afterAll } from "bun:test";
 
+// Mock uuid and jose
+mock.module('uuid', () => {
+  return {
+    v4: () => '11111111-2222-3333-4444-555555555555',
+    validate: (s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s),
+  };
+});
+
+mock.module('jose', () => {
+  return {
+    SignJWT: class {
+      setProtectedHeader() { return this; }
+      setIssuedAt() { return this; }
+      setExpirationTime() { return this; }
+      sign() { return Promise.resolve('mock-token'); }
+    },
+    jwtVerify: () => Promise.resolve({ payload: { agent_id: 'mock-agent' } }),
+  };
+});
+
 // Mock environment variables
 const originalEnv = process.env;
 
@@ -147,7 +167,7 @@ mock.module("next/server", () => ({
 describe("Dashboard Stats", () => {
   test("should call get_dashboard_stats RPC and return stats", async () => {
     // Import the route handler dynamically after mocking
-    const { GET } = await import("../app/api/[[...path]]/route.js");
+    const { GET } = await import("../app/api/dashboard/stats/route.js");
 
     const req = new Request("http://localhost:3000/dashboard/stats", {
       headers: {
@@ -155,9 +175,7 @@ describe("Dashboard Stats", () => {
       },
     });
 
-    const context = { params: { path: ["dashboard", "stats"] } };
-
-    const res = await GET(req, context);
+    const res = await GET(req);
 
     const data = await res.json();
 

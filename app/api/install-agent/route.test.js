@@ -1,5 +1,27 @@
 import { describe, test, expect, mock, beforeAll } from 'bun:test';
-import { v4 as uuidv4 } from 'uuid';
+
+// Mock uuid since it might be missing
+mock.module('uuid', () => {
+  return {
+    v4: () => '11111111-2222-3333-4444-555555555555',
+    validate: (s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s),
+  };
+});
+
+// Mock jose since it might be missing
+mock.module('jose', () => {
+  return {
+    SignJWT: class {
+      setProtectedHeader() { return this; }
+      setIssuedAt() { return this; }
+      setExpirationTime() { return this; }
+      sign() { return Promise.resolve('mock-token'); }
+    },
+    jwtVerify: () => Promise.resolve({ payload: { agent_id: 'mock-agent' } }),
+  };
+});
+
+const uuidv4 = () => '11111111-2222-3333-4444-555555555555';
 
 // Mock environment variables
 process.env.NEXT_PUBLIC_SUPABASE_URL = 'http://localhost:54321';
@@ -64,11 +86,7 @@ describe('Vulnerability Fix Verification', () => {
       url: `http://localhost:3000/api/install-agent?agent_id=${encodeURIComponent(maliciousAgentId)}&agent_secret=${agentSecret}&interval=60`,
     };
 
-    const context = {
-      params: Promise.resolve({ path: ['install-agent'] }),
-    };
-
-    const response = await GET(req, context);
+    const response = await GET(req);
 
     // It should be a JSON response with 400 error
     expect(response.status).toBe(400);
@@ -90,11 +108,7 @@ describe('Vulnerability Fix Verification', () => {
       url: `http://localhost:3000/api/install-agent?agent_id=${validAgentId}&agent_secret=${validAgentSecret}&interval=${encodeURIComponent(maliciousInterval)}`,
     };
 
-    const context = {
-      params: Promise.resolve({ path: ['install-agent'] }),
-    };
-
-    const response = await GET(req, context);
+    const response = await GET(req);
 
     expect(response.status).toBe(400);
     expect(response.json).toEqual({ error: 'Invalid interval format' });
@@ -114,11 +128,7 @@ describe('Vulnerability Fix Verification', () => {
       url: `http://localhost:3000/api/install-agent?agent_id=${validAgentId}&agent_secret=${validAgentSecret}&interval=60`,
     };
 
-    const context = {
-      params: Promise.resolve({ path: ['install-agent'] }),
-    };
-
-    const response = await GET(req, context);
+    const response = await GET(req);
 
     expect(response.status).toBe(200);
     expect(response.body).toContain(`AGENT_ID="${validAgentId}"`);
