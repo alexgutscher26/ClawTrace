@@ -6,7 +6,37 @@ import { useEffect, Suspense } from 'react';
 import { useFleet } from './FleetContext';
 import { usePathname, useSearchParams } from 'next/navigation';
 
-function PostHogPageview() {
+export function AnalyticsProvider({ children }) {
+  // Initialize PostHog client-side only
+  useEffect(() => {
+    if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY && !posthog.__loaded) {
+      try {
+        posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
+          api_host: '/api/ph', // Proxied path to bypass ad blockers
+          ui_host: 'https://us.posthog.com',
+          person_profiles: 'always',
+          capture_pageview: false, // We handle it manually for hash routing support
+          capture_pageleave: true,
+          persistence: 'localStorage',
+          autocapture: true,
+          capture_performance: true,
+          enable_external_api_event_tracking: true,
+          session_recording: {
+            maskAllInputFields: false,
+            maskTextSelector: '.sensitive',
+          },
+          loaded: (ph) => {
+            if (process.env.NODE_ENV === 'development') ph.debug();
+            posthog.__loaded = true;
+          },
+        });
+      } catch (e) {
+        console.warn('PostHog init failed:', e);
+      }
+    }
+  }, []);
+
+  const { session } = useFleet();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { session } = useFleet();
