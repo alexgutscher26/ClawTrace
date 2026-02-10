@@ -103,10 +103,9 @@ async function getTier(userId) {
 /**
  * Validates parameters for agent installation scripts.
  *
- * This function checks for the presence of agentId and agentSecret, ensuring they are not empty.
- * It also validates the format of these parameters using uuidValidate. Additionally, if an interval is provided,
- * it checks that the interval is a positive integer. If any validation fails, an error object is returned;
- * otherwise, null is returned.
+ * This function checks for the presence of agentId and validates its format using uuidValidate.
+ * It also validates the agentSecret format if provided and ensures that the interval, if present, is a positive integer.
+ * If any validation fails, an error object is returned; otherwise, null is returned.
  *
  * @param agentId - The unique identifier for the agent.
  * @param agentSecret - The secret key associated with the agent.
@@ -249,9 +248,9 @@ export async function OPTIONS() {
 /**
  * Handle GET requests for various API endpoints and return appropriate responses.
  *
- * This function processes incoming requests, checks rate limits, and serves different responses based on the request path.
+ * This function processes incoming requests by checking rate limits and serving different responses based on the request path.
  * It includes health checks, agent installation scripts, user authentication, and data retrieval from the database.
- * The function also manages session tokens and handles errors gracefully.
+ * The function also manages session tokens and handles errors gracefully, ensuring that unauthorized access is restricted.
  *
  * @param request - The incoming request object.
  * @param context - The context object containing parameters and other relevant data.
