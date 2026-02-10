@@ -45,9 +45,9 @@ _Refining the experience for developers and fleet managers._
 - [ ] **Advanced Visualization**:
   - [ ] Replace simple Recharts with Brush/Zoom capability for looking at 24h-7d history.
   - [ ] Add a "Fleet Heatmap" showing which regions (us-east, eu-west) are under the most load.
-- [ ] **Accessibility (A11y)**:
-  - [ ] Perform a full ARIA audit. Ensure screen readers can navigate the complex agent tables.
-  - [ ] Implement full keyboard navigation (e.g., `Cmd+K` for global agent search).
+- [x] **Accessibility (A11y)**:
+  - [x] Perform a full ARIA audit. Ensure screen readers can navigate the complex agent tables.
+  - [x] Implement full keyboard navigation (e.g., `Cmd+K` for global agent search).
 
 ### ⌨️ CLI / Monitor Improvements
 

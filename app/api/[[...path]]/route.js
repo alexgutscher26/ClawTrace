@@ -17,6 +17,9 @@ import { processSmartAlerts } from '@/lib/alerts';
 import { promises as fs } from 'fs';
 import path from 'path';
 
+/**
+ * Reads a script file and replaces placeholders with specified values.
+ */
 async function getScript(filename, replacements) {
   const filePath = path.join(process.cwd(), 'lib/scripts', filename);
   let content = await fs.readFile(filePath, 'utf8');
@@ -26,6 +29,16 @@ async function getScript(filename, replacements) {
   return content;
 }
 
+/**
+ * Decrypts the agent's configuration and secret.
+ *
+ * This function takes an agent object, checks for the presence of a config_json and agent_secret,
+ * and attempts to decrypt them using the decrypt function. If decryption is successful, the
+ * decrypted values are parsed and assigned to a new object. In case of any errors during decryption,
+ * an error message is logged to the console, and the original values are retained.
+ *
+ * @param {Object} a - The agent object containing configuration and secret to be decrypted.
+ */
 const decryptAgent = (a) => {
   if (!a) return a;
   const decrypted = { ...a };
@@ -70,6 +83,16 @@ async function getTier(userId) {
 
 /**
  * Validates parameters for agent installation scripts.
+ *
+ * This function checks for the presence of agentId and agentSecret, ensuring they are not empty.
+ * It also validates the format of these parameters using uuidValidate. Additionally, if an interval is provided,
+ * it checks that the interval is a positive integer. If any validation fails, an error object is returned;
+ * otherwise, null is returned.
+ *
+ * @param agentId - The unique identifier for the agent.
+ * @param agentSecret - The secret key associated with the agent.
+ * @param interval - An optional parameter representing the interval, expected to be a positive integer.
+ * @returns An error object if validation fails, or null if all parameters are valid.
  */
 function validateInstallParams(agentId, agentSecret, interval) {
   if (!agentId || !agentSecret) {
@@ -481,11 +504,34 @@ export async function GET(request, context) {
       if (!user) return json({ error: 'Unauthorized' }, 401);
       const { searchParams } = new URL(request.url);
       const fleet_id = searchParams.get('fleet_id');
-      let query = supabaseAdmin.from('agents').select('*').eq('user_id', user.id);
+
+      // Pagination
+      const page = parseInt(searchParams.get('page') || '1');
+      const limit = parseInt(searchParams.get('limit') || '50');
+      const offset = (page - 1) * limit;
+
+      let query = supabaseAdmin
+        .from('agents')
+        .select('*', { count: 'exact' })
+        .eq('user_id', user.id);
       if (fleet_id) query = query.eq('fleet_id', fleet_id);
-      const { data: agents, error } = await query.order('created_at', { ascending: false });
+
+      const {
+        data: agents,
+        error,
+        count,
+      } = await query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+
       if (error) throw error;
-      return json({ agents: agents.map(decryptAgent) });
+      return json({
+        agents: agents.map(decryptAgent),
+        meta: {
+          page,
+          limit,
+          total: count,
+          pages: Math.ceil((count || 0) / limit),
+        },
+      });
     }
 
     const agentMatch = path.match(/^\/agents\/([^/]+)$/);
@@ -1113,9 +1159,16 @@ export async function POST(request, context) {
 
       // Trigger smart alerts
       if (body.metrics) {
-        processSmartAlerts(body.agent_id, update.status, body.metrics).catch((e) =>
-          console.error('Alert processing error:', e)
-        );
+        const activeConfigs =
+          agent.alert_configs?.filter((c) => c.channel && c.channel.active) || [];
+
+        processSmartAlerts(
+          body.agent_id,
+          update.status,
+          body.metrics,
+          activeConfigs,
+          agent.name
+        ).catch((e) => console.error('Alert processing error:', e));
       }
 
       return json({

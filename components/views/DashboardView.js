@@ -13,6 +13,8 @@ import {
   Trash2,
   Eye,
   AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -63,6 +65,8 @@ export default function DashboardView() {
   const [addOpen, setAddOpen] = useState(false);
   const [seeding, setSeeding] = useState(false);
   const [agents, setAgents] = useState([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [newAgent, setNewAgent] = useState({ name: '', gateway_url: '', policy_profile: 'dev' });
 
   useEffect(() => {
@@ -72,14 +76,14 @@ export default function DashboardView() {
         setTier(p.toLowerCase());
         if (res.limits) setLimits(res.limits[p.toLowerCase()] || res.limits.free);
       })
-      .catch(() => { });
+      .catch(() => {});
   }, [api]);
 
   useEffect(() => {
     if (tier === 'enterprise' || tier === 'pro') {
       api('/api/custom-policies')
         .then((res) => setCustomPolicies(res.policies || []))
-        .catch(() => { });
+        .catch(() => {});
     }
   }, [api, tier]);
 
@@ -127,7 +131,9 @@ export default function DashboardView() {
         },
         (payload) => {
           setAlerts((prev) => [payload.new, ...prev]);
-          toast.message('New Alert', { description: `${payload.new.type}: ${payload.new.message}` });
+          toast.message('New Alert', {
+            description: `${payload.new.type}: ${payload.new.message}`,
+          });
         }
       )
       .subscribe();
@@ -164,19 +170,25 @@ export default function DashboardView() {
 
   const loadAgents = useCallback(async () => {
     try {
-      const url = selectedFleet ? `/api/agents?fleet_id=${selectedFleet}` : '/api/agents';
+      let url = selectedFleet ? `/api/agents?fleet_id=${selectedFleet}` : '/api/agents';
+      url += (url.includes('?') ? '&' : '?') + `page=${page}&limit=50`;
       const res = await api(url);
       setAgents(res.agents);
+      if (res.meta) setTotalPages(res.meta.pages);
     } catch (err) {
       if (err.message === 'Unauthorized') return;
       toast.error('Failed to load agents');
       console.error(err);
     }
-  }, [api, selectedFleet]);
+  }, [api, selectedFleet, page]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [selectedFleet]);
 
   useEffect(() => {
     if (!loading) loadAgents();
-  }, [loadAgents, loading, selectedFleet]);
+  }, [loadAgents, loading, selectedFleet, page]);
 
   /**
    * Seeds the demo environment and handles success or error notifications.
@@ -225,6 +237,7 @@ export default function DashboardView() {
       });
       setAddOpen(false);
       setNewAgent({ name: '', gateway_url: '' });
+      setPage(1);
       loadAgents();
       loadData();
     } catch (err) {
@@ -277,10 +290,13 @@ export default function DashboardView() {
             <p className="text-muted-foreground text-sm">Monitor and manage your AI agent fleet</p>
           </div>
           <div className="flex gap-2">
-            <Badge variant="outline" className="border-emerald-500/50 text-emerald-400 animate-pulse bg-emerald-500/10 gap-1.5 py-1">
+            <Badge
+              variant="outline"
+              className="animate-pulse gap-1.5 border-emerald-500/50 bg-emerald-500/10 py-1 text-emerald-400"
+            >
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
               </span>
               LIVE
             </Badge>
@@ -382,28 +398,28 @@ export default function DashboardView() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-border/40 border-b">
-                      <th className="text-muted-foreground p-3 text-left text-xs font-medium">
+                      <th scope="col" className="text-muted-foreground p-3 text-left text-xs font-medium">
                         Name
                       </th>
-                      <th className="text-muted-foreground p-3 text-left text-xs font-medium">
+                      <th scope="col" className="text-muted-foreground p-3 text-left text-xs font-medium">
                         Status
                       </th>
-                      <th className="text-muted-foreground hidden p-3 text-left text-xs font-medium md:table-cell">
+                      <th scope="col" className="text-muted-foreground hidden p-3 text-left text-xs font-medium md:table-cell">
                         Gateway
                       </th>
-                      <th className="text-muted-foreground p-3 text-left text-xs font-medium">
+                      <th scope="col" className="text-muted-foreground p-3 text-left text-xs font-medium">
                         Policy
                       </th>
-                      <th className="text-muted-foreground hidden p-3 text-left text-xs font-medium md:table-cell">
+                      <th scope="col" className="text-muted-foreground hidden p-3 text-left text-xs font-medium md:table-cell">
                         Model
                       </th>
-                      <th className="text-muted-foreground hidden p-3 text-left text-xs font-medium lg:table-cell">
+                      <th scope="col" className="text-muted-foreground hidden p-3 text-left text-xs font-medium lg:table-cell">
                         Location
                       </th>
-                      <th className="text-muted-foreground p-3 text-left text-xs font-medium">
+                      <th scope="col" className="text-muted-foreground p-3 text-left text-xs font-medium">
                         Heartbeat
                       </th>
-                      <th className="text-muted-foreground p-3 text-right text-xs font-medium">
+                      <th scope="col" className="text-muted-foreground p-3 text-right text-xs font-medium">
                         Actions
                       </th>
                     </tr>
@@ -414,16 +430,20 @@ export default function DashboardView() {
                       return (
                         <tr
                           key={agent.id}
-                          className="cursor-pointer border-b border-white/5 transition hover:bg-white/5"
-                          onClick={() => navigate(`/dashboard/agents/${agent.id}`)}
+                          className="border-b border-white/5 transition hover:bg-white/5"
                         >
                           <td className="p-3">
-                            <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => navigate(`/dashboard/agents/${agent.id}`)}
+                              className="flex items-center gap-3 text-left hover:underline focus:outline-none focus:underline"
+                              aria-label={`View agent ${agent.name}`}
+                            >
                               <div
                                 className={`h-1.5 w-1.5 rounded-full ${agent.status === 'healthy' ? 'bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]' : agent.status === 'error' ? 'animate-pulse bg-red-500' : 'bg-zinc-600'}`}
+                                aria-hidden="true"
                               />
                               <span className="text-sm font-bold tracking-tight">{agent.name}</span>
-                            </div>
+                            </button>
                           </td>
                           <td className="p-3">
                             <Badge
@@ -453,13 +473,14 @@ export default function DashboardView() {
                           <td className="p-3 font-mono text-sm text-zinc-500">
                             {timeAgo(agent.last_heartbeat)}
                           </td>
-                          <td className="p-3 text-right" onClick={(e) => e.stopPropagation()}>
+                          <td className="p-3 text-right">
                             <div className="flex items-center justify-end gap-1">
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 className="h-7 w-7 p-0 text-zinc-400 hover:text-white"
                                 onClick={() => navigate(`/dashboard/agents/${agent.id}`)}
+                                aria-label={`View details for ${agent.name}`}
                               >
                                 <Eye className="h-3.5 w-3.5" />
                               </Button>
@@ -468,6 +489,7 @@ export default function DashboardView() {
                                 size="sm"
                                 className="h-7 w-7 p-0 text-zinc-600 hover:bg-transparent hover:text-red-500"
                                 onClick={() => handleDeleteAgent(agent.id)}
+                                aria-label={`Delete agent ${agent.name}`}
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
@@ -480,6 +502,33 @@ export default function DashboardView() {
                 </table>
               </div>
             </CardContent>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-end gap-2 border-t border-white/10 p-2">
+                <span className="text-xs text-zinc-500">
+                  Page {page} of {totalPages}
+                </span>
+                <div className="flex gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </Card>
         )}
 
