@@ -103,6 +103,7 @@ export default function Navbar({ session, branding, transparent = false }) {
           <button
             className="flex h-full w-16 items-center justify-center border-l border-white/20 text-white md:hidden"
             onClick={() => setOpen(!open)}
+            aria-label="Toggle navigation menu"
           >
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>

@@ -7,6 +7,18 @@ import { AlertTriangle, RefreshCcw, ChevronDown, ChevronUp, Bug, Terminal } from
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
+/**
+ * Renders an error component that displays error information and recovery options.
+ *
+ * This component captures and logs runtime exceptions, displays a user-friendly error message,
+ * and provides buttons for rebooting the component or navigating to safety. It also includes
+ * collapsible technical details for developers, showing the error stack trace if available.
+ *
+ * @param {Object} props - The component properties.
+ * @param {Error} props.error - The error object containing details of the runtime exception.
+ * @param {Function} props.reset - A function to reset the component state.
+ * @returns {JSX.Element} The rendered error component.
+ */
 export default function Error({ error, reset }) {
   const [showTechnical, setShowTechnical] = useState(false);
 

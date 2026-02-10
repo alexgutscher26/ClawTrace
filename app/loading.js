@@ -1,3 +1,6 @@
+/**
+ * Renders a loading component with an animated background and loader.
+ */
 export default function Loading() {
   return (
     <div className="bg-background relative flex min-h-screen flex-col items-center justify-center overflow-hidden">
