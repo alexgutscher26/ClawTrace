@@ -361,7 +361,7 @@ export default function DashboardView() {
               <Server className="text-muted-foreground mx-auto mb-4 h-12 w-12" />
               <h3 className="mb-2 text-lg font-semibold">No agents yet</h3>
               <p className="text-muted-foreground mb-6 text-sm">
-                Get started by adding your first agent or load demo data to explore.
+                Get started by adding your first agent.
               </p>
               <div className="flex justify-center gap-3">
                 <Button
@@ -370,10 +370,6 @@ export default function DashboardView() {
                 >
                   <Plus className="mr-1 h-4 w-4" />
                   Add Agent
-                </Button>
-                <Button variant="outline" onClick={handleSeedDemo} disabled={seeding}>
-                  <Database className="mr-1 h-4 w-4" />
-                  {seeding ? 'Loading...' : 'Load Demo Data'}
                 </Button>
               </div>
             </CardContent>
