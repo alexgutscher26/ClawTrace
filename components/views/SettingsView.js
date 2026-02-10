@@ -51,7 +51,7 @@ export default function SettingsView() {
         const p = res.subscription?.plan || 'free';
         setTier(p.toLowerCase());
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [api]);
 
   useEffect(() => {
@@ -60,7 +60,7 @@ export default function SettingsView() {
         .then((res) => {
           if (res.branding) setBranding(res.branding);
         })
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [tier, api]);
 
@@ -512,6 +512,7 @@ export default function SettingsView() {
                         size="icon"
                         onClick={() => handleDeletePolicy(p.id)}
                         className="rounded-none text-zinc-600 hover:bg-red-500/10 hover:text-red-500"
+                        aria-label={`Delete custom policy ${p.name}`}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
