@@ -2,12 +2,12 @@
 """OpenClaw Fleet Monitor - Cross-platform Heartbeat Agent"""
 # Run: python3 openclaw-monitor.py
 
-import json, time, urllib.request, platform, os, hmac, hashlib
+import json, time, urllib.request, platform, os, hmac, hashlib, sys
 
-SAAS_URL = os.getenv("OPENCLAW_SAAS_URL", "http://localhost:3000")
-AGENT_ID = os.getenv("OPENCLAW_AGENT_ID")
-AGENT_SECRET = os.getenv("OPENCLAW_AGENT_SECRET")
-INTERVAL = int(os.getenv("OPENCLAW_INTERVAL", "300"))
+SAAS_URL = os.environ.get("OPENCLAW_SAAS_URL", "http://localhost:3000")
+AGENT_ID = os.environ.get("OPENCLAW_AGENT_ID")
+AGENT_SECRET = os.environ.get("OPENCLAW_AGENT_SECRET")
+INTERVAL = int(os.environ.get("OPENCLAW_INTERVAL", "300"))
 SESSION_TOKEN = None
 GATEWAY_URL = None
 _last_cpu_stats = None
@@ -174,6 +174,11 @@ def send_heartbeat():
         print(f"[{time.strftime('%H:%M:%S')}] FAIL: {e}")
 
 if __name__ == "__main__":
+    if not AGENT_ID or not AGENT_SECRET:
+        print("Error: Agent ID and Agent Secret are required.")
+        print("Set OPENCLAW_AGENT_ID and OPENCLAW_AGENT_SECRET environment variables.")
+        sys.exit(1)
+
     print()
     print("  OpenClaw Fleet Monitor")
     print("  --------------------------------")
