@@ -267,6 +267,14 @@ async function configCommand(args) {
   }
 }
 
+/**
+ * Redact sensitive information from a configuration object.
+ *
+ * This function checks if the input is an object or an array. If it is an array, it recursively applies the redaction to each element. For objects, it creates a shallow copy and iterates through its keys, replacing any key that matches sensitive patterns with '[REDACTED]'. If a value is an object, it recursively redacts that value as well.
+ *
+ * @param config - The configuration object or array to be redacted.
+ * @returns A new object or array with sensitive information redacted.
+ */
 function redactConfig(config) {
   if (typeof config !== 'object' || config === null) {
     return config;
@@ -291,6 +299,17 @@ function redactConfig(config) {
   return redacted;
 }
 
+/**
+ * Push configuration for an agent to the specified SaaS URL.
+ *
+ * This function validates required parameters, handles configuration from various sources (file, JSON string, or individual flags),
+ * and performs an authentication handshake before pushing the configuration to the server.
+ * It also manages error handling for file reading, JSON parsing, and API requests.
+ *
+ * @param args - An object containing the configuration parameters including saas_url, agent_id, agent_secret, config, config_file, model, skills, profile, and data_scope.
+ * @returns {Promise<void>} A promise that resolves when the configuration has been successfully pushed.
+ * @throws Error If required parameters are missing, if there are issues reading the config file, if JSON parsing fails, or if authentication fails.
+ */
 async function configPushCommand(args) {
   const saasUrl = args.saas_url;
   const agentId = args.agent_id;
