@@ -63,6 +63,9 @@ const BreadcrumbSeparator = ({ children, className, ...props }) => (
 );
 BreadcrumbSeparator.displayName = 'BreadcrumbSeparator';
 
+/**
+ * Renders a breadcrumb ellipsis component.
+ */
 const BreadcrumbEllipsis = ({ className, ...props }) => (
   <span
     role="presentation"
