@@ -7,7 +7,13 @@ import 'xterm/css/xterm.css';
 
 /**
  * ClawFleet Terminal Component
- * Provides a secure, browser-based SSH interface for debugging agents.
+ *
+ * Provides a secure, browser-based SSH interface for debugging agents. It initializes a terminal, connects to a simulated WebSocket, and handles user input commands while managing terminal resizing and cleanup. The component also simulates command execution and provides feedback to the user through the terminal interface.
+ *
+ * @param {Object} props - The component properties.
+ * @param {string} props.agentId - The ID of the agent to connect to.
+ * @param {function} props.onClose - Callback function to be called when the terminal is closed.
+ * @returns {JSX.Element} The rendered terminal component.
  */
 export default function ClawFleetTerminal({ agentId, onClose }) {
   const wrapperRef = useRef(null); // Reference for the wrapper div
