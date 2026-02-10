@@ -19,6 +19,13 @@ import Navbar from '@/components/Navbar';
 import { useFleet } from '@/context/FleetContext';
 import { useRouter } from 'next/navigation';
 
+/**
+ * Render the settings view for managing alert channels, custom policies, and branding.
+ *
+ * This component utilizes various hooks to manage state and side effects, including loading channels and policies based on the user's subscription tier. It provides functionality to add, delete, and update alert channels and custom policies, as well as manage branding settings. The component also includes conditional rendering based on the user's tier, displaying upgrade options when necessary.
+ *
+ * @returns {JSX.Element} The rendered settings view component.
+ */
 export default function SettingsView() {
   const { api, session, branding: initialBranding, setBranding: setGlobalBranding } = useFleet();
   const router = useRouter();
@@ -118,6 +125,11 @@ export default function SettingsView() {
       toast.error(err.message);
     }
   };
+  /**
+   * Handles the addition of a new policy by sending a POST request to the API.
+   *
+   * This function constructs a policy object from the `newPolicy` state, ensuring that skills and tools are properly formatted by trimming whitespace and filtering out empty values. It also processes the approved_tools field in the guardrails to handle a wildcard case. Upon successful creation, it displays a success message, resets the policy form, and reloads the policies. In case of an error, it displays an error message.
+   */
   const handleAddPolicy = async () => {
     try {
       await api('/api/custom-policies', {
