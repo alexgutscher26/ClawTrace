@@ -1,82 +1,74 @@
-import { describe, test, expect, mock, beforeEach, setSystemTime } from "bun:test";
+import { describe, test, expect, mock, beforeEach, setSystemTime, beforeAll, afterAll } from "bun:test";
 
-// Mock next/server
-const mockJson = mock((body, init) => {
-  return {
-    json: body,
-    status: init?.status || 200,
-    headers: init?.headers,
-  };
+// Mock environment variables
+const originalEnv = process.env;
+
+beforeAll(() => {
+  process.env = { ...originalEnv };
+  process.env.CRON_SECRET = "test-secret";
+  process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
+  process.env.SUPABASE_SERVICE_ROLE_KEY = "mock-key";
 });
 
-mock.module("next/server", () => {
-  return {
-    NextResponse: {
-      json: mockJson,
-    },
-  };
+afterAll(() => {
+  process.env = originalEnv;
 });
 
-// Mock lib/cron-auth
-const mockIsValidCronRequest = mock(() => true);
-const mockUnauthorizedResponse = mock(() => ({
-  json: { success: false, error: 'Unauthorized: Invalid or missing CRON_SECRET' },
-  status: 401
+// Mock next/server with proper async json() method
+mock.module("next/server", () => ({
+  NextResponse: {
+    json: (data, opts) => ({
+      json: async () => data,
+      status: opts?.status || 200,
+    }),
+  },
 }));
 
-mock.module("@/lib/cron-auth", () => {
-  return {
-    isValidCronRequest: mockIsValidCronRequest,
-    unauthorizedResponse: mockUnauthorizedResponse,
-  };
-});
-
 // Mock lib/supabase-admin
-const mockLt = mock(() => Promise.resolve({ count: 10, error: null }));
+// Mock Supabase chain
+const mockLt = mock(async () => ({ count: 10, error: null }));
 const mockDelete = mock(() => ({ lt: mockLt }));
 const mockFrom = mock(() => ({ delete: mockDelete }));
 
-const mockSupabaseAdmin = {
-  from: mockFrom,
-};
-
-mock.module("@/lib/supabase-admin", () => {
-  return {
-    supabaseAdmin: mockSupabaseAdmin,
-  };
-});
-
-// Import the module under test
-const { GET } = await import("./route.js");
+mock.module("@/lib/supabase-admin", () => ({
+  supabaseAdmin: {
+    from: mockFrom,
+  },
+}));
 
 describe("GET /api/cron/cleanup-heartbeats", () => {
   beforeEach(() => {
     // Reset mocks
-    mockIsValidCronRequest.mockClear();
-    mockUnauthorizedResponse.mockClear();
     mockFrom.mockClear();
     mockDelete.mockClear();
     mockLt.mockClear();
-    mockJson.mockClear();
 
     // Default behaviors
-    mockIsValidCronRequest.mockReturnValue(true);
     mockLt.mockResolvedValue({ count: 10, error: null });
+    // Restore implementation of mockFrom if it was overridden
+    mockFrom.mockImplementation(() => ({ delete: mockDelete }));
   });
 
   test("should return 401 if request is not a valid cron request", async () => {
-    mockIsValidCronRequest.mockReturnValue(false);
-    const req = new Request("http://localhost");
+    // Import dynamically to get the mocked module
+    const { GET } = await import("./route.js?bust=" + Date.now());
 
-    const response = await GET(req);
+    // Missing header
+    const req1 = new Request("http://localhost");
+    const res1 = await GET(req1);
+    expect(res1.status).toBe(401);
 
-    expect(mockIsValidCronRequest).toHaveBeenCalledWith(req);
-    expect(mockUnauthorizedResponse).toHaveBeenCalled();
-    // Since we mocked unauthorizedResponse to return an object, we check that object
-    expect(response).toEqual(mockUnauthorizedResponse());
+    // Invalid header
+    const req2 = new Request("http://localhost", {
+      headers: { authorization: "Bearer invalid-secret" },
+    });
+    const res2 = await GET(req2);
+    expect(res2.status).toBe(401);
   });
 
   test("should delete heartbeats older than 30 days and return success", async () => {
+    const { GET } = await import("./route.js?bust=" + Date.now());
+
     // Set a fixed date
     const now = new Date("2023-10-31T12:00:00Z");
     setSystemTime(now);
@@ -85,44 +77,51 @@ describe("GET /api/cron/cleanup-heartbeats", () => {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const expectedCutoff = thirtyDaysAgo.toISOString();
 
-    const req = new Request("http://localhost");
+    const req = new Request("http://localhost", {
+      headers: { authorization: "Bearer test-secret" },
+    });
 
-    const response = await GET(req);
+    const res = await GET(req);
+    const data = await res.json();
 
-    expect(mockIsValidCronRequest).toHaveBeenCalledWith(req);
+    expect(res.status).toBe(200);
+    expect(data.success).toBe(true);
+    expect(data.deleted_count).toBe(10);
+    expect(data.cutoff_date).toBe(expectedCutoff);
+
     expect(mockFrom).toHaveBeenCalledWith("heartbeats");
     expect(mockDelete).toHaveBeenCalledWith({ count: "exact" });
     expect(mockLt).toHaveBeenCalledWith("created_at", expectedCutoff);
-
-    expect(response.status).toBe(200);
-    expect(response.json).toEqual({
-      success: true,
-      message: 'Heartbeat cleanup complete',
-      deleted_count: 10,
-      cutoff_date: expectedCutoff,
-    });
 
     setSystemTime(); // Restore time
   });
 
   test("should return 500 if Supabase deletion fails", async () => {
+    const { GET } = await import("./route.js?bust=" + Date.now());
+
     mockLt.mockResolvedValue({ count: null, error: { message: "Database error" } });
 
     // Suppress console.error
     const originalConsoleError = console.error;
     console.error = () => {};
 
-    const req = new Request("http://localhost");
-    const response = await GET(req);
+    const req = new Request("http://localhost", {
+      headers: { authorization: "Bearer test-secret" },
+    });
+    const res = await GET(req);
+    const data = await res.json();
 
     // Restore console.error
     console.error = originalConsoleError;
 
-    expect(response.status).toBe(500);
-    expect(response.json).toEqual({ success: false, error: "Database error" });
+    expect(res.status).toBe(500);
+    expect(data.success).toBe(false);
+    expect(data.error).toBe("Database error");
   });
 
   test("should return 500 if an exception occurs", async () => {
+    const { GET } = await import("./route.js?bust=" + Date.now());
+
     mockFrom.mockImplementation(() => {
       throw new Error("Unexpected error");
     });
@@ -131,13 +130,17 @@ describe("GET /api/cron/cleanup-heartbeats", () => {
     const originalConsoleError = console.error;
     console.error = () => {};
 
-    const req = new Request("http://localhost");
-    const response = await GET(req);
+    const req = new Request("http://localhost", {
+      headers: { authorization: "Bearer test-secret" },
+    });
+    const res = await GET(req);
+    const data = await res.json();
 
     // Restore console.error
     console.error = originalConsoleError;
 
-    expect(response.status).toBe(500);
-    expect(response.json).toEqual({ success: false, error: "Internal Server Error" });
+    expect(res.status).toBe(500);
+    expect(data.success).toBe(false);
+    expect(data.error).toBe("Internal Server Error");
   });
 });

@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  fleet-dashboard:
+    container_name: fleet-dashboard
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      # Application Configuration
+      - NODE_ENV=production
+      - NEXT_PUBLIC_base_url=${NEXT_PUBLIC_base_url:-http://localhost:3000}
+
+      # Supabase Configuration
+      # For air-gapped environments, point these to your self-hosted Supabase instance within the VPC.
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+
+      # Security (Encryption Key)
+      # Must be 32 bytes hex encoded for AES-256-GCM.
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+
+      # Optional: PostHog Analytics (Disable for air-gapped if no internet)
+      - NEXT_PUBLIC_POSTHOG_KEY=${NEXT_PUBLIC_POSTHOG_KEY}
+      - NEXT_PUBLIC_POSTHOG_HOST=${NEXT_PUBLIC_POSTHOG_HOST}
+
+    # Networks
+    # Ensure this container can reach your Supabase instance.
+    networks:
+      - fleet-network
+
+networks:
+  fleet-network:
+    driver: bridge
