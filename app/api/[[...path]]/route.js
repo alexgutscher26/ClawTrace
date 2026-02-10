@@ -989,7 +989,7 @@ export async function POST(request, context) {
       const handshakeLimit = await checkRateLimit(request, agent.id, 'handshake', agent.user_id);
       if (!handshakeLimit.allowed) return handshakeLimit.response;
 
-      const decryptedSecret = decrypt(agent.agent_secret);
+      const decryptedSecret = await decryptAsync(agent.agent_secret);
 
       if (body.signature) {
         // Hardened Handshake: HMAC-SHA256(agent_id + timestamp, secret)
