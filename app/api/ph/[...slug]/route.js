@@ -3,6 +3,33 @@ import { NextResponse } from 'next/server';
 const POSTHOG_API_HOST = 'https://us.i.posthog.com';
 const POSTHOG_ASSETS_HOST = 'https://us-assets.i.posthog.com';
 
+/**
+ * Helper to determine allowed origin based on environment configuration.
+ * @param {Request} request
+ * @returns {string|null} The allowed origin or null.
+ */
+function getAllowedOrigin(request) {
+  // If CORS_ORIGINS is not set, default to * (for backward compatibility).
+  // If set to empty string, it will be treated as restrictive (no CORS).
+  const allowedOrigins = process.env.CORS_ORIGINS !== undefined ? process.env.CORS_ORIGINS : '*';
+  const requestOrigin = request.headers.get('origin');
+
+  if (allowedOrigins === '*') {
+    return '*';
+  }
+
+  if (!requestOrigin) {
+    return null;
+  }
+
+  const origins = allowedOrigins.split(',').map((o) => o.trim());
+  if (origins.includes(requestOrigin)) {
+    return requestOrigin;
+  }
+
+  return null;
+}
+
 async function proxyRequest(request, { params }) {
   const { slug } = await params;
   const path = slug.join('/');
@@ -42,8 +69,12 @@ async function proxyRequest(request, { params }) {
     responseHeaders.delete('content-length');
     responseHeaders.delete('transfer-encoding');
 
-    // Ensure CORS headers if needed, though usually handled by browser for same-origin proxy
-    responseHeaders.set('Access-Control-Allow-Origin', '*');
+    // Ensure CORS headers if needed
+    const allowedOrigin = getAllowedOrigin(request);
+    if (allowedOrigin) {
+      responseHeaders.set('Access-Control-Allow-Origin', allowedOrigin);
+      responseHeaders.append('Vary', 'Origin');
+    }
 
     return new NextResponse(response.body, {
       status: response.status,
@@ -74,12 +105,19 @@ export async function POST(request, context) {
  * Handles OPTIONS HTTP requests and returns a 204 response with CORS headers.
  */
 export async function OPTIONS(request) {
+  const allowedOrigin = getAllowedOrigin(request);
+  const headers = {
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  };
+
+  if (allowedOrigin) {
+    headers['Access-Control-Allow-Origin'] = allowedOrigin;
+    headers['Vary'] = 'Origin';
+  }
+
   return new NextResponse(null, {
     status: 204,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    },
+    headers,
   });
 }
