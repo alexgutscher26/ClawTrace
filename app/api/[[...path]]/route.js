@@ -252,10 +252,6 @@ export async function GET(request, context) {
       const validation = validateInstallParams(agentId, agentSecret, interval);
       if (validation) return json({ error: validation.error }, validation.status);
 
-      if (!validateUuid(agentId) || !validateUuid(agentSecret)) {
-        return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
-      }
-
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
         request.headers.get('origin') ||
@@ -508,11 +504,34 @@ export async function GET(request, context) {
       if (!user) return json({ error: 'Unauthorized' }, 401);
       const { searchParams } = new URL(request.url);
       const fleet_id = searchParams.get('fleet_id');
-      let query = supabaseAdmin.from('agents').select('*').eq('user_id', user.id);
+
+      // Pagination
+      const page = parseInt(searchParams.get('page') || '1');
+      const limit = parseInt(searchParams.get('limit') || '50');
+      const offset = (page - 1) * limit;
+
+      let query = supabaseAdmin
+        .from('agents')
+        .select('*', { count: 'exact' })
+        .eq('user_id', user.id);
       if (fleet_id) query = query.eq('fleet_id', fleet_id);
-      const { data: agents, error } = await query.order('created_at', { ascending: false });
+
+      const {
+        data: agents,
+        error,
+        count,
+      } = await query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+
       if (error) throw error;
-      return json({ agents: agents.map(decryptAgent) });
+      return json({
+        agents: agents.map(decryptAgent),
+        meta: {
+          page,
+          limit,
+          total: count,
+          pages: Math.ceil((count || 0) / limit),
+        },
+      });
     }
 
     const agentMatch = path.match(/^\/agents\/([^/]+)$/);
