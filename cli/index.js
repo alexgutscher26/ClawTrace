@@ -50,7 +50,62 @@ async function runPlugin(path) {
   });
 }
 
-async function collectMetrics(plugins = []) {
+async function measureLatency(urlStr) {
+  if (!urlStr) return 0;
+  return new Promise((resolve) => {
+    try {
+      const url = new URL(urlStr);
+      const start = Date.now();
+      const client = url.protocol === 'https:' ? https : http;
+
+      const options = {
+        hostname: url.hostname,
+        port: url.port || (url.protocol === 'https:' ? 443 : 80),
+        path: url.pathname === '/' ? '/api/health' : url.pathname, // Try health endpoint typically
+        method: 'HEAD',
+        timeout: 2000
+      };
+
+      const req = client.request(options, (res) => {
+        res.resume(); // consume any data
+        resolve(Date.now() - start);
+      });
+
+      req.on('error', () => resolve(0));
+      req.on('timeout', () => { req.destroy(); resolve(0); });
+      req.end();
+    } catch {
+      resolve(0);
+    }
+  });
+}
+
+function getDiskIO() {
+  return new Promise((resolve) => {
+    // Placeholder: Real implementation requires state tracking (diff) or complex platform-specific parsing
+    resolve({ read_kbps: 0, write_kbps: 0 });
+  });
+}
+
+async function getDiskUsage() {
+  // Use fs.statfs if available (Node 19.6+)
+  if (fs.statfs) {
+    return new Promise(resolve => {
+      const root = os.platform() === 'win32' ? 'C:\\' : '/';
+      fs.statfs(root, (err, stats) => {
+        if (err) resolve(0);
+        else {
+          const used = stats.blocks - stats.bavail;
+          const percent = Math.round((used / stats.blocks) * 100);
+          resolve(percent);
+        }
+      });
+    });
+  }
+  return 0;
+}
+
+async function collectMetrics(saasUrl, plugins = []) {
   const cpus = os.cpus();
   let totalIdle = 0, totalTick = 0;
   for (const cpu of cpus) {
@@ -63,11 +118,19 @@ async function collectMetrics(plugins = []) {
   const freeMem = os.freemem();
   const memoryUsage = Math.round(((totalMem - freeMem) / totalMem) * 100);
 
+  const latency = await measureLatency(saasUrl);
+  const diskUsage = await getDiskUsage();
+  const diskIO = await getDiskIO();
+
   const metrics = {
     cpu_usage: cpuUsage,
     memory_usage: memoryUsage,
-    latency_ms: Math.round(Math.random() * 100 + 50),
+    latency_ms: latency,
     uptime_hours: Math.round(os.uptime() / 3600),
+    disk_usage: diskUsage,
+    disk_io_read: diskIO.read_kbps,
+    disk_io_write: diskIO.write_kbps,
+    memory_pressure: memoryUsage > 80,
   };
 
   if (plugins && plugins.length > 0) {
@@ -164,9 +227,10 @@ function printStatus(metrics) {
   console.log(`  ${COLORS.magenta}MEM${COLORS.reset}    ${metrics.memory_usage}%`);
   console.log(`  ${COLORS.yellow}LAT${COLORS.reset}    ${metrics.latency_ms}ms`);
   console.log(`  ${COLORS.dim}UPTIME ${metrics.uptime_hours}h${COLORS.reset}`);
+  console.log(`  ${COLORS.cyan}DISK${COLORS.reset}   ${metrics.disk_usage}%`);
 
   // Print custom metrics from plugins
-  const standardKeys = ['cpu_usage', 'memory_usage', 'latency_ms', 'uptime_hours'];
+  const standardKeys = ['cpu_usage', 'memory_usage', 'latency_ms', 'uptime_hours', 'disk_usage', 'disk_io_read', 'disk_io_write', 'memory_pressure'];
   const customKeys = Object.keys(metrics).filter(k => !standardKeys.includes(k));
 
   if (customKeys.length > 0) {
@@ -276,7 +340,7 @@ async function monitorCommand(args) {
       if (!ok) return;
     }
 
-    const metrics = await collectMetrics(plugins);
+    const metrics = await collectMetrics(saasUrl, plugins);
     try {
       const result = await postHeartbeat(saasUrl, agentId, status, metrics, sessionToken);
       if (result.status === 200) {
@@ -309,7 +373,7 @@ async function monitorCommand(args) {
 async function statusCommand(args) {
   printBanner();
   const plugins = args.plugins ? args.plugins.split(',').map(p => p.trim()) : [];
-  const metrics = await collectMetrics(plugins);
+  const metrics = await collectMetrics(args.saas_url, plugins);
   console.log(`\n  ${COLORS.bold}System Status${COLORS.reset}`);
   console.log(`  ${COLORS.dim}────────────────${COLORS.reset}`);
   printStatus(metrics);

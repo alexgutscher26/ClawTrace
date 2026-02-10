@@ -52,9 +52,9 @@ _Refining the experience for developers and fleet managers._
   - [x] **Auto-Discovery**: CLI should optionally scan local network for OpenClaw gateways to simplify pairing.
   - [x] **Plugin System**: Allow users to write custom Python/JS scripts to monitor specific app metrics (e.g., "Queue Length" or "Database Connections").
   - [x] **Service Mode**: Add `openclaw install-service` to automatically set up systemd (Linux) or Launchctl (macOS) persistence.
-- [ ] **Metric Accuracy**:
-  - [ ] Move from "Simulated Latency" to real ICP/Round-trip pings to the agent's actual gateway URL.
-  - [ ] Capture "Memory Pressure" and "Disk I/O" metrics.
+- [x] **Metric Accuracy**:
+  - [x] Move from "Simulated Latency" to real ICP/Round-trip pings to the agent's actual gateway URL.
+  - [x] Capture "Memory Pressure" and "Disk I/O" metrics.
 
 ---
 
