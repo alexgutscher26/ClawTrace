@@ -114,11 +114,14 @@ async function getTier(userId) {
  * @returns An error object if validation fails, or null if all parameters are valid.
  */
 function validateInstallParams(agentId, agentSecret, interval) {
-  if (!agentId || !agentSecret) {
-    return { error: 'Missing agent_id or agent_secret parameter', status: 400 };
+  if (!agentId) {
+    return { error: 'Missing agent_id parameter', status: 400 };
   }
-  if (!uuidValidate(agentId) || !uuidValidate(agentSecret)) {
-    return { error: 'Invalid agent_id or agent_secret format', status: 400 };
+  if (!uuidValidate(agentId)) {
+    return { error: 'Invalid agent_id format', status: 400 };
+  }
+  if (agentSecret && !uuidValidate(agentSecret)) {
+    return { error: 'Invalid agent_secret format', status: 400 };
   }
   if (interval && !/^\d+$/.test(interval)) {
     return { error: 'Invalid interval format', status: 400 };
@@ -273,15 +276,12 @@ export async function GET(request, context) {
     if (path === '/install-agent') {
       const { searchParams } = new URL(request.url);
       const agentId = searchParams.get('agent_id');
-      const agentSecret = searchParams.get('agent_secret');
+      const agentSecret =
+        request.headers.get('x-agent-secret') || searchParams.get('agent_secret') || '';
       let interval = searchParams.get('interval');
 
       const validation = validateInstallParams(agentId, agentSecret, interval);
       if (validation) return json({ error: validation.error }, validation.status);
-
-      if (!uuidValidate(agentId) || !uuidValidate(agentSecret)) {
-        return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
-      }
 
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
@@ -352,15 +352,12 @@ export async function GET(request, context) {
     if (path === '/install-agent-ps') {
       const { searchParams } = new URL(request.url);
       const agentId = searchParams.get('agent_id');
-      const agentSecret = searchParams.get('agent_secret');
+      const agentSecret =
+        request.headers.get('x-agent-secret') || searchParams.get('agent_secret') || '';
       let interval = searchParams.get('interval');
 
       const validation = validateInstallParams(agentId, agentSecret, interval);
       if (validation) return json({ error: validation.error }, validation.status);
-
-      if (!uuidValidate(agentId) || !uuidValidate(agentSecret)) {
-        return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
-      }
 
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
@@ -434,15 +431,12 @@ export async function GET(request, context) {
     if (path === '/install-agent-py') {
       const { searchParams } = new URL(request.url);
       const agentId = searchParams.get('agent_id');
-      const agentSecret = searchParams.get('agent_secret');
+      const agentSecret =
+        request.headers.get('x-agent-secret') || searchParams.get('agent_secret') || '';
       let interval = searchParams.get('interval');
 
       const validation = validateInstallParams(agentId, agentSecret, interval);
       if (validation) return json({ error: validation.error }, validation.status);
-
-      if (!uuidValidate(agentId) || !uuidValidate(agentSecret)) {
-        return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
-      }
 
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
