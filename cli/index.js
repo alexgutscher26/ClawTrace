@@ -276,6 +276,38 @@ function printStatus(metrics) {
 // ============ COMMANDS ============
 
 /**
+ * Redact sensitive information from a configuration object.
+ *
+ * The function checks if the input is an object or an array. If it is an array, it recursively applies the redaction to each element. For objects, it creates a shallow copy and iterates through its keys, replacing any key that matches sensitive patterns with '[REDACTED]'. If a value is an object, it recursively redacts that value as well.
+ *
+ * @param config - The configuration object or array to be redacted.
+ * @returns A new object or array with sensitive information redacted.
+ */
+function redactConfig(config) {
+  if (typeof config !== 'object' || config === null) {
+    return config;
+  }
+
+  if (Array.isArray(config)) {
+    return config.map(redactConfig);
+  }
+
+  const redacted = { ...config };
+  const sensitivePatterns = /key|secret|password|token|credential|auth|private/i;
+
+  for (const key in redacted) {
+    if (Object.prototype.hasOwnProperty.call(redacted, key)) {
+      if (sensitivePatterns.test(key)) {
+        redacted[key] = '[REDACTED]';
+      } else if (typeof redacted[key] === 'object') {
+        redacted[key] = redactConfig(redacted[key]);
+      }
+    }
+  }
+  return redacted;
+}
+
+/**
  * Monitors the agent's status and sends heartbeat signals to the specified SaaS URL.
  *
  * This function initializes the monitoring process by performing a handshake to obtain a session token.
@@ -594,6 +626,16 @@ async function configPushCommand(args) {
   }
 }
 
+/**
+ * Checks the health of a gateway by sending a request to its health API.
+ *
+ * This function constructs a URL using the provided IP and port, then makes an HTTP GET request to the health endpoint.
+ * It resolves with the gateway URL if the response status is 200 and the JSON response indicates a status of 'ok'.
+ * In case of any errors or unexpected responses, it resolves with null.
+ *
+ * @param {string} ip - The IP address of the gateway.
+ * @param {number} port - The port number of the gateway.
+ */
 async function checkGateway(ip, port) {
   const url = `http://${ip}:${port}/api/health`;
   return new Promise((resolve) => {
@@ -617,6 +659,14 @@ async function checkGateway(ip, port) {
   });
 }
 
+/**
+ * Discover OpenClaw gateways on the local network.
+ *
+ * This function scans the local network interfaces for IPv4 addresses, generates a list of potential gateway targets based on common ports, and checks each target for an OpenClaw gateway. It logs the results, including any found gateways and instructions for pairing. The scanning is performed in batches to manage the number of concurrent checks.
+ *
+ * @param args - The arguments passed to the command, which may include options for the discovery process.
+ * @returns {Promise<void>} A promise that resolves when the discovery process is complete.
+ */
 async function discoverCommand(args) {
   printBanner();
   log(`${COLORS.green}Auto-Discovery: Scanning local network for OpenClaw gateways...${COLORS.reset}`);
@@ -683,6 +733,13 @@ async function discoverCommand(args) {
   }
 }
 
+/**
+ * Installs a service command based on the provided arguments.
+ *
+ * This function checks for required parameters, constructs the appropriate service or plist file content based on the platform (Linux or macOS), and attempts to write the file to the system. It also handles service enabling and starting, while logging relevant messages. If any errors occur during file operations or service management, they are caught and logged accordingly.
+ *
+ * @param args - An object containing the parameters for service installation, including saas_url, agent_id, agent_secret, interval, and plugins.
+ */
 async function installServiceCommand(args) {
   printBanner();
 
