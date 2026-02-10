@@ -1106,6 +1106,7 @@ export async function POST(request, context) {
 
       let tasksCount = 0;
       let errorsCount = 0;
+      let costPerTask = 0.01;
 
       if (agent && agent.metrics_json) {
         tasksCount = agent.metrics_json.tasks_completed || 0;
@@ -1119,7 +1120,7 @@ export async function POST(request, context) {
         const uptimeHours = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60));
 
         // Calculate cost based on model pricing (cost per task)
-        const costPerTask = MODEL_PRICING[agent.model] || 0.01;
+        costPerTask = MODEL_PRICING[agent.model] || 0.01;
         tasksCount += 1;
         errorsCount = body.status === 'error' ? errorsCount + 1 : errorsCount;
         const totalCost = parseFloat((tasksCount * costPerTask).toFixed(4));
@@ -1139,33 +1140,38 @@ export async function POST(request, context) {
       if (body.location) update.location = body.location;
       if (body.model) update.model = body.model;
 
-      const { error } = await supabaseAdmin.from('agents').update(update).eq('id', body.agent_id);
+      // Optimize: Update agent and insert metrics in parallel
+      const updateAgentPromise = supabaseAdmin.from('agents').update(update).eq('id', body.agent_id);
+
+      const insertMetricsPromise = body.metrics
+        ? (async () => {
+            try {
+              const { error: metricsError } = await supabaseAdmin.from('agent_metrics').insert({
+                agent_id: body.agent_id, // Use ID from body/token
+                user_id: userId, // Use userId from token/agent
+                cpu_usage: body.metrics.cpu_usage || 0,
+                memory_usage: body.metrics.memory_usage || 0,
+                latency_ms: body.metrics.latency_ms || 0,
+                uptime_hours: body.metrics.uptime_hours || 0,
+                tasks_completed: tasksCount,
+                errors_count: errorsCount,
+                cost_usd: tasksCount * costPerTask || 0,
+              });
+              if (metricsError) {
+                console.error('Failed to insert metrics:', metricsError);
+              }
+            } catch (e) {
+              console.error('Metrics insertion exception:', e);
+            }
+          })()
+        : Promise.resolve();
+
+      const [{ error }] = await Promise.all([updateAgentPromise, insertMetricsPromise]);
+
       if (error) throw error;
 
       // Include updated policy in heartbeat response
       const policy = getPolicy(policyProfile || DEFAULT_POLICY_PROFILE);
-
-      // Insert historical metrics for charts
-      if (body.metrics) {
-        try {
-          const { error: metricsError } = await supabaseAdmin.from('agent_metrics').insert({
-            agent_id: body.agent_id, // Use ID from body/token
-            user_id: userId, // Use userId from token/agent
-            cpu_usage: body.metrics.cpu_usage || 0,
-            memory_usage: body.metrics.memory_usage || 0,
-            latency_ms: body.metrics.latency_ms || 0,
-            uptime_hours: body.metrics.uptime_hours || 0,
-            tasks_completed: tasksCount,
-            errors_count: errorsCount,
-            cost_usd: (tasksCount * costPerTask) || 0,
-          });
-          if (metricsError) {
-            console.error('Failed to insert metrics:', metricsError);
-          }
-        } catch (e) {
-          console.error('Metrics insertion exception:', e);
-        }
-      }
 
       // Trigger smart alerts
       if (body.metrics) {
