@@ -3,12 +3,19 @@ const { describe, test, expect } = require('bun:test');
 // Mock latency
 const DB_LATENCY_MS = 50;
 
+/**
+ * Simulates a database call with a delay.
+ */
 async function mockDbCall(data) {
   await new Promise((resolve) => setTimeout(resolve, DB_LATENCY_MS));
   return { data, error: null };
 }
 
 // Current Implementation Simulation
+/**
+ * Processes smart alerts for the current agent.
+ * @param {number} agentId - The ID of the agent.
+ */
 async function processSmartAlerts_Current(agentId) {
   // 1. Fetch configs (Simulating the query in lib/alerts.js)
   await mockDbCall([{ id: 1, cpu_threshold: 90 }]);
@@ -17,6 +24,9 @@ async function processSmartAlerts_Current(agentId) {
   for (let i = 0; i < 1000; i++) {}
 }
 
+/**
+ * Handles the current heartbeat by fetching the agent and processing alerts.
+ */
 async function handleHeartbeat_Current() {
   // 1. Fetch agent (Simulating the query in route.js)
   await mockDbCall({ id: 'agent-123', name: 'Test Agent' });
@@ -26,6 +36,9 @@ async function handleHeartbeat_Current() {
 }
 
 // Optimized Implementation Simulation
+/**
+ * Handles the heartbeat by fetching agent and configs, and processing alerts.
+ */
 async function handleHeartbeat_Optimized() {
   // 1. Fetch agent AND configs (Simulating the combined query)
   // slightly higher latency for bigger query? Maybe negligible for this comparison but let's say 55ms
@@ -36,6 +49,14 @@ async function handleHeartbeat_Optimized() {
   for (let i = 0; i < 1000; i++) {}
 }
 
+/**
+ * Runs a benchmark to compare the performance of two heartbeat handling implementations.
+ *
+ * The function executes a specified number of iterations for both the current and optimized
+ * heartbeat handlers, measuring the time taken for each. It logs the total duration and
+ * average time per request for both implementations, as well as the speedup achieved by
+ * the optimized version compared to the current one.
+ */
 async function runBenchmark() {
   const iterations = 100;
 
