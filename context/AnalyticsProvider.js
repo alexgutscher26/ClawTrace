@@ -6,6 +6,15 @@ import { useEffect } from 'react';
 import { useFleet } from './FleetContext';
 import { usePathname, useSearchParams } from 'next/navigation';
 
+/**
+ * Provides analytics tracking using PostHog for the application.
+ *
+ * This component initializes the PostHog client when the component mounts, handling pageview and pageleave events based on the application's routing. It also manages user identity and session state, ensuring that user information is sent to PostHog when available. The component listens for hash changes to support legacy routing and captures relevant analytics events accordingly.
+ *
+ * @param {Object} props - The component props.
+ * @param {ReactNode} props.children - The child components to be rendered within the provider.
+ * @returns {JSX.Element} The rendered provider component.
+ */
 export function AnalyticsProvider({ children }) {
   // Initialize PostHog client-side only
   useEffect(() => {
@@ -66,6 +75,9 @@ export function AnalyticsProvider({ children }) {
 
   // Handle hash changes for legacy hash-routing support
   useEffect(() => {
+    /**
+     * Handles the hash change event by capturing pageleave and pageview events.
+     */
     const handleHashChange = (event) => {
       // Capture pageleave for the old URL
       if (event?.oldURL) {
