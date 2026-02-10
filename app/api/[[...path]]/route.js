@@ -1141,8 +1141,9 @@ done
  * Handles POST requests for various endpoints related to fleets, agents, alerts, billing, and team management.
  *
  * The function processes the request based on the path, performing actions such as creating fleets and agents,
- * managing agent heartbeats, handling billing through Lemon Squeezy, and managing team invitations.
- * It includes rate limiting, user authentication, and error handling for various operations.
+ * managing agent heartbeats, handling billing through Lemon Squeezy, and managing team invitations. It includes
+ * rate limiting, user authentication, and error handling for various operations, ensuring that each action adheres
+ * to user permissions and subscription tiers.
  *
  * @param request - The incoming request object containing headers and body data.
  * @param context - The context object providing parameters and other relevant data.
