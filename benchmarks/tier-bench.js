@@ -15,6 +15,15 @@ const tierCache = new Map();
 const CACHE_TTL_MS = 60 * 1000; // 1 minute
 
 // Simulate getTier (Cached)
+/**
+ * Retrieves the tier for a user, utilizing a cache to improve performance.
+ *
+ * This function first checks if the user's tier is already cached and if the cache is still valid.
+ * If a valid cache entry exists, it returns the cached tier. If not, it calls the getTierUncached function
+ * to retrieve the tier from the source, caches the result with an expiration time, and then returns the tier.
+ *
+ * @param {string} userId - The ID of the user whose tier is being retrieved.
+ */
 async function getTierCached(userId) {
   const now = Date.now();
   if (tierCache.has(userId)) {
@@ -30,6 +39,13 @@ async function getTierCached(userId) {
   return tier;
 }
 
+/**
+ * Runs a benchmark test to compare the performance of cached and uncached database queries.
+ *
+ * The function executes a specified number of iterations for both cached and uncached queries using
+ * the user ID 'user_123'. It measures the total and average time taken for each type of query,
+ * logging the results to the console, including the performance improvement factor.
+ */
 async function runBenchmark() {
   const iterations = 20;
   const userId = 'user_123';
