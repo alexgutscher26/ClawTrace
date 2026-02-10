@@ -37,6 +37,11 @@ export default function SettingsView() {
     skills: '',
     tools: '',
     heartbeat_interval: 300,
+    guardrails: {
+      budget_limit_usd: 10.0,
+      max_execution_time_sec: 300,
+      approved_tools: '*',
+    },
   });
   const [branding, setBranding] = useState(initialBranding || { domain: '', name: '' });
   const [savingBranding, setSavingBranding] = useState(false);
@@ -44,7 +49,6 @@ export default function SettingsView() {
   useEffect(() => {
     if (initialBranding) setBranding(initialBranding);
   }, [initialBranding]);
-
   useEffect(() => {
     api('/api/billing')
       .then((res) => {
@@ -114,7 +118,6 @@ export default function SettingsView() {
       toast.error(err.message);
     }
   };
-
   const handleAddPolicy = async () => {
     try {
       await api('/api/custom-policies', {
@@ -129,6 +132,12 @@ export default function SettingsView() {
             .split(',')
             .map((t) => t.trim())
             .filter(Boolean),
+          guardrails: {
+            ...newPolicy.guardrails,
+            approved_tools: newPolicy.guardrails.approved_tools === '*'
+              ? ['*']
+              : newPolicy.guardrails.approved_tools.split(',').map(t => t.trim()).filter(Boolean)
+          }
         }),
       });
       toast.success('Custom policy created!');
@@ -140,6 +149,11 @@ export default function SettingsView() {
         skills: '',
         tools: '',
         heartbeat_interval: 300,
+        guardrails: {
+          budget_limit_usd: 10.0,
+          max_execution_time_sec: 300,
+          approved_tools: '*',
+        },
       });
       loadPolicies();
     } catch (err) {
@@ -462,6 +476,54 @@ export default function SettingsView() {
                             <option value="system-only">SYSTEM ONLY</option>
                             <option value="unrestricted">UNRESTRICTED</option>
                           </select>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-zinc-400 uppercase">
+                            BUDGET LIMIT (USD)
+                          </label>
+                          <Input
+                            type="number"
+                            value={newPolicy.guardrails?.budget_limit_usd || 10.0}
+                            onChange={(e) =>
+                              setNewPolicy({
+                                ...newPolicy,
+                                guardrails: { ...newPolicy.guardrails, budget_limit_usd: parseFloat(e.target.value) },
+                              })
+                            }
+                            className="h-12 rounded-none border-white/20 bg-zinc-900"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-zinc-400 uppercase">
+                            MAX EXECUTION TIME (SEC)
+                          </label>
+                          <Input
+                            type="number"
+                            value={newPolicy.guardrails?.max_execution_time_sec || 300}
+                            onChange={(e) =>
+                              setNewPolicy({
+                                ...newPolicy,
+                                guardrails: { ...newPolicy.guardrails, max_execution_time_sec: parseInt(e.target.value) },
+                              })
+                            }
+                            className="h-12 rounded-none border-white/20 bg-zinc-900"
+                          />
+                        </div>
+                        <div className="col-span-2 space-y-2">
+                          <label className="text-[10px] font-black text-zinc-400 uppercase">
+                            APPROVED TOOLS (CSV OR *)
+                          </label>
+                          <Input
+                            value={newPolicy.guardrails?.approved_tools || '*'}
+                            onChange={(e) =>
+                              setNewPolicy({
+                                ...newPolicy,
+                                guardrails: { ...newPolicy.guardrails, approved_tools: e.target.value },
+                              })
+                            }
+                            className="h-12 rounded-none border-white/20 bg-zinc-900"
+                            placeholder="*, or search, code"
+                          />
                         </div>
                       </div>
                       <Button

@@ -838,6 +838,7 @@ export async function POST(request, context) {
         tools: body.tools || [],
         data_access: body.data_access || 'restricted',
         heartbeat_interval: parseInt(body.heartbeat_interval) || 300,
+        guardrails: body.guardrails || {},
         is_active: true,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),

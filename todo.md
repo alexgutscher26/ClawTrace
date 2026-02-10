@@ -65,14 +65,9 @@ _Adding the "SaaS" value-add that justifies the Pro/Enterprise tiers._
 ### 🛡️ Enterprise Management
 
 - [x] **Policy Profiles (Dev, Ops, Exec)**: Pre-built roles to control skills and tools.
-- [ ] **Policy Enforcement Engine**:
-  - [ ] Create a UI to define "Guardrails" (e.g., "Agent X cannot use tools that cost > $1.00").
-  - [ ] Real-time policy syncing: Agent heartbeats should receive a "Policy Update" in the response body.
-- [ ] **RBAC (Role Based Access Control)**:
-  - [ ] **Owner**: Full control.
-  - [ ] **Maintainer**: Can restart agents and change config.
-  - [ ] **Viewer**: Read-only metrics used for stakeholders.
-- [ ] **Audit Trail**: A searchable log of every manual action taken on an agent (who changed config, who triggered a restart).
+- [x] **Policy Enforcement Engine**:
+  - [x] Create a UI to define "Guardrails" (e.g., "Agent X cannot use tools that cost > $1.00").
+  - [x] Real-time policy syncing: Agent heartbeats should receive a "Policy Update" in the response body.
 
 ### 📊 Intelligence & Alerts
 

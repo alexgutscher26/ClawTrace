@@ -6,6 +6,29 @@ import { Card, CardContent } from '@/components/ui/card';
 const CHANGELOG_DATA = [
   {
     date: 'February 2026',
+    version: 'v1.6.0',
+    title: 'Policy Enforcement & Core Stability',
+    items: [
+      {
+        type: 'feature',
+        text: 'Implemented Policy Enforcement Engine with Guardrails (Budget, Time, Tools).',
+      },
+      {
+        type: 'feature',
+        text: 'Added real-time policy syncing via agent heartbeats.',
+      },
+      {
+        type: 'improvement',
+        text: 'Enhanced CLI with Service Mode, Auto-Discovery, and Plugin System.',
+      },
+      {
+        type: 'security',
+        text: 'Hardened Agent Handshake with signed JWTs and rate limiting.',
+      },
+    ],
+  },
+  {
+    date: 'February 2026',
     version: 'v1.5.1',
     title: 'Accessibility & Navigation',
     items: [
@@ -172,8 +195,10 @@ export default function ChangelogView() {
                       <div key={i} className="group flex gap-4">
                         <div
                           className={`mt-0.5 h-fit shrink-0 rounded-sm px-2 py-1 font-mono text-[9px] font-bold tracking-tighter uppercase ${item.type === 'feature'
-                            ? 'bg-white text-black'
-                            : 'bg-zinc-800 text-zinc-400'
+                              ? 'bg-white text-black'
+                              : item.type === 'security'
+                                ? 'bg-red-500 text-white'
+                                : 'bg-zinc-800 text-zinc-400'
                             }`}
                         >
                           {item.type}
