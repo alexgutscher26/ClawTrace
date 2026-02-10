@@ -3,12 +3,12 @@
 # Agent: 79a68826-b5af-49a3-b9db-6c322c858f17
 # Run: python3 openclaw-monitor.py
 
-import json, time, urllib.request, platform, os, hmac, hashlib
+import json, time, urllib.request, platform, os, hmac, hashlib, sys
 
-SAAS_URL = "http://localhost:3000"
-AGENT_ID = "79a68826-b5af-49a3-b9db-6c322c858f17"
-AGENT_SECRET = "4721c562-21eb-4b65-ae77-dcd6ec94f710"
-INTERVAL = 300
+SAAS_URL = os.environ.get("OPENCLAW_SAAS_URL", "http://localhost:3000")
+AGENT_ID = os.environ.get("OPENCLAW_AGENT_ID")
+AGENT_SECRET = os.environ.get("OPENCLAW_AGENT_SECRET")
+INTERVAL = int(os.environ.get("OPENCLAW_INTERVAL", "300"))
 SESSION_TOKEN = None
 GATEWAY_URL = None
 _last_cpu_stats = None
@@ -173,6 +173,11 @@ def send_heartbeat():
         print(f"[{time.strftime('%H:%M:%S')}] FAIL: {e}")
 
 if __name__ == "__main__":
+    if not AGENT_ID or not AGENT_SECRET:
+        print("Error: Agent ID and Agent Secret are required.")
+        print("Set OPENCLAW_AGENT_ID and OPENCLAW_AGENT_SECRET environment variables.")
+        sys.exit(1)
+
     print()
     print("  OpenClaw Fleet Monitor")
     print("  --------------------------------")

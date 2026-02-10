@@ -2,10 +2,25 @@
 # Agent: 74d8ec78-6410-4495-b0ee-d051e43eee45
 # Run: powershell -ExecutionPolicy Bypass -File openclaw-monitor.ps1
 
-$SaasUrl = "http://localhost:3000"
-$AgentId = "74d8ec78-6410-4495-b0ee-d051e43eee45"
-$AgentSecret = "69106a20-dd27-4100-97d2-6fe42c487208"
-$Interval = 60
+param (
+    [string]$AgentId = $env:OPENCLAW_AGENT_ID,
+    [string]$AgentSecret = $env:OPENCLAW_AGENT_SECRET,
+    [string]$SaasUrl = $env:OPENCLAW_SAAS_URL,
+    [int]$Interval = $(if ($env:OPENCLAW_INTERVAL) { $env:OPENCLAW_INTERVAL } else { 60 })
+)
+
+if (-not $SaasUrl) { $SaasUrl = "http://localhost:3000" }
+
+if (-not $AgentId) {
+    Write-Host "Error: Agent ID is required. Set OPENCLAW_AGENT_ID or pass -AgentId." -ForegroundColor Red
+    exit 1
+}
+
+if (-not $AgentSecret) {
+    Write-Host "Error: Agent Secret is required. Set OPENCLAW_AGENT_SECRET or pass -AgentSecret." -ForegroundColor Red
+    exit 1
+}
+
 $SessionToken = $null
 $GatewayUrl = $null
 
