@@ -52,6 +52,13 @@ import { useRouter } from 'next/navigation';
  */
 import EmergencyModelSwitcher from '@/components/EmergencyModelSwitcher';
 
+/**
+ * Renders the dashboard view for managing AI agents within a fleet.
+ *
+ * This component handles the state and lifecycle of the dashboard, including fetching data from the API, managing real-time updates via subscriptions, and providing functionality to add, delete, and resolve alerts for agents. It also manages user navigation and displays relevant statistics and alerts based on the current fleet selection.
+ *
+ * @returns {JSX.Element} The rendered dashboard view.
+ */
 export default function DashboardView() {
   const { session, api, masterPassphrase, branding } = useFleet();
   const router = useRouter();
