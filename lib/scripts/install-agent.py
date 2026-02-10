@@ -13,6 +13,7 @@ SESSION_TOKEN = None
 GATEWAY_URL = None
 
 def perform_handshake():
+    """Perform a handshake with the server to establish a session."""
     global SESSION_TOKEN, GATEWAY_URL
     timestamp = str(int(time.time()))
     signature = hmac.new(AGENT_SECRET.encode(), (AGENT_ID + timestamp).encode(), hashlib.sha256).hexdigest()
@@ -32,6 +33,17 @@ def perform_handshake():
         return False
 
 def get_cpu():
+    """Get the CPU usage percentage based on the operating system.
+    
+    This function retrieves the CPU usage percentage by checking the system's
+    platform.  For Linux, it reads from `/proc/stat` to calculate the CPU load. For
+    macOS, it uses  the `ps` command to get CPU usage, and for Windows, it utilizes
+    the `wmic` command.  If any errors occur during execution, it returns 0 as a
+    fallback.
+    
+    Returns:
+        int: The CPU usage percentage or 0 if an error occurs.
+    """
     try:
         if platform.system() == "Linux":
             with open("/proc/stat") as f:
@@ -98,6 +110,15 @@ def get_uptime():
     return 0
 
 def send_heartbeat():
+    """Send a heartbeat signal to the monitoring service.
+    
+    This function checks the SESSION_TOKEN and performs a handshake if it is not
+    set.  It then measures the health status, latency, and system metrics such as
+    CPU usage,  memory usage, and uptime. A heartbeat message is sent to the
+    specified SAAS_URL,  and the response is handled accordingly. If the gateway
+    probe fails, a warning is printed,  and if the session has expired, it retries
+    the heartbeat after resetting the SESSION_TOKEN.
+    """
     global SESSION_TOKEN
     if not SESSION_TOKEN:
         if not perform_handshake(): return
