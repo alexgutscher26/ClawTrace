@@ -5,6 +5,19 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 
+/**
+ * Renders setup instructions for different platforms based on the selected operating system.
+ *
+ * This component allows users to select their platform (Windows, macOS, or Linux) and provides
+ * the corresponding commands to install and monitor an agent. It utilizes the `agentId` and
+ * `agentSecret` to generate the appropriate commands for each platform, and includes functionality
+ * to copy these commands to the clipboard. The component also manages the state of the selected
+ * platform and displays relevant information for each option.
+ *
+ * @param {Object} props - The component props.
+ * @param {string} props.agentId - The ID of the agent.
+ * @param {string} props.agentSecret - The secret key for the agent.
+ */
 export default function SetupInstructions({ agentId, agentSecret }) {
   const [platform, setPlatform] = useState('windows');
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
