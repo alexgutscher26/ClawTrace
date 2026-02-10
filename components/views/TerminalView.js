@@ -24,8 +24,6 @@ export default function ClawFleetTerminal({ agentId, onClose }) {
       fontSize: 13,
       lineHeight: 1.2,
       convertEol: true,
-      rows: 24,
-      cols: 80,
       theme: {
         background: '#09090b', // Zinc-950
         foreground: '#e4e4e7', // Zinc-200
@@ -87,20 +85,24 @@ export default function ClawFleetTerminal({ agentId, onClose }) {
 
     // Open terminal in the wrapper div
     if (wrapperRef.current) {
-      term.open(wrapperRef.current);
+      try {
+        term.open(wrapperRef.current);
 
-      // Fitting and starting simulation
-      const tInit = setTimeout(() => {
-        if (term && !term._disposed && term.element && term.element.getBoundingClientRect().width > 0) {
-          try {
-            fitAddon.fit();
-            runSimulation();
-          } catch (e) {
-            console.warn('Initial fit/simulation failed', e);
+        // Initial fit and simulation
+        const tInit = setTimeout(() => {
+          if (!term._disposed && term.element && term.element.offsetParent !== null) {
+            try {
+              fitAddon.fit();
+              runSimulation();
+            } catch (e) {
+              console.warn('Initial terminal setup failed:', e);
+            }
           }
-        }
-      }, 200);
-      timeoutsRef.current.push(tInit);
+        }, 200);
+        timeoutsRef.current.push(tInit);
+      } catch (e) {
+        console.error('Failed to open terminal:', e);
+      }
     }
 
     // 3. Handle Input
@@ -138,8 +140,12 @@ export default function ClawFleetTerminal({ agentId, onClose }) {
       resizeObserver = new ResizeObserver(() => {
         if (!term || term._disposed || !term.element) return;
         requestAnimationFrame(() => {
-          if (!term._disposed && term.element) {
-            fitAddon.fit();
+          if (!term._disposed && term.element && term.element.offsetParent !== null) {
+            try {
+              fitAddon.fit();
+            } catch (e) {
+              // Ignore resize errors during transitions
+            }
           }
         });
       });
@@ -148,11 +154,11 @@ export default function ClawFleetTerminal({ agentId, onClose }) {
 
     const handleResize = () => {
       if (!term || term._disposed || !term.element) return;
-      if (term.element.getBoundingClientRect().width > 0) {
+      if (term.element.offsetParent !== null) { // Check visibility
         try {
           fitAddon.fit();
         } catch (e) {
-          // Ignore resize errors during transitions
+          // Silent catch for resize transitions
         }
       }
     };
