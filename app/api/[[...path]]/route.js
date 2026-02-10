@@ -1315,7 +1315,6 @@ export async function POST(request, context) {
       console.log('[HANDSHAKE] Decryption result:', {
         encrypted_length: agent.agent_secret?.length,
         decrypted_length: decryptedSecret?.length,
-        decrypted_preview: decryptedSecret?.substring(0, 8) + '...',
       });
 
       if (body.signature) {
