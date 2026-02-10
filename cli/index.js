@@ -158,6 +158,21 @@ function redactConfig(config) {
   return redacted;
 }
 
+/**
+ * Monitors the agent's status and sends heartbeat signals to the specified SaaS URL.
+ *
+ * This function initializes the monitoring process by performing a handshake to obtain a session token.
+ * It then enters a loop where it periodically sends heartbeat signals with the agent's status and metrics.
+ * If the session token expires, it retries the handshake once before logging an error.
+ * The function requires specific arguments to be provided and will exit if any are missing.
+ *
+ * @param args - An object containing the necessary parameters for monitoring.
+ * @param args.saas_url - The SaaS URL for the fleet monitoring service (required).
+ * @param args.agent_id - The UUID of the agent (required).
+ * @param args.agent_secret - The secret associated with the agent (required).
+ * @param args.interval - The heartbeat interval in seconds (default: 300).
+ * @param args.status - The status of the agent (default: 'healthy').
+ */
 async function monitorCommand(args) {
   const saasUrl = args.saas_url;
   const agentId = args.agent_id;
