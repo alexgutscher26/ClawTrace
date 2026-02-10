@@ -50,6 +50,15 @@ async function runPlugin(path) {
   });
 }
 
+/**
+ * Measures the latency of a given URL by sending a HEAD request.
+ *
+ * This function takes a URL string, constructs a request to either the HTTP or HTTPS protocol,
+ * and measures the time taken to receive a response. If the URL is invalid or the request fails,
+ * it resolves to 0. The function also attempts to access a health endpoint if the path is the root.
+ *
+ * @param {string} urlStr - The URL string to measure latency for.
+ */
 async function measureLatency(urlStr) {
   if (!urlStr) return 0;
   return new Promise((resolve) => {
@@ -80,6 +89,9 @@ async function measureLatency(urlStr) {
   });
 }
 
+/**
+ * Retrieves disk I/O statistics.
+ */
 function getDiskIO() {
   return new Promise((resolve) => {
     // Placeholder: Real implementation requires state tracking (diff) or complex platform-specific parsing
@@ -87,6 +99,13 @@ function getDiskIO() {
   });
 }
 
+/**
+ * Retrieves the disk usage percentage of the root directory.
+ *
+ * This function checks if the fs.statfs method is available, which is supported in Node 19.6 and later.
+ * It determines the root directory based on the operating system and uses fs.statfs to obtain filesystem statistics.
+ * If an error occurs, it resolves to 0; otherwise, it calculates the used space and returns the percentage of disk usage.
+ */
 async function getDiskUsage() {
   // Use fs.statfs if available (Node 19.6+)
   if (fs.statfs) {
@@ -105,6 +124,17 @@ async function getDiskUsage() {
   return 0;
 }
 
+/**
+ * Collects various system metrics including CPU usage, memory usage, latency, and disk I/O.
+ *
+ * This function retrieves the current CPU and memory usage percentages, measures the latency
+ * to a specified SaaS URL, and gathers disk usage and I/O statistics. It also supports
+ * optional plugins that can extend the metrics collected. If any plugins are provided,
+ * their results are merged into the final metrics object before returning.
+ *
+ * @param {string} saasUrl - The URL of the SaaS service to measure latency against.
+ * @param {Array} [plugins=[]] - An optional array of plugin functions to run for additional metrics.
+ */
 async function collectMetrics(saasUrl, plugins = []) {
   const cpus = os.cpus();
   let totalIdle = 0, totalTick = 0;
@@ -334,6 +364,16 @@ async function monitorCommand(args) {
     }
   }
 
+  /**
+   * Sends a heartbeat to the server, ensuring the session is valid.
+   *
+   * The function first checks if a sessionToken exists; if not, it performs a handshake.
+   * It then collects metrics and attempts to post the heartbeat. Depending on the response status,
+   * it logs the result, handles session expiration by retrying the handshake, or logs an error for other failures.
+   *
+   * @returns {Promise<void>} A promise that resolves when the heartbeat has been sent or retried.
+   * @throws {Error} If there is a connection error during the heartbeat process.
+   */
   async function sendHeartbeat() {
     if (!sessionToken) {
       const ok = await performHandshake();
@@ -370,6 +410,9 @@ async function monitorCommand(args) {
   }
 }
 
+/**
+ * Displays the system status and metrics based on provided arguments.
+ */
 async function statusCommand(args) {
   printBanner();
   const plugins = args.plugins ? args.plugins.split(',').map(p => p.trim()) : [];
