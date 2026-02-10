@@ -1183,7 +1183,7 @@ export async function POST(request, context) {
       }
 
       const body = await request.json();
-      const plainSecret = uuidv4();
+      const plainSecret = crypto.randomBytes(32).toString('hex');
       const policyProfile = body.policy_profile || 'dev';
       let policy = getPolicy(policyProfile);
 
