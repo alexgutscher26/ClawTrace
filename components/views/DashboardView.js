@@ -4,20 +4,12 @@ import posthog from 'posthog-js';
 import { toast } from 'sonner';
 import {
   Server,
-  CheckCircle,
-  XCircle,
-  BarChart3,
   Plus,
   RefreshCw,
-  Database,
-  Trash2,
-  Eye,
   AlertTriangle,
-  ChevronLeft,
-  ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   Select,
   SelectContent,
@@ -25,23 +17,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import Navbar from '@/components/Navbar';
-import { STATUS_CONFIG, timeAgo } from '@/lib/view-utils';
-import { getPolicy } from '@/lib/policies';
 import { useFleet } from '@/context/FleetContext';
 import { useRouter } from 'next/navigation';
+import EmergencyModelSwitcher from '@/components/EmergencyModelSwitcher';
+import { StatsCards } from '@/components/dashboard/StatsCards';
+import { AgentsTable } from '@/components/dashboard/AgentsTable';
+import { AddAgentDialog } from '@/components/dashboard/AddAgentDialog';
+import { RecentAlerts } from '@/components/dashboard/RecentAlerts';
 
 /**
  * Renders the dashboard view for managing AI agents and monitoring their status.
@@ -50,8 +34,6 @@ import { useRouter } from 'next/navigation';
  *
  * @returns {JSX.Element} The rendered dashboard view.
  */
-import EmergencyModelSwitcher from '@/components/EmergencyModelSwitcher';
-
 export default function DashboardView() {
   const { session, api, masterPassphrase, branding } = useFleet();
   const router = useRouter();
@@ -331,35 +313,7 @@ export default function DashboardView() {
         </div>
 
         {/* Stats Cards */}
-        {stats && (
-          <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
-            {[
-              { label: 'TOTAL AGENTS', value: stats.total_agents, icon: Server },
-              { label: 'OPERATIONAL', value: stats.healthy, icon: CheckCircle },
-              { label: 'ERRORS', value: stats.error, icon: XCircle },
-              {
-                label: 'TASKS EXECUTED',
-                value: stats.total_tasks?.toLocaleString(),
-                icon: BarChart3,
-              },
-            ].map((s) => (
-              <div
-                key={s.label}
-                className="group flex items-start justify-between border border-white/10 bg-black p-6 transition-colors hover:border-white/30"
-              >
-                <div>
-                  <div className="mb-1 text-3xl font-black tracking-tighter text-white">
-                    {s.value}
-                  </div>
-                  <div className="font-mono text-[10px] tracking-widest text-zinc-500 uppercase">
-                    {s.label}
-                  </div>
-                </div>
-                <s.icon className="h-5 w-5 text-zinc-700 transition-colors group-hover:text-white" />
-              </div>
-            ))}
-          </div>
-        )}
+        <StatsCards stats={stats} />
 
         {/* Empty State */}
         {agents.length === 0 && (
@@ -403,275 +357,29 @@ export default function DashboardView() {
         )}
 
         {/* Agent Table */}
-        {agents.length > 0 && (
-          <Card className="glass-card mb-8">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Agents ({agents.length})</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-border/40 border-b">
-                      <th scope="col" className="text-muted-foreground p-3 text-left text-xs font-medium">
-                        Name
-                      </th>
-                      <th scope="col" className="text-muted-foreground p-3 text-left text-xs font-medium">
-                        Status
-                      </th>
-                      <th scope="col" className="text-muted-foreground hidden p-3 text-left text-xs font-medium md:table-cell">
-                        Gateway
-                      </th>
-                      <th scope="col" className="text-muted-foreground p-3 text-left text-xs font-medium">
-                        Policy
-                      </th>
-                      <th scope="col" className="text-muted-foreground hidden p-3 text-left text-xs font-medium md:table-cell">
-                        Model
-                      </th>
-                      <th scope="col" className="text-muted-foreground hidden p-3 text-left text-xs font-medium lg:table-cell">
-                        Location
-                      </th>
-                      <th scope="col" className="text-muted-foreground p-3 text-left text-xs font-medium">
-                        Heartbeat
-                      </th>
-                      <th scope="col" className="text-muted-foreground p-3 text-right text-xs font-medium">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {agents.map((agent) => {
-                      const sc = STATUS_CONFIG[agent.status] || STATUS_CONFIG.offline;
-                      return (
-                        <tr
-                          key={agent.id}
-                          className="border-b border-white/5 transition hover:bg-white/5"
-                        >
-                          <td className="p-3">
-                            <button
-                              onClick={() => navigate(`/dashboard/agents/${agent.id}`)}
-                              className="flex items-center gap-3 text-left hover:underline focus:outline-none focus:underline"
-                              aria-label={`View agent ${agent.name}`}
-                            >
-                              <div
-                                className={`h-1.5 w-1.5 rounded-full ${agent.status === 'healthy' ? 'bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]' : agent.status === 'error' ? 'animate-pulse bg-red-500' : 'bg-zinc-600'}`}
-                                aria-hidden="true"
-                              />
-                              <span className="text-sm font-bold tracking-tight">{agent.name}</span>
-                            </button>
-                          </td>
-                          <td className="p-3">
-                            <Badge
-                              variant="outline"
-                              className={`${sc.text} ${sc.border} rounded-none bg-transparent font-mono text-[10px] tracking-wider uppercase`}
-                            >
-                              {sc.label}
-                            </Badge>
-                          </td>
-                          <td className="hidden p-3 font-mono text-xs text-zinc-500 uppercase md:table-cell">
-                            {agent.gateway_url}
-                          </td>
-                          <td className="p-3">
-                            <Badge
-                              variant="outline"
-                              className={`${getPolicy(agent.policy_profile).color} ${getPolicy(agent.policy_profile).bg} border-opacity-50 rounded-none font-mono text-[9px] tracking-tighter`}
-                            >
-                              {getPolicy(agent.policy_profile).label}
-                            </Badge>
-                          </td>
-                          <td className="hidden p-3 text-sm text-zinc-400 md:table-cell">
-                            {agent.model}
-                          </td>
-                          <td className="hidden p-3 text-sm text-zinc-400 lg:table-cell">
-                            {agent.location || 'UNKNOWN'}
-                          </td>
-                          <td className="p-3 font-mono text-sm text-zinc-500">
-                            {timeAgo(agent.last_heartbeat)}
-                          </td>
-                          <td className="p-3 text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 w-7 p-0 text-zinc-400 hover:text-white"
-                                onClick={() => navigate(`/dashboard/agents/${agent.id}`)}
-                                aria-label={`View details for ${agent.name}`}
-                              >
-                                <Eye className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 w-7 p-0 text-zinc-600 hover:bg-transparent hover:text-red-500"
-                                onClick={() => handleDeleteAgent(agent.id)}
-                                aria-label={`Delete agent ${agent.name}`}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-            {totalPages > 1 && (
-              <div className="flex items-center justify-end gap-2 border-t border-white/10 p-2">
-                <span className="text-xs text-zinc-500">
-                  Page {page} of {totalPages}
-                </span>
-                <div className="flex gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    disabled={page <= 1}
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    disabled={page >= totalPages}
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </Card>
-        )}
+        <AgentsTable
+          agents={agents}
+          totalPages={totalPages}
+          page={page}
+          setPage={setPage}
+          navigate={navigate}
+          handleDeleteAgent={handleDeleteAgent}
+        />
 
         {/* Alerts */}
-        {alerts.length > 0 && (
-          <Card className="glass-card">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Recent Alerts</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {alerts.slice(0, 5).map((alert) => (
-                <div
-                  key={alert.id}
-                  className={`flex items-center justify-between rounded-lg p-3 ${alert.resolved ? 'bg-muted/20' : 'border border-red-500/20 bg-red-500/5'}`}
-                >
-                  <div className="flex items-center gap-3">
-                    <AlertTriangle
-                      className={`h-4 w-4 ${alert.resolved ? 'text-muted-foreground' : 'text-red-400'}`}
-                    />
-                    <div>
-                      <p className="text-sm font-medium">
-                        {alert.agent_name}: {alert.type}
-                      </p>
-                      <p className="text-muted-foreground text-xs">{alert.message}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground text-xs">
-                      {timeAgo(alert.created_at)}
-                    </span>
-                    {!alert.resolved && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={() => handleResolveAlert(alert.id)}
-                      >
-                        Resolve
-                      </Button>
-                    )}
-                    {alert.resolved && (
-                      <Badge
-                        variant="outline"
-                        className="border-emerald-500/30 text-xs text-emerald-400"
-                      >
-                        Resolved
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        )}
+        <RecentAlerts alerts={alerts} handleResolveAlert={handleResolveAlert} />
       </div>
 
       {/* Add Agent Dialog */}
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="sm:max-w-md border-zinc-800 bg-zinc-950 text-white shadow-2xl">
-          <DialogHeader>
-            <DialogTitle>Register New Agent</DialogTitle>
-            <DialogDescription>
-              Add an OpenClaw agent to your fleet. Paste the gateway URL or Droplet info.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleAddAgent} className="space-y-4">
-            <div>
-              <Label>Agent Name</Label>
-              <Input
-                placeholder="alpha-coder"
-                value={newAgent.name}
-                onChange={(e) => setNewAgent((p) => ({ ...p, name: e.target.value }))}
-                required
-              />
-            </div>
-            <div>
-              <Label>Gateway URL</Label>
-              <Input
-                placeholder="http://192.168.1.100:8080"
-                value={newAgent.gateway_url}
-                onChange={(e) => setNewAgent((p) => ({ ...p, gateway_url: e.target.value }))}
-                required
-              />
-            </div>
-            <div>
-              <Label>Policy Profile</Label>
-              <Select
-                value={newAgent.policy_profile || 'dev'}
-                onValueChange={(v) => setNewAgent((p) => ({ ...p, policy_profile: v }))}
-              >
-                <SelectTrigger className="h-10 w-full rounded-none border-white/20 bg-zinc-900 text-xs">
-                  <SelectValue placeholder="Select Policy" />
-                </SelectTrigger>
-                <SelectContent className="border-white/10 bg-black">
-                  <SelectItem value="dev" className="text-xs">
-                    Developer (Full Access)
-                  </SelectItem>
-                  <SelectItem value="ops" className="text-xs">
-                    Operations (System Only)
-                  </SelectItem>
-                  <SelectItem value="exec" className="text-xs">
-                    Executive (Read Only)
-                  </SelectItem>
-                  {(tier === 'enterprise' || tier === 'pro') && customPolicies.length > 0 && (
-                    <>
-                      <Separator className="my-2 bg-white/10" />
-                      <div className="px-2 py-1.5 font-mono text-[10px] tracking-widest text-zinc-500 uppercase">
-                        Custom Policies
-                      </div>
-                      {customPolicies.map((cp) => (
-                        <SelectItem key={cp.id} value={cp.name} className="text-xs">
-                          {cp.label}
-                        </SelectItem>
-                      ))}
-                    </>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <DialogFooter>
-              <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700">
-                Register Agent
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <AddAgentDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        handleAddAgent={handleAddAgent}
+        newAgent={newAgent}
+        setNewAgent={setNewAgent}
+        tier={tier}
+        customPolicies={customPolicies}
+      />
 
       {/* Emergency Switcher Component */}
       <EmergencyModelSwitcher

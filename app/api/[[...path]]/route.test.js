@@ -112,7 +112,7 @@ describe('Vulnerability Fix Verification', () => {
 
     // It should be a JSON response with 400 error
     expect(response.status).toBe(400);
-    expect(response.json).toEqual({ error: 'Invalid agent_id or agent_secret format' });
+    expect(response.json).toEqual({ error: 'Invalid agent_id format' });
   });
 
   test('Should reject invalid interval with 400', async () => {

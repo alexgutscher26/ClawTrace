@@ -6,6 +6,13 @@
 SAAS_URL="{{BASE_URL}}"
 AGENT_ID="{{AGENT_ID}}"
 AGENT_SECRET="{{AGENT_SECRET}}"
+: "${AGENT_SECRET:=$OPENCLAW_AGENT_SECRET}"
+
+if [ -z "$AGENT_SECRET" ]; then
+  echo "Error: AGENT_SECRET is not set. Please set OPENCLAW_AGENT_SECRET environment variable."
+  exit 1
+fi
+
 INTERVAL={{INTERVAL}}
 SESSION_TOKEN=""
 GATEWAY_URL=""
