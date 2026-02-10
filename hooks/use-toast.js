@@ -37,6 +37,16 @@ const addToRemoveQueue = (toastId) => {
   toastTimeouts.set(toastId, timeout);
 };
 
+/**
+ * Reducer function to manage the state of toasts.
+ *
+ * This function handles various actions related to toasts, including adding, updating, dismissing, and removing toasts from the state.
+ * It utilizes a switch statement to determine the action type and updates the state accordingly, ensuring that the number of toasts does not exceed the defined TOAST_LIMIT.
+ *
+ * @param state - The current state of the toasts.
+ * @param action - The action object containing the type and payload for the toast operation.
+ * @returns The updated state after applying the action.
+ */
 export const reducer = (state, action) => {
   switch (action.type) {
     case 'ADD_TOAST':
@@ -91,6 +101,9 @@ function dispatch(action) {
   });
 }
 
+/**
+ * Dismisses a toast notification by its ID or all toasts if no ID is provided.
+ */
 function dismissToast(toastId) {
   if (toastId) {
     addToRemoveQueue(toastId);
@@ -103,6 +116,9 @@ function dismissToast(toastId) {
   dispatch({ type: 'DISMISS_TOAST', toastId });
 }
 
+/**
+ * Creates a toast notification and returns its ID, dismiss function, and update function.
+ */
 function toast({ ...props }) {
   const id = genId();
 
