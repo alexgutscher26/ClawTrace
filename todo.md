@@ -71,12 +71,12 @@ _Adding the "SaaS" value-add that justifies the Pro/Enterprise tiers._
 
 ### 📊 Intelligence & Alerts
 
-- [ ] **Multi-Channel Alerting**:
-  - [ ] Webhook support for Slack/Discord/PagerDuty.
-  - [ ] "Alert Fatigue" prevention: Implement "Squelch" rules (e.g., "Don't alert me more than once per hour for this agent").
-- [ ] **Cost Analytics**:
-  - [ ] Deep-dive into token usage per model (GPT-4 vs Clause).
-  - [ ] "Savings Recommendations" (e.g., "This agent could run on Llama-3 for 90% less cost").
+- [x] **Multi-Channel Alerting**:
+  - [x] Webhook support for Slack/Discord/PagerDuty.
+  - [x] "Alert Fatigue" prevention: Implement "Squelch" rules (e.g., "Don't alert me more than once per hour for this agent").
+- [x] **Cost Analytics**:
+  - [x] Deep-dive into token usage per model (GPT-4 vs Clause).
+  - [x] "Savings Recommendations" (e.g., "This agent could run on Llama-3 for 90% less cost").
 
 ### � Self-Hosting & Deployment
 

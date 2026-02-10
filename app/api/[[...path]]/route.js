@@ -1157,6 +1157,7 @@ export async function POST(request, context) {
             uptime_hours: body.metrics.uptime_hours || 0,
             tasks_completed: tasksCount,
             errors_count: errorsCount,
+            cost_usd: (tasksCount * costPerTask) || 0,
           });
           if (metricsError) {
             console.error('Failed to insert metrics:', metricsError);
@@ -1169,7 +1170,7 @@ export async function POST(request, context) {
       // Trigger smart alerts
       if (body.metrics) {
         const activeConfigs =
-          agent.alert_configs?.filter((c) => c.channel && c.channel.active) || [];
+          agent.alert_configs?.filter((c) => c.channel && c.channel.active) || null;
 
         processSmartAlerts(
           body.agent_id,
