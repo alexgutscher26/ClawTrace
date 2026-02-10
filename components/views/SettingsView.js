@@ -71,6 +71,9 @@ export default function SettingsView() {
     });
   };
 
+  /**
+   * Opens the edit channel with the specified channel details.
+   */
   const openEditChannel = (channel) => {
     setNewChannel({
       name: channel.name,
@@ -134,6 +137,14 @@ export default function SettingsView() {
     loadChannels();
   }, [loadChannels]);
 
+  /**
+   * Handles the addition or update of an alert channel.
+   *
+   * This function constructs the appropriate API URL based on whether an editingChannelId is present.
+   * It sends a request to either create a new channel or update an existing one, using the provided newChannel data.
+   * Upon success, it displays a success message, captures an event if a new channel is created,
+   * resets the form state, and reloads the channel list. In case of an error, it displays an error message.
+   */
   const handleAddChannel = async () => {
     try {
       const url = editingChannelId
@@ -163,7 +174,7 @@ export default function SettingsView() {
   /**
    * Handles the addition of a new policy by sending a POST request to the API.
    *
-   * This function constructs a policy object from the `newPolicy` state, ensuring that skills and tools are properly formatted by trimming whitespace and filtering out empty values. It also processes the approved_tools field in the guardrails to handle a wildcard case. Upon successful creation, it displays a success message, resets the policy form, and reloads the policies. In case of an error, it displays an error message.
+   * This function constructs a policy object from the `newPolicy` state, ensuring that skills and tools are properly formatted by trimming whitespace and filtering out empty values. It processes the approved_tools field in the guardrails to handle a wildcard case. Upon successful creation, it displays a success message, resets the policy form, and reloads the policies. In case of an error, it displays an error message.
    */
   const handleAddPolicy = async () => {
     try {
