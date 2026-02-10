@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4, validate as validateUuid } from 'uuid';
 import { SignJWT, jwtVerify } from 'jose';
 import { encrypt, decrypt } from '@/lib/encryption';
 import {
@@ -12,6 +12,8 @@ import {
   POLICY_EXEC,
 } from '@/lib/policies';
 import { processSmartAlerts } from '@/lib/alerts';
+import { RATE_LIMIT_CONFIG } from '@/lib/rate-limits';
+import { MODEL_PRICING } from '@/lib/pricing';
 
 const decryptAgent = (a) => {
   if (!a) return a;
@@ -28,27 +30,13 @@ const decryptAgent = (a) => {
   return decrypted;
 };
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.SUPABASE_SERVICE_ROLE_KEY || 'default-secret-for-development-only'
-);
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error('SUPABASE_SERVICE_ROLE_KEY is required');
+}
 
-const RATE_LIMIT_CONFIG = {
-  free: {
-    global: { capacity: 60, refillRate: 1 }, // 60 req / min
-    handshake: { capacity: 5, refillRate: 5 / 600 }, // 5 req / 10 min
-    heartbeat: { capacity: 3, refillRate: 1 / 300 }, // 1 req / 5 min
-  },
-  pro: {
-    global: { capacity: 600, refillRate: 10 }, // 600 req / min
-    handshake: { capacity: 50, refillRate: 50 / 600 }, // 50 req / 10 min
-    heartbeat: { capacity: 20, refillRate: 1 / 15 }, // 1 req / 15s
-  },
-  enterprise: {
-    global: { capacity: 5000, refillRate: 100 }, // 5000 req / min
-    handshake: { capacity: 500, refillRate: 1 }, // 60 req / min
-    heartbeat: { capacity: 200, refillRate: 2 }, // 2 req / s
-  },
-};
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 /**
  * Retrieves the subscription tier for a given user.
@@ -217,10 +205,21 @@ export async function GET(request, context) {
         return json({ error: 'Missing agent_id or agent_secret parameter' }, 400);
       }
 
+      if (!validateUuid(agentId) || !validateUuid(agentSecret)) {
+        return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
+      }
+
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
         request.headers.get('origin') ||
         'http://localhost:3000';
+
+      try {
+        new URL(baseUrl);
+        if (baseUrl.includes('"') || baseUrl.includes("'")) throw new Error('Invalid characters');
+      } catch {
+        return json({ error: 'Invalid base URL' }, 400);
+      }
 
       // Determine user tier for heartbeat interval
       let interval = searchParams.get('interval');
@@ -261,6 +260,10 @@ export async function GET(request, context) {
         } else {
           interval = '300';
         }
+      }
+
+      if (!/^\d+$/.test(interval)) {
+        return json({ error: 'Invalid interval format' }, 400);
       }
 
       const script = `#!/bin/bash
@@ -445,10 +448,21 @@ done
         return json({ error: 'Missing agent_id or agent_secret parameter' }, 400);
       }
 
+      if (!validateUuid(agentId) || !validateUuid(agentSecret)) {
+        return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
+      }
+
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
         request.headers.get('origin') ||
         'http://localhost:3000';
+
+      try {
+        new URL(baseUrl);
+        if (baseUrl.includes('"') || baseUrl.includes("'")) throw new Error('Invalid characters');
+      } catch {
+        return json({ error: 'Invalid base URL' }, 400);
+      }
 
       // Determine user tier for heartbeat interval
       let interval = searchParams.get('interval');
@@ -489,6 +503,10 @@ done
         } else {
           interval = '300';
         }
+      }
+
+      if (!/^\d+$/.test(interval)) {
+        return json({ error: 'Invalid interval format' }, 400);
       }
 
       const psScript = [
@@ -655,10 +673,21 @@ done
         return json({ error: 'Missing agent_id or agent_secret parameter' }, 400);
       }
 
+      if (!validateUuid(agentId) || !validateUuid(agentSecret)) {
+        return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
+      }
+
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
         request.headers.get('origin') ||
         'http://localhost:3000';
+
+      try {
+        new URL(baseUrl);
+        if (baseUrl.includes('"') || baseUrl.includes("'")) throw new Error('Invalid characters');
+      } catch {
+        return json({ error: 'Invalid base URL' }, 400);
+      }
 
       // Determine user tier for heartbeat interval
       let interval = searchParams.get('interval');
@@ -699,6 +728,10 @@ done
         } else {
           interval = '300';
         }
+      }
+
+      if (!/^\d+$/.test(interval)) {
+        return json({ error: 'Invalid interval format' }, 400);
       }
 
       const pyLines = [
@@ -1330,7 +1363,6 @@ export async function POST(request, context) {
       console.log('[HANDSHAKE] Decryption result:', {
         encrypted_length: agent.agent_secret?.length,
         decrypted_length: decryptedSecret?.length,
-        decrypted_preview: decryptedSecret?.substring(0, 8) + '...',
       });
 
       if (body.signature) {
@@ -1439,28 +1471,6 @@ export async function POST(request, context) {
         const uptimeHours = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60));
 
         // Calculate cost based on model pricing (cost per task)
-        const MODEL_PRICING = {
-          'claude-opus-4.5': 0.0338,
-          'claude-sonnet-4': 0.009,
-          'claude-3': 0.009,
-          'claude-haiku': 0.0015,
-          'gpt-4o': 0.009,
-          'gpt-4o-mini': 0.0004,
-          'gpt-4': 0.018,
-          'gpt-3.5-turbo': 0.001,
-          'gemini-3-pro': 0.0056,
-          'gemini-2-flash': 0.0015,
-          'grok-4.1-mini': 0.0004,
-          'grok-2': 0.003,
-          'llama-3.3-70b': 0.0003,
-          'llama-3': 0.0003,
-          'qwen-2.5-72b': 0.0003,
-          'mistral-large': 0.002,
-          'mistral-medium': 0.001,
-          'deepseek-v3': 0.0002,
-          'gpt-4-turbo': 0.012,
-        };
-
         const costPerTask = MODEL_PRICING[agent.model] || 0.01;
         tasksCount += 1;
         errorsCount = body.status === 'error' ? errorsCount + 1 : errorsCount;
