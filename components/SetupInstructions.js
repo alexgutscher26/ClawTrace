@@ -5,6 +5,19 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 
+/**
+ * Renders setup instructions for different platforms based on the selected operating system.
+ *
+ * This component allows users to select their platform (Windows, macOS, or Linux) and provides
+ * the corresponding commands to install and monitor an agent. It utilizes the `agentId` and
+ * `agentSecret` to generate the appropriate commands for each platform, and includes functionality
+ * to copy these commands to the clipboard. The component also manages the state of the selected
+ * platform and displays relevant information for each option.
+ *
+ * @param {Object} props - The component props.
+ * @param {string} props.agentId - The ID of the agent.
+ * @param {string} props.agentSecret - The secret key for the agent.
+ */
 export default function SetupInstructions({ agentId, agentSecret }) {
   const [platform, setPlatform] = useState('windows');
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -15,19 +28,19 @@ export default function SetupInstructions({ agentId, agentSecret }) {
   };
 
   // Windows commands
-  const psOneLiner = `irm "${origin}/api/install-agent-ps?agent_id=${agentId}&agent_secret=${agentSecret}" -OutFile openclaw-monitor.ps1; powershell -ExecutionPolicy Bypass -File openclaw-monitor.ps1`;
+  const psOneLiner = `irm "${origin}/api/install-agent-ps?agent_id=${agentId}" -Headers @{'x-agent-secret'='${agentSecret}'} -OutFile openclaw-monitor.ps1; powershell -ExecutionPolicy Bypass -File openclaw-monitor.ps1`;
   const psSingle = `Invoke-RestMethod -Uri "${origin}/api/heartbeat" -Method POST -ContentType "application/json" -Body '{"agent_id":"${agentId}","status":"healthy","metrics":{"cpu_usage":50,"memory_usage":60}}'`;
 
   // macOS / Linux commands
-  const bashOneLiner = `curl -sL "${origin}/api/install-agent?agent_id=${agentId}&agent_secret=${agentSecret}" | bash`;
+  const bashOneLiner = `curl -sL -H "x-agent-secret: ${agentSecret}" "${origin}/api/install-agent?agent_id=${agentId}" | bash`;
   const bashSingle = `curl -X POST ${origin}/api/heartbeat \\\n  -H "Content-Type: application/json" \\\n  -d '{"agent_id":"${agentId}","status":"healthy","metrics":{"cpu_usage":50,"memory_usage":60}}'`;
-  const bashDaemon = `curl -sL "${origin}/api/install-agent?agent_id=${agentId}&agent_secret=${agentSecret}" > openclaw-monitor.sh\nchmod +x openclaw-monitor.sh\nnohup ./openclaw-monitor.sh > /var/log/openclaw-heartbeat.log 2>&1 &`;
+  const bashDaemon = `curl -sL -H "x-agent-secret: ${agentSecret}" "${origin}/api/install-agent?agent_id=${agentId}" > openclaw-monitor.sh\nchmod +x openclaw-monitor.sh\nnohup ./openclaw-monitor.sh > /var/log/openclaw-heartbeat.log 2>&1 &`;
 
   // Python cross-platform
   const pyOneLiner =
     platform === 'windows'
-      ? `irm "${origin}/api/install-agent-py?agent_id=${agentId}&agent_secret=${agentSecret}" -OutFile openclaw-monitor.py; python openclaw-monitor.py`
-      : `curl -sL "${origin}/api/install-agent-py?agent_id=${agentId}&agent_secret=${agentSecret}" -o openclaw-monitor.py && python3 openclaw-monitor.py`;
+      ? `irm "${origin}/api/install-agent-py?agent_id=${agentId}" -Headers @{'x-agent-secret'='${agentSecret}'} -OutFile openclaw-monitor.py; python openclaw-monitor.py`
+      : `curl -sL -H "x-agent-secret: ${agentSecret}" "${origin}/api/install-agent-py?agent_id=${agentId}" -o openclaw-monitor.py && python3 openclaw-monitor.py`;
 
   return (
     <div className="space-y-5">

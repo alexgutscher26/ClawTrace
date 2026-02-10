@@ -87,21 +87,22 @@ class TestGetCpu(unittest.TestCase):
         cpu_usage = monitor.get_cpu()
         self.assertEqual(cpu_usage, 0)
 
-class TestGetUptime(unittest.TestCase):
+class TestGetMem(unittest.TestCase):
+
     @patch('platform.system')
-    def test_get_uptime_linux(self, mock_system):
+    def test_get_mem_linux(self, mock_system):
         mock_system.return_value = "Linux"
-
-        # /proc/uptime contains two numbers: uptime in seconds, and idle time in seconds
-        uptime_content = "36000.0 72000.0"
-
-        m = mock_open(read_data=uptime_content)
+        # MemTotal: 1000
+        # MemAvailable: 400
+        # Used = 1000 - 400 = 600
+        # Usage = 600 / 1000 * 100 = 60%
+        meminfo_content = "MemTotal:       1000 kB\nMemFree:         200 kB\nMemAvailable:    400 kB\n"
+        m = mock_open(read_data=meminfo_content)
 
         with patch('builtins.open', m):
-            uptime = monitor.get_uptime()
+            mem_usage = monitor.get_mem()
 
-        # 36000 seconds / 3600 = 10 hours
-        self.assertEqual(uptime, 10)
+        self.assertEqual(mem_usage, 60)
 
     @patch('platform.system')
     @patch('subprocess.run')
@@ -109,21 +110,29 @@ class TestGetUptime(unittest.TestCase):
     def test_get_uptime_darwin(self, mock_time, mock_run, mock_system):
         """Test the get_uptime function on Darwin systems."""
         mock_system.return_value = "Darwin"
-        mock_time.return_value = 1600000000.0  # Current time
 
-        # Simulate boottime 10 hours ago
-        # 10 hours = 36000 seconds
-        boot_time = 1600000000.0 - 36000.0
+        # Pages active: 200
+        # Pages wired down: 100
+        # Pages free: 300
+        # Pages speculative: 400
 
-        # sysctl output format: { sec = 1599964000, usec = 0 } Fri Sep 11 00:00:00 2020
-        # The regex looks for "sec = (\d+)"
-        sysctl_output = f"{{ sec = {int(boot_time)}, usec = 0 }}"
+        # active = 200 + 100 = 300
+        # total = 300 + 300 + 400 = 1000
+        # Usage = 300 / 1000 * 100 = 30%
 
-        mock_run.return_value = MagicMock(stdout=sysctl_output)
+        vm_stat_output = (
+            "Mach Virtual Memory Statistics: (page size of 4096 bytes)\n"
+            "Pages free:                               300.\n"
+            "Pages active:                             200.\n"
+            "Pages inactive:                           1500.\n"
+            "Pages speculative:                        400.\n"
+            "Pages throttled:                             0.\n"
+            "Pages wired down:                         100.\n"
+        )
+        mock_run.return_value = MagicMock(stdout=vm_stat_output)
 
-        uptime = monitor.get_uptime()
-
-        self.assertEqual(uptime, 10)
+        mem_usage = monitor.get_mem()
+        self.assertEqual(mem_usage, 30)
 
     @patch('platform.system')
     @patch('time.monotonic')
@@ -131,21 +140,23 @@ class TestGetUptime(unittest.TestCase):
         """Test the uptime calculation for Windows."""
         mock_system.return_value = "Windows"
 
-        # 10 hours = 36000 seconds
-        mock_monotonic.return_value = 36000.0
+        # TotalVisibleMemorySize = 1000
+        # FreePhysicalMemory = 400
+        # Used = 1000 - 400 = 600
+        # Usage = 600 / 1000 * 100 = 60%
 
-        uptime = monitor.get_uptime()
+        wmic_output = "\nFreePhysicalMemory=400\nTotalVisibleMemorySize=1000\n"
+        mock_run.return_value = MagicMock(stdout=wmic_output)
 
-        self.assertEqual(uptime, 10)
+        mem_usage = monitor.get_mem()
+        self.assertEqual(mem_usage, 60)
 
     @patch('platform.system')
     def test_get_uptime_error(self, mock_system):
         """Test the get_uptime function when an error occurs."""
         mock_system.side_effect = Exception("Some error")
-
-        uptime = monitor.get_uptime()
-
-        self.assertEqual(uptime, 0)
+        mem_usage = monitor.get_mem()
+        self.assertEqual(mem_usage, 0)
 
 if __name__ == '__main__':
     unittest.main()
