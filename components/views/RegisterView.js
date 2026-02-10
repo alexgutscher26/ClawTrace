@@ -17,6 +17,13 @@ import { Zap } from 'lucide-react';
 import { useFleet } from '@/context/FleetContext';
 import { useRouter } from 'next/navigation';
 
+/**
+ * Renders the registration view for creating a new user account.
+ *
+ * This component utilizes the `useFleet` hook to access the session state and the `useRouter` hook for navigation.
+ * It manages form state for email, full name, and password, and handles the registration process with Supabase.
+ * Upon successful registration, it navigates the user to the appropriate page based on the response from the Supabase API.
+ */
 export default function RegisterView() {
   const { session } = useFleet();
   const router = useRouter();
@@ -30,6 +37,15 @@ export default function RegisterView() {
     if (session) navigate('/dashboard');
   }, [session, navigate]);
 
+  /**
+   * Handles user registration by signing up with Supabase.
+   *
+   * This function prevents the default form submission, sets a loading state, and attempts to sign up a user using the provided email and password.
+   * It handles the response by checking for errors and navigating the user to the appropriate page based on whether a session was created or not.
+   * Finally, it ensures the loading state is reset regardless of the outcome.
+   *
+   * @param {Event} e - The event object from the form submission.
+   */
   const handleRegister = async (e) => {
     e.preventDefault();
     setLoading(true);
