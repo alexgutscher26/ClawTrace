@@ -275,7 +275,7 @@ export async function GET(request, context) {
       const validation = validateInstallParams(agentId, agentSecret, interval);
       if (validation) return json({ error: validation.error }, validation.status);
 
-      if (!validateUuid(agentId) || !validateUuid(agentSecret)) {
+      if (!uuidValidate(agentId) || !uuidValidate(agentSecret)) {
         return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
       }
 
@@ -354,7 +354,7 @@ export async function GET(request, context) {
       const validation = validateInstallParams(agentId, agentSecret, interval);
       if (validation) return json({ error: validation.error }, validation.status);
 
-      if (!validateUuid(agentId) || !validateUuid(agentSecret)) {
+      if (!uuidValidate(agentId) || !uuidValidate(agentSecret)) {
         return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
       }
 
@@ -436,7 +436,7 @@ export async function GET(request, context) {
       const validation = validateInstallParams(agentId, agentSecret, interval);
       if (validation) return json({ error: validation.error }, validation.status);
 
-      if (!validateUuid(agentId) || !validateUuid(agentSecret)) {
+      if (!uuidValidate(agentId) || !uuidValidate(agentSecret)) {
         return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
       }
 
@@ -617,33 +617,15 @@ export async function GET(request, context) {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
 
-      const [agentsRes, fleetsRes, alertsRes] = await Promise.all([
-        supabaseAdmin.from('agents').select('*').eq('user_id', user.id),
-        supabaseAdmin.from('fleets').select('*').eq('user_id', user.id),
-        supabaseAdmin
-          .from('alerts')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .eq('resolved', false),
-      ]);
+      const { data: stats, error } = await supabaseAdmin.rpc('get_dashboard_stats', {
+        p_user_id: user.id,
+      });
 
-      const agents = agentsRes.data || [];
-      const fleets = fleetsRes.data || [];
-      const unresolvedAlerts = alertsRes.count || 0;
+      if (error) {
+        console.error('Failed to get dashboard stats:', error);
+        return json({ error: 'Failed to fetch statistics' }, 500);
+      }
 
-      const stats = {
-        total_agents: agents.length,
-        total_fleets: fleets.length,
-        healthy: agents.filter((a) => a.status === 'healthy').length,
-        idle: agents.filter((a) => a.status === 'idle').length,
-        error: agents.filter((a) => a.status === 'error').length,
-        offline: agents.filter((a) => a.status === 'offline').length,
-        total_cost: parseFloat(
-          agents.reduce((sum, a) => sum + (a.metrics_json?.cost_usd || 0), 0).toFixed(2)
-        ),
-        total_tasks: agents.reduce((sum, a) => sum + (a.metrics_json?.tasks_completed || 0), 0),
-        unresolved_alerts: unresolvedAlerts,
-      };
       return json({ stats });
     }
 
