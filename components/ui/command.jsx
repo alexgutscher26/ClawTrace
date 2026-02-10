@@ -18,6 +18,9 @@ const Command = React.forwardRef(({ className, ...props }, ref) => (
 ));
 Command.displayName = CommandPrimitive.displayName;
 
+/**
+ * Renders a CommandDialog component with children and additional props.
+ */
 const CommandDialog = ({ children, ...props }) => {
   return (
     <Dialog {...props}>

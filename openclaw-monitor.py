@@ -11,6 +11,7 @@ AGENT_SECRET = "4721c562-21eb-4b65-ae77-dcd6ec94f710"
 INTERVAL = 300
 SESSION_TOKEN = None
 GATEWAY_URL = None
+_last_cpu_stats = None
 
 
 def perform_handshake():
@@ -44,15 +45,39 @@ def perform_handshake():
         return False
 
 def get_cpu():
+    """Retrieve the current CPU usage percentage based on the operating system.
+    
+    The function checks the platform type and retrieves CPU statistics accordingly.
+    For Linux, it reads from `/proc/stat` to calculate the CPU usage based on
+    previous and current statistics. For macOS, it uses the `ps` command to gather
+    CPU usage data, while for Windows, it utilizes the `wmic` command. If any
+    errors occur during execution, the function returns 0.
+    
+    Returns:
+        int: The CPU usage percentage, or 0 if an error occurs.
+    """
+    global _last_cpu_stats
     try:
         if platform.system() == "Linux":
             with open("/proc/stat") as f:
-                a = [int(x) for x in f.readline().split()[1:]]
-            time.sleep(1)
-            with open("/proc/stat") as f:
-                b = [int(x) for x in f.readline().split()[1:]]
-            d = [b[i]-a[i] for i in range(len(a))]
-            return int(100*(sum(d)-d[3])/max(sum(d),1))
+                current_stats = [int(x) for x in f.readline().split()[1:]]
+
+            if _last_cpu_stats is None:
+                time.sleep(1)
+                with open("/proc/stat") as f:
+                    new_stats = [int(x) for x in f.readline().split()[1:]]
+                prev = current_stats
+                curr = new_stats
+                _last_cpu_stats = curr
+            else:
+                prev = _last_cpu_stats
+                curr = current_stats
+                _last_cpu_stats = curr
+
+            d = [curr[i]-prev[i] for i in range(len(curr))]
+            total = sum(d)
+            if total == 0: return 0
+            return int(100*(total-d[3])/total)
         elif platform.system() == "Darwin":
             import subprocess
             r = subprocess.run(["ps", "-A", "-o", "%cpu"], capture_output=True, text=True)
