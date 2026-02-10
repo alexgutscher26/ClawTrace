@@ -1732,11 +1732,9 @@ export async function POST(request, context) {
 }
 
 /**
- * Handles the PUT request for updating agents, fleets, or custom policies.
+ * Handles the PUT request for updating agents, fleets, custom policies, or alert channels.
  *
- * This function first extracts the path from the request context and matches it against predefined routes for agents, fleets, and custom policies.
- * It checks user authentication and authorization, processes the request body for updates, and interacts with the Supabase database to perform the updates.
- * If the requested resource is not found or if there are any errors during the process, appropriate error responses are returned.
+ * This function extracts the path from the request context and matches it against predefined routes. It checks user authentication and authorization, processes the request body for updates, and interacts with the Supabase database to perform the updates. If the requested resource is not found or if there are any errors during the process, appropriate error responses are returned.
  *
  * @param request - The incoming request object containing the data to be updated.
  * @param context - The context object containing parameters and other relevant data.
@@ -1874,6 +1872,16 @@ export async function PUT(request, context) {
   }
 }
 
+/**
+ * Handles DELETE requests to remove agents, fleets, custom policies, or alert channels.
+ *
+ * The function first extracts the path from the request context and matches it against predefined patterns to determine the resource to delete. It checks for user authorization and performs the deletion from the appropriate tables in the Supabase database. If any deletion fails, it throws an error. If the resource is not found, it returns a 404 error.
+ *
+ * @param request - The incoming request object.
+ * @param context - The context object containing parameters for the request.
+ * @returns A JSON response indicating the result of the deletion operation.
+ * @throws Error If there is an internal server error during the deletion process.
+ */
 export async function DELETE(request, context) {
   const params = await context.params;
   const path = getPath(params);
