@@ -116,6 +116,9 @@ const CHANGELOG_DATA = [
 
 import { useFleet } from '@/context/FleetContext';
 
+/**
+ * Renders the changelog view displaying platform updates and release information.
+ */
 export default function ChangelogView() {
   const { session, branding } = useFleet();
   return (
