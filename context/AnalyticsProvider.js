@@ -57,24 +57,32 @@ export function AnalyticsProvider({ children }) {
 
   // Additional listener for hash-only changes (common in this app)
   useEffect(() => {
-    const handleHashChange = () => {
-      if (posthog.__loaded) {
-        posthog.capture('$pageview', {
-          $current_url: window.location.href,
+    const handleHashChange = (event) => {
+      // Capture pageleave for the old URL
+      if (event?.oldURL) {
+        posthog.capture('$pageleave', {
+          $current_url: event.oldURL,
         });
       }
+
+      posthog.capture('$pageview', {
+        $current_url: window.location.href,
+      });
     };
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
+  // Handle identity and session state
   useEffect(() => {
-    if (session?.user && posthog.__loaded) {
+    if (!posthog) return;
+
+    if (session?.user) {
       posthog.identify(session.user.id, {
         email: session.user.email,
         name: session.user.user_metadata?.full_name,
       });
-    } else if (!session && posthog.__loaded) {
+    } else if (!session) {
       posthog.reset();
     }
   }, [session]);
