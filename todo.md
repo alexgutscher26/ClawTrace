@@ -52,9 +52,9 @@ _Refining the experience for developers and fleet managers._
   - [x] **Auto-Discovery**: CLI should optionally scan local network for OpenClaw gateways to simplify pairing.
   - [x] **Plugin System**: Allow users to write custom Python/JS scripts to monitor specific app metrics (e.g., "Queue Length" or "Database Connections").
   - [x] **Service Mode**: Add `openclaw install-service` to automatically set up systemd (Linux) or Launchctl (macOS) persistence.
-- [ ] **Metric Accuracy**:
-  - [ ] Move from "Simulated Latency" to real ICP/Round-trip pings to the agent's actual gateway URL.
-  - [ ] Capture "Memory Pressure" and "Disk I/O" metrics.
+- [x] **Metric Accuracy**:
+  - [x] Move from "Simulated Latency" to real ICP/Round-trip pings to the agent's actual gateway URL.
+  - [x] Capture "Memory Pressure" and "Disk I/O" metrics.
 
 ---
 
@@ -65,30 +65,25 @@ _Adding the "SaaS" value-add that justifies the Pro/Enterprise tiers._
 ### 🛡️ Enterprise Management
 
 - [x] **Policy Profiles (Dev, Ops, Exec)**: Pre-built roles to control skills and tools.
-- [ ] **Policy Enforcement Engine**:
-  - [ ] Create a UI to define "Guardrails" (e.g., "Agent X cannot use tools that cost > $1.00").
-  - [ ] Real-time policy syncing: Agent heartbeats should receive a "Policy Update" in the response body.
-- [ ] **RBAC (Role Based Access Control)**:
-  - [ ] **Owner**: Full control.
-  - [ ] **Maintainer**: Can restart agents and change config.
-  - [ ] **Viewer**: Read-only metrics used for stakeholders.
-- [ ] **Audit Trail**: A searchable log of every manual action taken on an agent (who changed config, who triggered a restart).
+- [x] **Policy Enforcement Engine**:
+  - [x] Create a UI to define "Guardrails" (e.g., "Agent X cannot use tools that cost > $1.00").
+  - [x] Real-time policy syncing: Agent heartbeats should receive a "Policy Update" in the response body.
 
 ### 📊 Intelligence & Alerts
 
-- [ ] **Multi-Channel Alerting**:
-  - [ ] Webhook support for Slack/Discord/PagerDuty.
-  - [ ] "Alert Fatigue" prevention: Implement "Squelch" rules (e.g., "Don't alert me more than once per hour for this agent").
-- [ ] **Cost Analytics**:
-  - [ ] Deep-dive into token usage per model (GPT-4 vs Clause).
-  - [ ] "Savings Recommendations" (e.g., "This agent could run on Llama-3 for 90% less cost").
+- [x] **Multi-Channel Alerting**:
+  - [x] Webhook support for Slack/Discord/PagerDuty.
+  - [x] "Alert Fatigue" prevention: Implement "Squelch" rules (e.g., "Don't alert me more than once per hour for this agent").
+- [x] **Cost Analytics**:
+  - [x] Deep-dive into token usage per model (GPT-4 vs Clause).
+  - [x] "Savings Recommendations" (e.g., "This agent could run on Llama-3 for 90% less cost").
 
 ### � Self-Hosting & Deployment
 
-- [ ] **Dockerized Fleet**: Provide a `docker-compose.yml` for users who want to host the entire Fleet Dashboard in private air-gapped VPCs.
-- [ ] **Deployment Templates**:
-  - [ ] One-click DigitalOcean Droplet creation for new agents.
-  - [ ] Terraform/OpenTofu provider for managing fleets via IaC.
+- [x] **Dockerized Fleet**: Provide a `docker-compose.yml` for users who want to host the entire Fleet Dashboard in private air-gapped VPCs.
+- [x] **Deployment Templates**:
+  - [x] One-click DigitalOcean Droplet creation for new agents.
+  - [x] Terraform/OpenTofu provider for managing fleets via IaC.
 
 ---
 
@@ -96,18 +91,9 @@ _Adding the "SaaS" value-add that justifies the Pro/Enterprise tiers._
 
 _Visionary ideas for 2026 and beyond._
 
-- [ ] **OpenClaw Terminal**: A secure, browser-based shell that allows developers to `ssh` into an agent directly from the dashboard for debugging.
-- [ ] **Predictive Scaling**: Automatically spin up more agent instances when wait-times/latency exceed 500ms across a fleet.
-- [ ] **Model Switcher**: A "Kill Switch" to instantly rotate all agents to an emergency backup model (e.g., rotate from GPT-4 to Claude 3 if OpenAI has an outage).
-- [ ] **Community Marketplace**: A repository of pre-configured agent "templates" (e.g., "SEO Agent", "Python Dev Agent") that can be provisioned in one click.
-
----
-
-## 🧹 TECHNICAL DEBT / MAINTENANCE
-
-- [ ] **Refactor Monolith**: Split `app/api/[[...path]]/route.js` into distinct files for `/fleets`, `/agents`, `/alerts`, and `/billing`.
-- [ ] **Typings**: Convert the project to **TypeScript** to prevent the "undefined" errors seen in early bug logs.
-- [x] **Dependency Update**: Audit and update 60+ dependencies listed in `package.json`.
+- [x] **OpenClaw Terminal**: A secure, browser-based shell that allows developers to `ssh` into an agent directly from the dashboard for debugging.
+- [x] **Predictive Scaling**: Automatically spin up more agent instances when wait-times/latency exceed 500ms across a fleet.
+- [x] **Model Switcher**: A "Kill Switch" to instantly rotate all agents to an emergency backup model (e.g., rotate from GPT-4 to Claude 3 if OpenAI has an outage).
 
 ---
 

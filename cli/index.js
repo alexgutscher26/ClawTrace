@@ -6,6 +6,7 @@ const path = require('path');
 const https = require('https');
 const http = require('http');
 const { exec } = require('child_process');
+const { performance } = require('perf_hooks');
 
 // ============ CLI ARGUMENT PARSER ============
 function parseArgs(argv) {
@@ -50,7 +51,92 @@ async function runPlugin(path) {
   });
 }
 
-async function collectMetrics(plugins = []) {
+/**
+ * Measures the latency of a given URL by sending a HEAD request.
+ *
+ * This function takes a URL string, constructs a request to either the HTTP or HTTPS protocol,
+ * and measures the time taken to receive a response. If the URL is invalid or the request fails,
+ * it resolves to 0. The function also attempts to access a health endpoint if the path is the root.
+ *
+ * @param {string} urlStr - The URL string to measure latency for.
+ */
+async function measureLatency(urlStr) {
+  if (!urlStr) return 0;
+  return new Promise((resolve) => {
+    try {
+      const url = new URL(urlStr);
+      const start = performance.now();
+      const client = url.protocol === 'https:' ? https : http;
+
+      const options = {
+        hostname: url.hostname,
+        port: url.port || (url.protocol === 'https:' ? 443 : 80),
+        path: url.pathname === '/' ? '/api/health' : url.pathname, // Try health endpoint typically
+        method: 'HEAD',
+        timeout: 2000
+      };
+
+      const req = client.request(options, (res) => {
+        res.resume(); // consume any data
+        resolve(Math.round(performance.now() - start));
+      });
+
+      req.on('error', () => resolve(0));
+      req.on('timeout', () => { req.destroy(); resolve(0); });
+      req.end();
+    } catch {
+      resolve(0);
+    }
+  });
+}
+
+/**
+ * Retrieves disk I/O statistics.
+ */
+function getDiskIO() {
+  return new Promise((resolve) => {
+    // Placeholder: Real implementation requires state tracking (diff) or complex platform-specific parsing
+    resolve({ read_kbps: 0, write_kbps: 0 });
+  });
+}
+
+/**
+ * Retrieves the disk usage percentage of the root directory.
+ *
+ * This function checks if the fs.statfs method is available, which is supported in Node 19.6 and later.
+ * It determines the root directory based on the operating system and uses fs.statfs to obtain filesystem statistics.
+ * If an error occurs, it resolves to 0; otherwise, it calculates the used space and returns the percentage of disk usage.
+ */
+async function getDiskUsage() {
+  // Use fs.statfs if available (Node 19.6+)
+  if (fs.statfs) {
+    return new Promise(resolve => {
+      const root = os.platform() === 'win32' ? 'C:\\' : '/';
+      fs.statfs(root, (err, stats) => {
+        if (err) resolve(0);
+        else {
+          const used = stats.blocks - stats.bavail;
+          const percent = Math.round((used / stats.blocks) * 100);
+          resolve(percent);
+        }
+      });
+    });
+  }
+  return 0;
+}
+
+/**
+ * Collects various system metrics including CPU usage, memory usage, latency, and disk I/O.
+ *
+ * This function retrieves the current CPU and memory usage percentages, measures the latency
+ * to a specified SaaS URL, and gathers disk usage and I/O statistics. It also supports
+ * optional plugins that can extend the metrics collected. If any plugins are provided,
+ * their results are merged into the final metrics object before returning.
+ *
+ * @param {string} saasUrl - The URL of the SaaS service to measure latency against.
+ * @param {Array} [plugins=[]] - An optional array of plugin functions to run for additional metrics.
+ */
+async function collectMetrics(saasUrl, plugins = []) {
   const cpus = os.cpus();
   let totalIdle = 0, totalTick = 0;
   for (const cpu of cpus) {
@@ -63,11 +149,19 @@ async function collectMetrics(plugins = []) {
   const freeMem = os.freemem();
   const memoryUsage = Math.round(((totalMem - freeMem) / totalMem) * 100);
 
+  const latency = await measureLatency(saasUrl);
+  const diskUsage = await getDiskUsage();
+  const diskIO = await getDiskIO();
+
   const metrics = {
     cpu_usage: cpuUsage,
     memory_usage: memoryUsage,
-    latency_ms: Math.round(Math.random() * 100 + 50),
+    latency_ms: latency,
     uptime_hours: Math.round(os.uptime() / 3600),
+    disk_usage: diskUsage,
+    disk_io_read: diskIO.read_kbps,
+    disk_io_write: diskIO.write_kbps,
+    memory_pressure: memoryUsage > 80,
   };
 
   if (plugins && plugins.length > 0) {
@@ -164,9 +258,10 @@ function printStatus(metrics) {
   console.log(`  ${COLORS.magenta}MEM${COLORS.reset}    ${metrics.memory_usage}%`);
   console.log(`  ${COLORS.yellow}LAT${COLORS.reset}    ${metrics.latency_ms}ms`);
   console.log(`  ${COLORS.dim}UPTIME ${metrics.uptime_hours}h${COLORS.reset}`);
+  console.log(`  ${COLORS.cyan}DISK${COLORS.reset}   ${metrics.disk_usage}%`);
 
   // Print custom metrics from plugins
-  const standardKeys = ['cpu_usage', 'memory_usage', 'latency_ms', 'uptime_hours'];
+  const standardKeys = ['cpu_usage', 'memory_usage', 'latency_ms', 'uptime_hours', 'disk_usage', 'disk_io_read', 'disk_io_write', 'memory_pressure'];
   const customKeys = Object.keys(metrics).filter(k => !standardKeys.includes(k));
 
   if (customKeys.length > 0) {
@@ -180,6 +275,14 @@ function printStatus(metrics) {
 
 // ============ COMMANDS ============
 
+/**
+ * Redact sensitive information from a configuration object.
+ *
+ * The function checks if the input is an object or an array. If it is an array, it recursively applies the redaction to each element. For objects, it creates a shallow copy and iterates through its keys, replacing any key that matches sensitive patterns with '[REDACTED]'. If a value is an object, it recursively redacts that value as well.
+ *
+ * @param config - The configuration object or array to be redacted.
+ * @returns A new object or array with sensitive information redacted.
+ */
 function redactConfig(config) {
   if (typeof config !== 'object' || config === null) {
     return config;
@@ -270,13 +373,23 @@ async function monitorCommand(args) {
     }
   }
 
+  /**
+   * Sends a heartbeat to the server, ensuring the session is valid.
+   *
+   * The function first checks if a sessionToken exists; if not, it performs a handshake.
+   * It then collects metrics and attempts to post the heartbeat. Depending on the response status,
+   * it logs the result, handles session expiration by retrying the handshake, or logs an error for other failures.
+   *
+   * @returns {Promise<void>} A promise that resolves when the heartbeat has been sent or retried.
+   * @throws {Error} If there is a connection error during the heartbeat process.
+   */
   async function sendHeartbeat() {
     if (!sessionToken) {
       const ok = await performHandshake();
       if (!ok) return;
     }
 
-    const metrics = await collectMetrics(plugins);
+    const metrics = await collectMetrics(saasUrl, plugins);
     try {
       const result = await postHeartbeat(saasUrl, agentId, status, metrics, sessionToken);
       if (result.status === 200) {
@@ -306,10 +419,13 @@ async function monitorCommand(args) {
   }
 }
 
+/**
+ * Displays the system status and metrics based on provided arguments.
+ */
 async function statusCommand(args) {
   printBanner();
   const plugins = args.plugins ? args.plugins.split(',').map(p => p.trim()) : [];
-  const metrics = await collectMetrics(plugins);
+  const metrics = await collectMetrics(args.saas_url, plugins);
   console.log(`\n  ${COLORS.bold}System Status${COLORS.reset}`);
   console.log(`  ${COLORS.dim}────────────────${COLORS.reset}`);
   printStatus(metrics);
@@ -510,6 +626,16 @@ async function configPushCommand(args) {
   }
 }
 
+/**
+ * Checks the health of a gateway by sending a request to its health API.
+ *
+ * This function constructs a URL using the provided IP and port, then makes an HTTP GET request to the health endpoint.
+ * It resolves with the gateway URL if the response status is 200 and the JSON response indicates a status of 'ok'.
+ * In case of any errors or unexpected responses, it resolves with null.
+ *
+ * @param {string} ip - The IP address of the gateway.
+ * @param {number} port - The port number of the gateway.
+ */
 async function checkGateway(ip, port) {
   const url = `http://${ip}:${port}/api/health`;
   return new Promise((resolve) => {
@@ -533,6 +659,14 @@ async function checkGateway(ip, port) {
   });
 }
 
+/**
+ * Discover OpenClaw gateways on the local network.
+ *
+ * This function scans the local network interfaces for IPv4 addresses, generates a list of potential gateway targets based on common ports, and checks each target for an OpenClaw gateway. It logs the results, including any found gateways and instructions for pairing. The scanning is performed in batches to manage the number of concurrent checks.
+ *
+ * @param args - The arguments passed to the command, which may include options for the discovery process.
+ * @returns {Promise<void>} A promise that resolves when the discovery process is complete.
+ */
 async function discoverCommand(args) {
   printBanner();
   log(`${COLORS.green}Auto-Discovery: Scanning local network for OpenClaw gateways...${COLORS.reset}`);

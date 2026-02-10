@@ -5,6 +5,15 @@
 $SaasUrl = "{{BASE_URL}}"
 $AgentId = "{{AGENT_ID}}"
 $AgentSecret = "{{AGENT_SECRET}}"
+
+if ([string]::IsNullOrEmpty($AgentSecret)) {
+    $AgentSecret = $env:OPENCLAW_AGENT_SECRET
+}
+if ([string]::IsNullOrEmpty($AgentSecret)) {
+    Write-Host "Error: AGENT_SECRET is not set. Please set OPENCLAW_AGENT_SECRET environment variable." -ForegroundColor Red
+    exit 1
+}
+
 $Interval = {{INTERVAL}}
 $SessionToken = $null
 $GatewayUrl = $null
