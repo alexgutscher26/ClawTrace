@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import posthog from 'posthog-js';
 import { toast } from 'sonner';
-import { MessageSquare, Terminal, Lock, Trash2 } from 'lucide-react';
+import { MessageSquare, Terminal, Lock, Trash2, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -52,6 +52,34 @@ export default function SettingsView() {
   });
   const [branding, setBranding] = useState(initialBranding || { domain: '', name: '' });
   const [savingBranding, setSavingBranding] = useState(false);
+  const [editingChannelId, setEditingChannelId] = useState(null);
+
+  const handleDeleteChannel = (id) => {
+    toast('Delete this alert channel?', {
+      action: {
+        label: 'Confirm',
+        onClick: async () => {
+          try {
+            await api(`/api/alert-channels/${id}`, { method: 'DELETE' });
+            toast.success('Channel removed');
+            loadChannels();
+          } catch (err) {
+            toast.error(err.message);
+          }
+        },
+      },
+    });
+  };
+
+  const openEditChannel = (channel) => {
+    setNewChannel({
+      name: channel.name,
+      type: channel.type,
+      webhook_url: channel.config.webhook_url || '',
+    });
+    setEditingChannelId(channel.id);
+    setAddOpen(true);
+  };
 
   useEffect(() => {
     if (initialBranding) setBranding(initialBranding);
@@ -62,7 +90,7 @@ export default function SettingsView() {
         const p = res.subscription?.plan || 'free';
         setTier(p.toLowerCase());
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [api]);
 
   useEffect(() => {
@@ -71,7 +99,7 @@ export default function SettingsView() {
         .then((res) => {
           if (res.branding) setBranding(res.branding);
         })
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [tier, api]);
 
@@ -108,18 +136,25 @@ export default function SettingsView() {
 
   const handleAddChannel = async () => {
     try {
-      await api('/api/alert-channels', {
-        method: 'POST',
+      const url = editingChannelId
+        ? `/api/alert-channels/${editingChannelId}`
+        : '/api/alert-channels';
+
+      await api(url, {
+        method: editingChannelId ? 'PUT' : 'POST',
         body: JSON.stringify({
           name: newChannel.name,
           type: newChannel.type,
           config: { webhook_url: newChannel.webhook_url },
         }),
       });
-      toast.success('Channel added!');
-      posthog.capture('alert_channel_created', { type: newChannel.type });
+      toast.success(editingChannelId ? 'Channel updated!' : 'Channel added!');
+      if (!editingChannelId) {
+        posthog.capture('alert_channel_created', { type: newChannel.type });
+      }
       setAddOpen(false);
       setNewChannel({ name: '', type: 'slack', webhook_url: '' });
+      setEditingChannelId(null);
       loadChannels();
     } catch (err) {
       toast.error(err.message);
@@ -150,9 +185,9 @@ export default function SettingsView() {
               newPolicy.guardrails.approved_tools === '*'
                 ? ['*']
                 : newPolicy.guardrails.approved_tools
-                    .split(',')
-                    .map((t) => t.trim())
-                    .filter(Boolean),
+                  .split(',')
+                  .map((t) => t.trim())
+                  .filter(Boolean),
           },
         }),
       });
@@ -296,15 +331,20 @@ export default function SettingsView() {
                     </p>
                   </div>
                   <Dialog open={addOpen} onOpenChange={setAddOpen}>
-                    <DialogTrigger asChild>
-                      <Button className="rounded-none bg-white text-xs font-bold text-black hover:bg-zinc-200">
-                        ADD CHANNEL
-                      </Button>
-                    </DialogTrigger>
+                    <Button
+                      onClick={() => {
+                        setEditingChannelId(null);
+                        setNewChannel({ name: '', type: 'slack', webhook_url: '' });
+                        setAddOpen(true);
+                      }}
+                      className="rounded-none bg-white text-xs font-bold text-black hover:bg-zinc-200"
+                    >
+                      ADD CHANNEL
+                    </Button>
                     <DialogContent className="max-w-md rounded-none border-white bg-black p-10 text-white">
                       <DialogHeader>
                         <DialogTitle className="text-2xl font-black tracking-tighter uppercase italic">
-                          NEW PIPELINE
+                          {editingChannelId ? 'EDIT PIPELINE' : 'NEW PIPELINE'}
                         </DialogTitle>
                         <DialogDescription className="text-[10px] tracking-widest text-zinc-500 uppercase">
                           Connect external notification systems
@@ -355,7 +395,7 @@ export default function SettingsView() {
                         onClick={handleAddChannel}
                         className="h-14 w-full bg-white text-xs font-black tracking-widest text-black uppercase italic hover:bg-zinc-200"
                       >
-                        INITIALIZE CHANNEL
+                        {editingChannelId ? 'UPDATE CHANNEL' : 'INITIALIZE CHANNEL'}
                       </Button>
                     </DialogContent>
                   </Dialog>
@@ -387,10 +427,30 @@ export default function SettingsView() {
                             </p>
                           </div>
                         </div>
-                        <div
-                          className={`px-3 py-1 text-[8px] font-black tracking-widest uppercase ${c.active ? 'bg-zinc-800 text-emerald-400' : 'bg-red-950 text-red-500'}`}
-                        >
-                          {c.active ? 'CONNECTED' : 'TERMINATED'}
+                        <div className="flex items-center gap-4">
+                          <div
+                            className={`px-3 py-1 text-[8px] font-black tracking-widest uppercase ${c.active ? 'bg-zinc-800 text-emerald-400' : 'bg-red-950 text-red-500'}`}
+                          >
+                            {c.active ? 'CONNECTED' : 'TERMINATED'}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEditChannel(c)}
+                              className="h-8 w-8 rounded-none text-zinc-500 hover:bg-white/10 hover:text-white"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteChannel(c.id)}
+                              className="h-8 w-8 rounded-none text-zinc-500 hover:bg-red-500/10 hover:text-red-500"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     ))

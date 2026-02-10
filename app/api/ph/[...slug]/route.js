@@ -15,7 +15,7 @@ function getAllowedOrigin(request) {
   const requestOrigin = request.headers.get('origin');
 
   if (allowedOrigins === '*') {
-    return '*';
+    return requestOrigin || '*';
   }
 
   if (!requestOrigin) {

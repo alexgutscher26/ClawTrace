@@ -1841,6 +1841,32 @@ export async function PUT(request, context) {
       return json({ policy });
     }
 
+    const channelMatch = path.match(/^\/alert-channels\/([^/]+)$/);
+    if (channelMatch) {
+      const user = await getUser(request);
+      if (!user) return json({ error: 'Unauthorized' }, 401);
+
+      const body = await request.json();
+      const updateFields = { updated_at: new Date().toISOString() };
+
+      if (body.name !== undefined) updateFields.name = body.name;
+      if (body.type !== undefined) updateFields.type = body.type;
+      if (body.config !== undefined) updateFields.config = body.config;
+      if (body.active !== undefined) updateFields.active = body.active;
+
+      const { data: channel, error } = await supabaseAdmin
+        .from('alert_channels')
+        .update(updateFields)
+        .eq('id', channelMatch[1])
+        .eq('user_id', user.id)
+        .select()
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!channel) return json({ error: 'Channel not found' }, 404);
+      return json({ channel });
+    }
+
     return json({ error: 'Not found' }, 404);
   } catch (error) {
     console.error('PUT Error:', error);
@@ -1904,6 +1930,19 @@ export async function DELETE(request, context) {
         .eq('user_id', user.id);
       if (deleteError) throw deleteError;
       return json({ message: 'Custom policy deleted' });
+    }
+
+    const channelMatch = path.match(/^\/alert-channels\/([^/]+)$/);
+    if (channelMatch) {
+      const user = await getUser(request);
+      if (!user) return json({ error: 'Unauthorized' }, 401);
+      const { error: deleteError } = await supabaseAdmin
+        .from('alert_channels')
+        .delete()
+        .eq('id', channelMatch[1])
+        .eq('user_id', user.id);
+      if (deleteError) throw deleteError;
+      return json({ message: 'Channel deleted' });
     }
 
     return json({ error: 'Not found' }, 404);
