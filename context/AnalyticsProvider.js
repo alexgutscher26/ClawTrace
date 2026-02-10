@@ -23,12 +23,12 @@ export function AnalyticsProvider({ children }) {
           enable_external_api_event_tracking: true,
           session_recording: {
             maskAllInputFields: false,
-            maskTextSelector: ".sensitive",
+            maskTextSelector: '.sensitive',
           },
           loaded: (ph) => {
             if (process.env.NODE_ENV === 'development') ph.debug();
             posthog.__loaded = true;
-          }
+          },
         });
       } catch (e) {
         console.warn('PostHog init failed:', e);

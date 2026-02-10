@@ -1279,11 +1279,6 @@ export async function POST(request, context) {
 
     if (path === '/agents/handshake') {
       const body = await request.json();
-      console.log('[HANDSHAKE] Request received:', {
-        agent_id: body.agent_id,
-        has_signature: !!body.signature,
-        timestamp: body.timestamp,
-      });
 
       // Get agent's owner for tier-based handshake limit
       const { data: agent, error } = await supabaseAdmin
@@ -1301,29 +1296,16 @@ export async function POST(request, context) {
         return json({ error: 'Agent not found' }, 404);
       }
 
-      console.log('[HANDSHAKE] Agent found:', { id: agent.id, has_secret: !!agent.agent_secret });
-
       // Route-specific handshake limit
       const handshakeLimit = await checkRateLimit(request, agent.id, 'handshake', agent.user_id);
       if (!handshakeLimit.allowed) return handshakeLimit.response;
 
       const decryptedSecret = decrypt(agent.agent_secret);
-      console.log('[HANDSHAKE] Decryption result:', {
-        encrypted_length: agent.agent_secret?.length,
-        decrypted_length: decryptedSecret?.length,
-        decrypted_preview: decryptedSecret?.substring(0, 8) + '...',
-      });
 
       if (body.signature) {
         // Hardened Handshake: HMAC-SHA256(agent_id + timestamp, secret)
         const timestamp = parseInt(body.timestamp);
         const now = Math.floor(Date.now() / 1000);
-
-        console.log('[HANDSHAKE] Signature validation:', {
-          timestamp,
-          now,
-          diff: Math.abs(now - timestamp),
-        });
 
         // Anti-replay: 5 minute window
         if (isNaN(timestamp) || Math.abs(now - timestamp) > 300) {
@@ -1336,26 +1318,18 @@ export async function POST(request, context) {
           .update(agent.id + body.timestamp)
           .digest('hex');
 
-        console.log('[HANDSHAKE] Signature comparison:', {
-          expected: expectedSignature.substring(0, 16) + '...',
-          received: body.signature.substring(0, 16) + '...',
-          match: expectedSignature === body.signature,
-        });
-
         if (expectedSignature !== body.signature) {
           console.error('[HANDSHAKE] Signature mismatch');
           return json({ error: 'Invalid signature' }, 401);
         }
       } else {
         // Legacy Handshake: Plaintext secret (Optional fallback)
-        console.log('[HANDSHAKE] Using legacy plaintext validation');
         if (!decryptedSecret || decryptedSecret !== body.agent_secret) {
           console.error('[HANDSHAKE] Legacy secret validation failed');
           return json({ error: 'Invalid agent secret' }, 401);
         }
       }
 
-      console.log('[HANDSHAKE] Success! Generating token...');
       const token = await createAgentToken(agent.id, agent.fleet_id);
       const policyProfile = agent.policy_profile || 'dev';
       let policy = getPolicy(policyProfile);
