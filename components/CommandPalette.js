@@ -23,6 +23,16 @@ import {
 import { useFleet } from '@/context/FleetContext';
 import { supabase } from '@/lib/supabase';
 
+/**
+ * Renders a command palette for executing commands and searching agents.
+ *
+ * The CommandPalette component manages its open state and fetches agents from the API when opened.
+ * It listens for keyboard shortcuts to toggle its visibility and provides a list of commands and agents
+ * that can be selected to navigate to different routes or perform actions. The component also handles
+ * user sign-out functionality.
+ *
+ * @returns {JSX.Element|null} The rendered command palette or null if the session is not available.
+ */
 export function CommandPalette() {
     const [open, setOpen] = React.useState(false);
     const [agents, setAgents] = React.useState([]);
@@ -30,6 +40,9 @@ export function CommandPalette() {
     const router = useRouter();
 
     React.useEffect(() => {
+        /**
+         * Toggles the open state when 'k' is pressed with meta or ctrl key.
+         */
         const down = (e) => {
             if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
