@@ -13,6 +13,13 @@ const PAYLOAD = JSON.stringify({
 });
 const encryptedSecret = encrypt(PAYLOAD);
 
+/**
+ * Runs a benchmark for synchronous and asynchronous decryption operations.
+ *
+ * This function measures the time taken to decrypt a given payload using both synchronous and asynchronous methods.
+ * It logs the total time, average time per operation, and the number of event loop ticks during execution for both methods.
+ * The synchronous benchmark runs in a loop, while the asynchronous benchmark utilizes promises to handle concurrent operations.
+ */
 async function runBenchmark() {
   console.log(`Running benchmark with ${ITERATIONS} iterations on 10KB payload...`);
 
@@ -45,6 +52,9 @@ async function runBenchmark() {
   // --- Asynchronous Benchmark (Concurrent) ---
   let asyncTicks = 0;
   running = true;
+  /**
+   * Recursively calls itself using setImmediate if running is true.
+   */
   function tickAsync() {
     asyncTicks++;
     if (running) setImmediate(tickAsync);
