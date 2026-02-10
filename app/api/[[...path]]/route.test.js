@@ -1,5 +1,50 @@
 import { describe, test, expect, mock, beforeAll } from 'bun:test';
-import { v4 as uuidv4 } from 'uuid';
+
+// Mock uuid module before importing anything else
+mock.module('uuid', () => ({
+  v4: () => 'uuid-v4',
+  validate: (s) => s === 'uuid-v4',
+}));
+
+const { v4: uuidv4 } = await import('uuid');
+
+mock.module('jose', () => ({
+  SignJWT: class {
+    setProtectedHeader() { return this; }
+    setIssuedAt() { return this; }
+    setExpirationTime() { return this; }
+    sign() { return Promise.resolve('token'); }
+  },
+  jwtVerify: () => Promise.resolve({ payload: {} }),
+}));
+
+mock.module('@/lib/encryption', () => ({
+  encrypt: (x) => x,
+  decrypt: (x) => x,
+  decryptAsync: (x) => Promise.resolve(x),
+}));
+
+mock.module('fs', () => {
+  const fs = {
+    promises: {
+      readFile: () => Promise.resolve('SCRIPT CONTENT\nAGENT_ID="{{AGENT_ID}}"\nAGENT_SECRET="{{AGENT_SECRET}}"'),
+    },
+  };
+  return {
+    ...fs,
+    default: fs,
+  };
+});
+
+mock.module('path', () => {
+  const path = {
+    join: (...args) => args.join('/'),
+  };
+  return {
+    ...path,
+    default: path,
+  };
+});
 
 // Mock environment variables
 process.env.NEXT_PUBLIC_SUPABASE_URL = 'http://localhost:54321';
