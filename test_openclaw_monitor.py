@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, mock_open
 import json
 import sys
 import io
@@ -86,6 +86,63 @@ class TestGetCpu(unittest.TestCase):
 
         cpu_usage = monitor.get_cpu()
         self.assertEqual(cpu_usage, 0)
+
+class TestGetUptime(unittest.TestCase):
+    @patch('platform.system')
+    def test_get_uptime_linux(self, mock_system):
+        mock_system.return_value = "Linux"
+
+        # /proc/uptime contains two numbers: uptime in seconds, and idle time in seconds
+        uptime_content = "36000.0 72000.0"
+
+        m = mock_open(read_data=uptime_content)
+
+        with patch('builtins.open', m):
+            uptime = monitor.get_uptime()
+
+        # 36000 seconds / 3600 = 10 hours
+        self.assertEqual(uptime, 10)
+
+    @patch('platform.system')
+    @patch('subprocess.run')
+    @patch('time.time')
+    def test_get_uptime_darwin(self, mock_time, mock_run, mock_system):
+        mock_system.return_value = "Darwin"
+        mock_time.return_value = 1600000000.0  # Current time
+
+        # Simulate boottime 10 hours ago
+        # 10 hours = 36000 seconds
+        boot_time = 1600000000.0 - 36000.0
+
+        # sysctl output format: { sec = 1599964000, usec = 0 } Fri Sep 11 00:00:00 2020
+        # The regex looks for "sec = (\d+)"
+        sysctl_output = f"{{ sec = {int(boot_time)}, usec = 0 }}"
+
+        mock_run.return_value = MagicMock(stdout=sysctl_output)
+
+        uptime = monitor.get_uptime()
+
+        self.assertEqual(uptime, 10)
+
+    @patch('platform.system')
+    @patch('time.monotonic')
+    def test_get_uptime_windows(self, mock_monotonic, mock_system):
+        mock_system.return_value = "Windows"
+
+        # 10 hours = 36000 seconds
+        mock_monotonic.return_value = 36000.0
+
+        uptime = monitor.get_uptime()
+
+        self.assertEqual(uptime, 10)
+
+    @patch('platform.system')
+    def test_get_uptime_error(self, mock_system):
+        mock_system.side_effect = Exception("Some error")
+
+        uptime = monitor.get_uptime()
+
+        self.assertEqual(uptime, 0)
 
 if __name__ == '__main__':
     unittest.main()
