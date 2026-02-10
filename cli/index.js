@@ -192,6 +192,8 @@ async function monitorCommand(args) {
     console.log(`  --agent-secret Agent Secret from your dashboard (required)`);
     console.log(`  --interval     Heartbeat interval in seconds (default: 300)`);
     console.log(`  --status       Agent status: healthy, idle, error (default: healthy)`);
+    console.log();
+    console.log(`  ${COLORS.dim}Tip: Run 'fleet-monitor discover' to find your gateway URL${COLORS.reset}`);
     process.exit(1);
   }
 
@@ -360,6 +362,8 @@ async function configPushCommand(args) {
     console.log(`     --config <json>      Raw JSON string`);
     console.log(`\nExample:`);
     console.log(`  fleet-monitor config push --agent-id=... --model=claude-sonnet-4 --skills=code,search`);
+    console.log();
+    console.log(`  ${COLORS.dim}Tip: Run 'fleet-monitor discover' to find your gateway URL${COLORS.reset}`);
     process.exit(1);
   }
 
@@ -456,12 +460,102 @@ async function configPushCommand(args) {
   }
 }
 
+async function checkGateway(ip, port) {
+  const url = `http://${ip}:${port}/api/health`;
+  return new Promise((resolve) => {
+    const req = http.get(url, { timeout: 1500 }, (res) => {
+      if (res.statusCode === 200) {
+        let data = '';
+        res.on('data', c => data += c);
+        res.on('end', () => {
+          try {
+            const json = JSON.parse(data);
+            if (json.status === 'ok') resolve(`http://${ip}:${port}`);
+            else resolve(null);
+          } catch { resolve(null); }
+        });
+      } else {
+        resolve(null);
+      }
+    });
+    req.on('error', () => resolve(null));
+    req.on('timeout', () => { req.destroy(); resolve(null); });
+  });
+}
+
+async function discoverCommand(args) {
+  printBanner();
+  log(`${COLORS.green}Auto-Discovery: Scanning local network for OpenClaw gateways...${COLORS.reset}`);
+
+  const nets = os.networkInterfaces();
+  const localSubnets = new Set();
+
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      if (net.family === 'IPv4' && !net.internal) {
+        const parts = net.address.split('.');
+        localSubnets.add(parts.slice(0, 3).join('.'));
+      }
+    }
+  }
+
+  if (localSubnets.size === 0) {
+    log(`${COLORS.yellow}No local network interfaces found.${COLORS.reset}`);
+    return;
+  }
+
+  const subnets = Array.from(localSubnets);
+  const ports = [3000, 8080, 80, 443];
+  const foundGateways = [];
+
+  log(`${COLORS.dim}Scanning ${subnets.length} subnet(s) on ports ${ports.join(', ')}...${COLORS.reset}`);
+
+  // Generate all targets
+  const targets = [];
+  for (const subnet of subnets) {
+    for (let i = 1; i < 255; i++) {
+      const ip = `${subnet}.${i}`;
+      for (const port of ports) {
+        targets.push({ ip, port });
+      }
+    }
+  }
+
+  // Scan in batches
+  const BATCH_SIZE = 50;
+  for (let i = 0; i < targets.length; i += BATCH_SIZE) {
+    const batch = targets.slice(i, i + BATCH_SIZE);
+    const results = await Promise.all(batch.map(t => checkGateway(t.ip, t.port)));
+    results.filter(Boolean).forEach(gw => foundGateways.push(gw));
+
+    // Simple progress indicator (overwrite line)
+    if (process.stdout.isTTY) {
+      process.stdout.write(`\r${COLORS.dim}Scanned ${Math.min(i + BATCH_SIZE, targets.length)} / ${targets.length} targets...${COLORS.reset}`);
+    }
+  }
+
+  if (process.stdout.isTTY) console.log(); // Newline
+
+  console.log();
+  if (foundGateways.length > 0) {
+    log(`${COLORS.green}Found ${foundGateways.length} OpenClaw gateway(s):${COLORS.reset}`);
+    foundGateways.forEach(gw => console.log(`  ${COLORS.bold}${gw}${COLORS.reset}`));
+    console.log();
+    console.log(`${COLORS.dim}Use one of these URLs for pairing:${COLORS.reset}`);
+    console.log(`  fleet-monitor monitor --saas-url=${foundGateways[0]} ...`);
+  } else {
+    log(`${COLORS.yellow}No gateways found.${COLORS.reset}`);
+    log(`${COLORS.dim}Ensure the OpenClaw Dashboard is running and reachable.${COLORS.reset}`);
+  }
+}
+
 function helpCommand() {
   printBanner();
   console.log(`
   ${COLORS.bold}Commands:${COLORS.reset}`);
   console.log(`    ${COLORS.green}monitor${COLORS.reset}    Start sending heartbeats to your Fleet dashboard`);
   console.log(`    ${COLORS.green}config${COLORS.reset}     Manage agent configuration`);
+  console.log(`    ${COLORS.green}discover${COLORS.reset}   Scan local network for OpenClaw gateways`);
   console.log(`    ${COLORS.green}status${COLORS.reset}     Show local system metrics`);
   console.log(`    ${COLORS.green}help${COLORS.reset}       Show this help message`);
   console.log(`
@@ -510,6 +604,9 @@ switch (command) {
     break;
   case 'status':
     statusCommand(args);
+    break;
+  case 'discover':
+    discoverCommand(args);
     break;
   case 'help':
   case '--help':
