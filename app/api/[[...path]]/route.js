@@ -104,7 +104,7 @@ async function getTier(userId) {
  * Validates parameters for agent installation scripts.
  *
  * This function checks for the presence of agentId and agentSecret, ensuring they are not empty.
- * It also validates the format of these parameters using uuidValidate. Additionally, if an interval is provided,
+ * It validates the format of these parameters using uuidValidate. Additionally, if an interval is provided,
  * it checks that the interval is a positive integer. If any validation fails, an error object is returned;
  * otherwise, null is returned.
  *
