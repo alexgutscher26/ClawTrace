@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4, validate as validateUuid } from 'uuid';
 import { SignJWT, jwtVerify } from 'jose';
 import { encrypt, decrypt } from '@/lib/encryption';
 import { getPolicy } from '@/lib/policies';
@@ -215,10 +215,21 @@ export async function GET(request, context) {
         return json({ error: 'Missing agent_id or agent_secret parameter' }, 400);
       }
 
+      if (!validateUuid(agentId) || !validateUuid(agentSecret)) {
+        return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
+      }
+
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
         request.headers.get('origin') ||
         'http://localhost:3000';
+
+      try {
+        new URL(baseUrl);
+        if (baseUrl.includes('"') || baseUrl.includes("'")) throw new Error('Invalid characters');
+      } catch {
+        return json({ error: 'Invalid base URL' }, 400);
+      }
 
       // Determine user tier for heartbeat interval
       let interval = searchParams.get('interval');
@@ -256,6 +267,10 @@ export async function GET(request, context) {
         } else {
           interval = '300';
         }
+      }
+
+      if (!/^\d+$/.test(interval)) {
+        return json({ error: 'Invalid interval format' }, 400);
       }
 
       const script = `#!/bin/bash
@@ -440,10 +455,21 @@ done
         return json({ error: 'Missing agent_id or agent_secret parameter' }, 400);
       }
 
+      if (!validateUuid(agentId) || !validateUuid(agentSecret)) {
+        return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
+      }
+
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
         request.headers.get('origin') ||
         'http://localhost:3000';
+
+      try {
+        new URL(baseUrl);
+        if (baseUrl.includes('"') || baseUrl.includes("'")) throw new Error('Invalid characters');
+      } catch {
+        return json({ error: 'Invalid base URL' }, 400);
+      }
 
       // Determine user tier for heartbeat interval
       let interval = searchParams.get('interval');
@@ -481,6 +507,10 @@ done
         } else {
           interval = '300';
         }
+      }
+
+      if (!/^\d+$/.test(interval)) {
+        return json({ error: 'Invalid interval format' }, 400);
       }
 
       const psScript = [
@@ -647,10 +677,21 @@ done
         return json({ error: 'Missing agent_id or agent_secret parameter' }, 400);
       }
 
+      if (!validateUuid(agentId) || !validateUuid(agentSecret)) {
+        return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
+      }
+
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
         request.headers.get('origin') ||
         'http://localhost:3000';
+
+      try {
+        new URL(baseUrl);
+        if (baseUrl.includes('"') || baseUrl.includes("'")) throw new Error('Invalid characters');
+      } catch {
+        return json({ error: 'Invalid base URL' }, 400);
+      }
 
       // Determine user tier for heartbeat interval
       let interval = searchParams.get('interval');
@@ -688,6 +729,10 @@ done
         } else {
           interval = '300';
         }
+      }
+
+      if (!/^\d+$/.test(interval)) {
+        return json({ error: 'Invalid interval format' }, 400);
       }
 
       const pyLines = [
