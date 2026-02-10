@@ -49,6 +49,17 @@ export function AnalyticsProvider({ children }) {
     }
   }, [pathname, searchParams]);
 
+  // Handle hash changes for legacy hash-routing support
+  useEffect(() => {
+    const handleHashChange = () => {
+      posthog.capture('$pageview', {
+        $current_url: window.location.href,
+      });
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
   // Handle identity and session state
   useEffect(() => {
     if (!posthog) return;
