@@ -27,6 +27,16 @@ function parseArgs(argv) {
 // ============ SYSTEM METRICS COLLECTOR ============
 // ============ SYSTEM METRICS COLLECTOR ============
 
+/**
+ * Executes a plugin script based on the provided file path.
+ *
+ * This function determines the appropriate command to run a script based on its file extension,
+ * supporting JavaScript and Python files. It executes the command with a timeout and handles
+ * potential errors by logging them. If the output is valid JSON, it resolves the promise with
+ * the parsed JSON; otherwise, it logs an error and resolves with an empty object.
+ *
+ * @param {string} path - The file path of the plugin script to execute.
+ */
 async function runPlugin(path) {
   return new Promise((resolve) => {
     let cmd;
@@ -52,91 +62,15 @@ async function runPlugin(path) {
 }
 
 /**
- * Measures the latency of a given URL by sending a HEAD request.
+ * Collects system metrics including CPU and memory usage.
  *
- * This function takes a URL string, constructs a request to either the HTTP or HTTPS protocol,
- * and measures the time taken to receive a response. If the URL is invalid or the request fails,
- * it resolves to 0. The function also attempts to access a health endpoint if the path is the root.
+ * This function retrieves the current CPU and memory usage statistics, calculates the latency, and uptime.
+ * If any plugins are provided, it runs them asynchronously and merges their results into the metrics object.
+ * The final metrics object includes cpu_usage, memory_usage, latency_ms, and uptime_hours.
  *
- * @param {string} urlStr - The URL string to measure latency for.
+ * @param {Array} plugins - An array of plugin functions to run for additional metrics.
  */
-async function measureLatency(urlStr) {
-  if (!urlStr) return 0;
-  return new Promise((resolve) => {
-    try {
-      const url = new URL(urlStr);
-      const start = performance.now();
-      const client = url.protocol === 'https:' ? https : http;
-
-      const options = {
-        hostname: url.hostname,
-        port: url.port || (url.protocol === 'https:' ? 443 : 80),
-        path: url.pathname === '/' ? '/api/health' : url.pathname, // Try health endpoint typically
-        method: 'HEAD',
-        timeout: 2000
-      };
-
-      const req = client.request(options, (res) => {
-        res.resume(); // consume any data
-        resolve(Math.round(performance.now() - start));
-      });
-
-      req.on('error', () => resolve(0));
-      req.on('timeout', () => { req.destroy(); resolve(0); });
-      req.end();
-    } catch {
-      resolve(0);
-    }
-  });
-}
-
-/**
- * Retrieves disk I/O statistics.
- */
-function getDiskIO() {
-  return new Promise((resolve) => {
-    // Placeholder: Real implementation requires state tracking (diff) or complex platform-specific parsing
-    resolve({ read_kbps: 0, write_kbps: 0 });
-  });
-}
-
-/**
- * Retrieves the disk usage percentage of the root directory.
- *
- * This function checks if the fs.statfs method is available, which is supported in Node 19.6 and later.
- * It determines the root directory based on the operating system and uses fs.statfs to obtain filesystem statistics.
- * If an error occurs, it resolves to 0; otherwise, it calculates the used space and returns the percentage of disk usage.
- */
-async function getDiskUsage() {
-  // Use fs.statfs if available (Node 19.6+)
-  if (fs.statfs) {
-    return new Promise(resolve => {
-      const root = os.platform() === 'win32' ? 'C:\\' : '/';
-      fs.statfs(root, (err, stats) => {
-        if (err) resolve(0);
-        else {
-          const used = stats.blocks - stats.bavail;
-          const percent = Math.round((used / stats.blocks) * 100);
-          resolve(percent);
-        }
-      });
-    });
-  }
-  return 0;
-}
-
-/**
- * Collects various system metrics including CPU usage, memory usage, latency, and disk I/O.
- *
- * This function retrieves the current CPU and memory usage percentages, measures the latency
- * to a specified SaaS URL, and gathers disk usage and I/O statistics. It also supports
- * optional plugins that can extend the metrics collected. If any plugins are provided,
- * their results are merged into the final metrics object before returning.
- *
- * @param {string} saasUrl - The URL of the SaaS service to measure latency against.
- * @param {Array} [plugins=[]] - An optional array of plugin functions to run for additional metrics.
- */
-async function collectMetrics(saasUrl, plugins = []) {
+async function collectMetrics(plugins = []) {
   const cpus = os.cpus();
   let totalIdle = 0, totalTick = 0;
   for (const cpu of cpus) {
@@ -253,6 +187,9 @@ ${COLORS.green}${COLORS.bold}  ⚡ Fleet Monitor${COLORS.reset}`);
   console.log(`${COLORS.dim}  ─────────────────────────────${COLORS.reset}`);
 }
 
+/**
+ * Prints the status of system metrics including CPU, memory, latency, and uptime.
+ */
 function printStatus(metrics) {
   console.log(`  ${COLORS.cyan}CPU${COLORS.reset}    ${metrics.cpu_usage}%`);
   console.log(`  ${COLORS.magenta}MEM${COLORS.reset}    ${metrics.memory_usage}%`);
@@ -311,9 +248,9 @@ function redactConfig(config) {
  * Monitors the agent's status and sends heartbeat signals to the specified SaaS URL.
  *
  * This function initializes the monitoring process by performing a handshake to obtain a session token.
- * It then enters a loop where it periodically sends heartbeat signals with the agent's status and metrics.
- * If the session token expires, it retries the handshake once before logging an error.
- * The function requires specific arguments to be provided and will exit if any are missing.
+ * It enters a loop where it periodically sends heartbeat signals with the agent's status and metrics.
+ * If the session token expires, it retries the handshake once before logging an error. The function requires
+ * specific arguments to be provided and will exit if any are missing.
  *
  * @param args - An object containing the necessary parameters for monitoring.
  * @param args.saas_url - The SaaS URL for the fleet monitoring service (required).
@@ -321,6 +258,7 @@ function redactConfig(config) {
  * @param args.agent_secret - The secret associated with the agent (required).
  * @param args.interval - The heartbeat interval in seconds (default: 300).
  * @param args.status - The status of the agent (default: 'healthy').
+ * @param args.plugins - A comma-separated list of plugins to be used (optional).
  */
 async function monitorCommand(args) {
   const saasUrl = args.saas_url;
@@ -374,14 +312,15 @@ async function monitorCommand(args) {
   }
 
   /**
-   * Sends a heartbeat to the server, ensuring the session is valid.
+   * Sends a heartbeat signal to the server with collected metrics.
    *
-   * The function first checks if a sessionToken exists; if not, it performs a handshake.
-   * It then collects metrics and attempts to post the heartbeat. Depending on the response status,
-   * it logs the result, handles session expiration by retrying the handshake, or logs an error for other failures.
+   * The function first checks for a valid session token and performs a handshake if necessary.
+   * It then collects metrics from the specified plugins and attempts to post the heartbeat to the server.
+   * Depending on the response status, it logs the result, handles session expiration by retrying the handshake,
+   * and catches any connection errors that may occur during the process.
    *
    * @returns {Promise<void>} A promise that resolves when the heartbeat has been sent or retried.
-   * @throws {Error} If there is a connection error during the heartbeat process.
+   * @throws {Error} If there is a connection error while sending the heartbeat.
    */
   async function sendHeartbeat() {
     if (!sessionToken) {
@@ -734,122 +673,7 @@ async function discoverCommand(args) {
 }
 
 /**
- * Installs a service command based on the provided arguments.
- *
- * This function checks for required parameters, constructs the appropriate service or plist file content based on the operating system, and attempts to write the file to the system. It handles errors related to file permissions and service management, providing feedback to the user throughout the process.
- *
- * @param args - An object containing the parameters for service installation, including saas_url, agent_id, agent_secret, interval, and plugins.
- */
-async function installServiceCommand(args) {
-  printBanner();
-
-  const saasUrl = args.saas_url;
-  const agentId = args.agent_id;
-  const agentSecret = args.agent_secret;
-
-  if (!saasUrl || !agentId || !agentSecret) {
-    console.error(`${COLORS.red}Error: --saas-url, --agent-id, and --agent-secret are required for service installation${COLORS.reset}`);
-    return;
-  }
-
-  const scriptPath = fs.realpathSync(process.argv[1]);
-  const nodePath = process.execPath;
-  const platform = os.platform();
-  const user = os.userInfo().username;
-
-  log(`${COLORS.green}Installing service for platform: ${platform} (${user})${COLORS.reset}`);
-
-  if (platform === 'linux') {
-    const serviceFile = `/etc/systemd/system/fleet-monitor.service`;
-    const serviceContent = `[Unit]
-Description=Fleet Monitor Agent
-After=network.target
-
-[Service]
-ExecStart=${nodePath} "${scriptPath}" monitor --saas-url="${saasUrl}" --agent-id="${agentId}" --agent-secret="${agentSecret}" --interval="${args.interval || 300}" --plugins="${args.plugins || ''}"
-Restart=always
-User=${user}
-Environment=NODE_ENV=production
-
-[Install]
-WantedBy=multi-user.target
-`;
-
-    try {
-      fs.writeFileSync(serviceFile, serviceContent);
-      log(`${COLORS.green}✓ Service file created at ${serviceFile}${COLORS.reset}`);
-      log(`${COLORS.dim}Enabling and starting service...${COLORS.reset}`);
-      exec('systemctl daemon-reload && systemctl enable fleet-monitor && systemctl start fleet-monitor', (err, stdout, stderr) => {
-        if (err) {
-          log(`${COLORS.red}Error starting service: ${err.message}${COLORS.reset}`);
-          if (stderr) console.error(stderr);
-        } else {
-          log(`${COLORS.green}✓ Service installed and started!${COLORS.reset}`);
-        }
-      });
-    } catch (err) {
-      if (err.code === 'EACCES') {
-        log(`${COLORS.red}Permission denied. Try running with sudo.${COLORS.reset}`);
-        console.log(`\nOr manually create ${serviceFile} with content:\n`);
-        console.log(serviceContent);
-      } else {
-        log(`${COLORS.red}Error: ${err.message}${COLORS.reset}`);
-      }
-    }
-
-  } else if (platform === 'darwin') {
-    const plistFile = `${os.homedir()}/Library/LaunchAgents/com.openclaw.monitor.plist`;
-    const plistContent = `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.openclaw.monitor</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>${nodePath}</string>
-        <string>${scriptPath}</string>
-        <string>monitor</string>
-        <string>--saas-url=${saasUrl}</string>
-        <string>--agent-id=${agentId}</string>
-        <string>--agent-secret=${agentSecret}</string>
-        <string>--interval=${args.interval || 300}</string>
-        <string>--plugins=${args.plugins || ''}</string>
-    </array>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>KeepAlive</key>
-    <true/>
-    <key>StandardOutPath</key>
-    <string>/tmp/fleet-monitor.out</string>
-    <key>StandardErrorPath</key>
-    <string>/tmp/fleet-monitor.err</string>
-</dict>
-</plist>`;
-
-    try {
-      const launchAgentsDir = path.dirname(plistFile);
-      if (!fs.existsSync(launchAgentsDir)) fs.mkdirSync(launchAgentsDir, { recursive: true });
-
-      fs.writeFileSync(plistFile, plistContent);
-      log(`${COLORS.green}✓ LaunchAgent created at ${plistFile}${COLORS.reset}`);
-
-      exec(`launchctl unload ${plistFile} 2>/dev/null; launchctl load ${plistFile}`, (err) => {
-        if (err) log(`${COLORS.yellow}Warning: Could not auto-load service. You may need to logout/login.${COLORS.reset}`);
-        else log(`${COLORS.green}✓ Service loaded!${COLORS.reset}`);
-      });
-
-    } catch (err) {
-      log(`${COLORS.red}Error: ${err.message}${COLORS.reset}`);
-    }
-
-  } else {
-    log(`${COLORS.yellow}Platform '${platform}' not supported for auto-install.${COLORS.reset}`);
-  }
-}
-
-/**
- * Displays the help information and available commands for the application.
+ * Displays the help information and usage instructions for the commands.
  */
 function helpCommand() {
   printBanner();
