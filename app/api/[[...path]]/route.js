@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { unstable_cache } from 'next/cache';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4, validate as uuidValidate } from 'uuid';
@@ -89,16 +90,20 @@ const JWT_SECRET = new TextEncoder().encode(process.env.SUPABASE_SERVICE_ROLE_KE
  *
  * @param {string} userId - The ID of the user whose subscription tier is to be retrieved.
  */
-async function getTier(userId) {
-  if (!userId) return 'free';
-  const { data } = await supabaseAdmin
-    .from('subscriptions')
-    .select('plan')
-    .eq('user_id', userId)
-    .neq('status', 'cancelled')
-    .maybeSingle();
-  return (data?.plan || 'free').toLowerCase();
-}
+const getTier = unstable_cache(
+  async (userId) => {
+    if (!userId) return 'free';
+    const { data } = await supabaseAdmin
+      .from('subscriptions')
+      .select('plan')
+      .eq('user_id', userId)
+      .neq('status', 'cancelled')
+      .maybeSingle();
+    return (data?.plan || 'free').toLowerCase();
+  },
+  ['user-tier'],
+  { tags: ['user-tier'], revalidate: 60 }
+);
 
 /**
  * Validates parameters for agent installation scripts.
