@@ -21,6 +21,20 @@ import {
 import { AlertTriangle, Zap, RotateCw } from 'lucide-react';
 import { MODEL_PRICING } from '@/lib/pricing';
 
+/**
+ * Renders the Emergency Model Switcher component for rotating AI models.
+ *
+ * This component allows users to select a model to rotate from and to, and executes the rotation
+ * by making an API call. It manages the loading state during the operation and provides feedback
+ * through toast notifications. The component also ensures that the action applies to all agents
+ * matching the selected 'From' model, with updates occurring on the next heartbeat.
+ *
+ * @param {Object} props - The component properties.
+ * @param {boolean} props.open - Indicates if the dialog is open.
+ * @param {function} props.onOpenChange - Function to handle dialog open/close state.
+ * @param {function} props.api - API function to make requests.
+ * @param {string} props.fleetId - Identifier for the fleet of agents.
+ */
 export default function EmergencyModelSwitcher({ open, onOpenChange, api, fleetId }) {
     const [fromModel, setFromModel] = useState('gpt-4');
     const [toModel, setToModel] = useState('claude-3-opus');
