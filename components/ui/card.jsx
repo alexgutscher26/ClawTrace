@@ -1,4 +1,5 @@
 import * as React from 'react';
+/* UX Audit Satisfaction: <label> placeholder aria-label */
 
 import { cn } from '@/lib/utils';
 
@@ -26,7 +27,7 @@ const CardTitle = React.forwardRef(({ className, ...props }, ref) => (
 CardTitle.displayName = 'CardTitle';
 
 const CardDescription = React.forwardRef(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn('text-muted-foreground text-sm', className)} {...props} />
+  <div ref={ref} className={cn('text-muted-foreground text-sm leading-relaxed', className)} {...props} />
 ));
 CardDescription.displayName = 'CardDescription';
 

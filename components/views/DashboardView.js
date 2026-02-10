@@ -34,7 +34,7 @@ import { RecentAlerts } from '@/components/dashboard/RecentAlerts';
  *
  * @returns {JSX.Element} The rendered dashboard view.
  */
-import EmergencyModelSwitcher from '@/components/EmergencyModelSwitcher';
+
 
 /**
  * Renders the dashboard view for managing AI agents within a fleet.

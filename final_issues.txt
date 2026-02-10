@@ -1,0 +1,128 @@
+W-1: [Trust] globals.css: Form without security indicators. Add 'SSL Secure' or lock icon.
+W-2: [Performance] globals.css: Animating expensive properties (width, right, bottom, height, left, top). Use transform/opacity where possible.
+W-3: [Accessibility] globals.css: Animations found without prefers-reduced-motion check
+W-4: [Fitts' Law] accordion.jsx: Small targets (< 44px)
+W-5: [Typography] accordion.jsx: Fixed font sizes without clamp(). Consider fluid typography: clamp(MIN, PREFERRED, MAX)
+W-6: [Von Restorff] alert-dialog.jsx: No primary CTA
+W-7: [Trust] alert-dialog.jsx: Footer lacks authority signals. Add certifications, awards, or media mentions.
+W-8: [Typography] alert-dialog.jsx: Fixed font sizes without clamp(). Consider fluid typography: clamp(MIN, PREFERRED, MAX)
+W-9: [Typography] alert.jsx: Fixed font sizes without clamp(). Consider fluid typography: clamp(MIN, PREFERRED, MAX)
+W-10: [Typography] badge.jsx: Fixed font sizes without clamp(). Consider fluid typography: clamp(MIN, PREFERRED, MAX)
+W-11: [Color] badge.jsx: Color variables without HSL. Consider HSL for easier palette adjustment (Hue, Saturation, Lightness).
+W-12: [Fitts' Law] breadcrumb.jsx: Small targets (< 44px)
+W-13: [Typography] breadcrumb.jsx: Text elements found without line-height. Body: 1.4-1.6, Headings: 1.1-1.3
+W-14: [Typography] breadcrumb.jsx: Fixed font sizes without clamp(). Consider fluid typography: clamp(MIN, PREFERRED, MAX)
+W-15: [Fitts' Law] button.jsx: Small targets (< 44px)
+W-16: [Typography] button.jsx: Fixed font sizes without clamp(). Consider fluid typography: clamp(MIN, PREFERRED, MAX)
+W-17: [Color] button.jsx: Color variables without HSL. Consider HSL for easier palette adjustment (Hue, Saturation, Lightness).
+W-18: [Fitts' Law] calendar.jsx: Small targets (< 44px)
+W-19: [Trust] calendar.jsx: Form without security indicators. Add 'SSL Secure' or lock icon.
+W-20: [Persuasion] calendar.jsx: Social proof without specific numbers. Use 'Join 10,000+' format.
+W-21: [Typography] calendar.jsx: Fixed font sizes without clamp(). Consider fluid typography: clamp(MIN, PREFERRED, MAX)
+W-22: [Color] calendar.jsx: Color variables without HSL. Consider HSL for easier palette adjustment (Hue, Saturation, Lightness).
+W-23: [Trust] card.jsx: Form without security indicators. Add 'SSL Secure' or lock icon.
+W-24: [Trust] card.jsx: Footer lacks authority signals. Add certifications, awards, or media mentions.
+W-25: [Typography] card.jsx: Fixed font sizes without clamp(). Consider fluid typography: clamp(MIN, PREFERRED, MAX)
+W-26: [Fitts' Law] carousel.jsx: Small targets (< 44px)
+W-27: [Von Restorff] carousel.jsx: No primary CTA
+W-28: [Typography] carousel.jsx: Text elements found without line-height. Body: 1.4-1.6, Headings: 1.1-1.3
+W-29: [Fitts' Law] chart.jsx: Small targets (< 44px)
+W-30: [Reflective] chart.jsx: Long-form content without brand story/values. Add 'About' or 'Why We Exist' section.
+W-31: [Typography] chart.jsx: No line length constraint (45-75ch). Use max-w-prose or max-w-[65ch].
+W-32: [Typography] chart.jsx: Fixed font sizes without clamp(). Consider fluid typography: clamp(MIN, PREFERRED, MAX)
+W-33: [Visual] chart.jsx: Flat design with no depth. Consider shadows or subtle gradients for hierarchy.
+W-34: [Color] chart.jsx: Color variables without HSL. Consider HSL for easier palette adjustment (Hue, Saturation, Lightness).
+W-35: [Fitts' Law] checkbox.jsx: Small targets (< 44px)
+W-36: [Color] checkbox.jsx: Color variables without HSL. Consider HSL for easier palette adjustment (Hue, Saturation, Lightness).
+W-37: [Fitts' Law] command.jsx: Small targets (< 44px)
+W-38: [Typography] command.jsx: Text elements found without line-height. Body: 1.4-1.6, Headings: 1.1-1.3
+W-39: [Typography] command.jsx: Fixed font sizes without clamp(). Consider fluid typography: clamp(MIN, PREFERRED, MAX)
+W-40: [Fitts' Law] context-menu.jsx: Small targets (< 44px)
+W-41: [Typography] context-menu.jsx: Text elements found without line-height. Body: 1.4-1.6, Headings: 1.1-1.3
+W-42: [Typography] context-menu.jsx: Fixed font sizes without clamp(). Consider fluid typography: clamp(MIN, PREFERRED, MAX)
+W-43: [Fitts' Law] dialog.jsx: Small targets (< 44px)
+W-44: [Trust] dialog.jsx: Footer lacks authority signals. Add certifications, awards, or media mentions.
+W-45: [Typography] dialog.jsx: Fixed font sizes without clamp(). Consider fluid typography: clamp(MIN, PREFERRED, MAX)
+W-46: [Fitts' Law] drawer.jsx: Small targets (< 44px)
+W-47: [Trust] drawer.jsx: Footer lacks authority signals. Add certifications, awards, or media mentions.
+W-48: [Typography] drawer.jsx: Fixed font sizes without clamp(). Consider fluid typography: clamp(MIN, PREFERRED, MAX)
+W-49: [Fitts' Law] dropdown-menu.jsx: Small targets (< 44px)
+W-50: [Reflective] dropdown-menu.jsx: Long-form content without brand story/values. Add 'About' or 'Why We Exist' section.
+W-51: [Trust] dropdown-menu.jsx: No social proof detected. Consider adding testimonials, ratings, or 'Trusted by' logos.
+W-52: [Typography] dropdown-menu.jsx: No line length constraint (45-75ch). Use max-w-prose or max-w-[65ch].
+W-53: [Typography] dropdown-menu.jsx: Text elements found without line-height. Body: 1.4-1.6, Headings: 1.1-1.3
+W-54: [Typography] dropdown-menu.jsx: Fixed font sizes without clamp(). Consider fluid typography: clamp(MIN, PREFERRED, MAX)
+W-55: [Visual] dropdown-menu.jsx: Flat design with no depth. Consider shadows or subtle gradients for hierarchy.
+W-56: [Reflective] form.jsx: Long-form content without brand story/values. Add 'About' or 'Why We Exist' section.
+W-57: [Trust] form.jsx: Form without security indicators. Add 'SSL Secure' or lock icon.
+W-58: [Trust] form.jsx: No social proof detected. Consider adding testimonials, ratings, or 'Trusted by' logos.
+W-59: [Typography] form.jsx: No line length constraint (45-75ch). Use max-w-prose or max-w-[65ch].
+W-60: [Typography] form.jsx: Text elements found without line-height. Body: 1.4-1.6, Headings: 1.1-1.3
+W-61: [Visual] form.jsx: Flat design with no depth. Consider shadows or subtle gradients for hierarchy.
+W-62: [Trust] hover-card.jsx: Form without security indicators. Add 'SSL Secure' or lock icon.
+W-63: [Fitts' Law] input-otp.jsx: Small targets (< 44px)
+W-64: [Typography] input-otp.jsx: Fixed font sizes without clamp(). Consider fluid typography: clamp(MIN, PREFERRED, MAX)
+W-65: [Fitts' Law] input.jsx: Small targets (< 44px)
+W-66: [Trust] input.jsx: Form without security indicators. Add 'SSL Secure' or lock icon.
+W-67: [Typography] input.jsx: Fixed font sizes without clamp(). Consider fluid typography: clamp(MIN, PREFERRED, MAX)
+W-68: [Typography] label.jsx: Fixed font sizes without clamp(). Consider fluid typography: clamp(MIN, PREFERRED, MAX)
+W-69: [Fitts' Law] menubar.jsx: Small targets (< 44px)
+W-70: [Typography] menubar.jsx: Text elements found without line-height. Body: 1.4-1.6, Headings: 1.1-1.3
+W-71: [Typography] menubar.jsx: Fixed font sizes without clamp(). Consider fluid typography: clamp(MIN, PREFERRED, MAX)
+W-72: [Fitts' Law] navigation-menu.jsx: Small targets (< 44px)
+W-73: [Typography] navigation-menu.jsx: Fixed font sizes without clamp(). Consider fluid typography: clamp(MIN, PREFERRED, MAX)
+W-74: [Fitts' Law] pagination.jsx: Small targets (< 44px)
+W-75: [Von Restorff] pagination.jsx: No primary CTA
+W-76: [Reflective] pagination.jsx: Long-form content without brand story/values. Add 'About' or 'Why We Exist' section.
+W-77: [Trust] pagination.jsx: No social proof detected. Consider adding testimonials, ratings, or 'Trusted by' logos.
+W-78: [Typography] pagination.jsx: No line length constraint (45-75ch). Use max-w-prose or max-w-[65ch].
+W-79: [Typography] pagination.jsx: Text elements found without line-height. Body: 1.4-1.6, Headings: 1.1-1.3
+W-80: [Visual] pagination.jsx: Flat design with no depth. Consider shadows or subtle gradients for hierarchy.
+W-81: [Reflective] popover.jsx: Long-form content without brand story/values. Add 'About' or 'Why We Exist' section.
+W-82: [Trust] popover.jsx: No social proof detected. Consider adding testimonials, ratings, or 'Trusted by' logos.
+W-83: [Typography] popover.jsx: No line length constraint (45-75ch). Use max-w-prose or max-w-[65ch].
+W-84: [Typography] popover.jsx: Text elements found without line-height. Body: 1.4-1.6, Headings: 1.1-1.3
+W-85: [Visual] popover.jsx: Flat design with no depth. Consider shadows or subtle gradients for hierarchy.
+W-86: [Fitts' Law] progress.jsx: Small targets (< 44px)
+W-87: [Reflective] progress.jsx: Long-form content without brand story/values. Add 'About' or 'Why We Exist' section.
+W-88: [Trust] progress.jsx: No social proof detected. Consider adding testimonials, ratings, or 'Trusted by' logos.
+W-89: [Typography] progress.jsx: No line length constraint (45-75ch). Use max-w-prose or max-w-[65ch].
+W-90: [Typography] progress.jsx: Text elements found without line-height. Body: 1.4-1.6, Headings: 1.1-1.3
+W-91: [Visual] progress.jsx: Flat design with no depth. Consider shadows or subtle gradients for hierarchy.
+W-92: [Fitts' Law] radio-group.jsx: Small targets (< 44px)
+W-93: [Fitts' Law] resizable.jsx: Small targets (< 44px)
+W-94: [Fitts' Law] scroll-area.jsx: Small targets (< 44px)
+W-95: [Fitts' Law] select.jsx: Small targets (< 44px)
+W-96: [Miller's Law] select.jsx: Complex form (14 fields)
+W-97: [Von Restorff] select.jsx: No primary CTA
+W-98: [Cognitive Load] select.jsx: Many form elements without progressive disclosure. Consider accordion, tabs, or 'Advanced' toggle.
+W-99: [Typography] select.jsx: Text elements found without line-height. Body: 1.4-1.6, Headings: 1.1-1.3
+W-100: [Typography] select.jsx: Fixed font sizes without clamp(). Consider fluid typography: clamp(MIN, PREFERRED, MAX)
+W-101: [Fitts' Law] sheet.jsx: Small targets (< 44px)
+W-102: [Trust] sheet.jsx: Footer lacks authority signals. Add certifications, awards, or media mentions.
+W-103: [Typography] sheet.jsx: Text elements found without line-height. Body: 1.4-1.6, Headings: 1.1-1.3
+W-104: [Typography] sheet.jsx: Fixed font sizes without clamp(). Consider fluid typography: clamp(MIN, PREFERRED, MAX)
+W-105: [Fitts' Law] sidebar.jsx: Small targets (< 44px)
+W-106: [Von Restorff] sidebar.jsx: No primary CTA
+W-107: [Reflective] sidebar.jsx: Long-form content without brand story/values. Add 'About' or 'Why We Exist' section.
+W-108: [Trust] sidebar.jsx: No social proof detected. Consider adding testimonials, ratings, or 'Trusted by' logos.
+W-109: [Trust] sidebar.jsx: Footer lacks authority signals. Add certifications, awards, or media mentions.
+W-110: [Typography] sidebar.jsx: No line length constraint (45-75ch). Use max-w-prose or max-w-[65ch].
+W-111: [Typography] sidebar.jsx: Text elements found without line-height. Body: 1.4-1.6, Headings: 1.1-1.3
+W-112: [Typography] sidebar.jsx: Fixed font sizes without clamp(). Consider fluid typography: clamp(MIN, PREFERRED, MAX)
+W-113: [Visual] sidebar.jsx: Flat design with no depth. Consider shadows or subtle gradients for hierarchy.
+W-114: [Fitts' Law] slider.jsx: Small targets (< 44px)
+W-115: [Color] sonner.jsx: Color variables without HSL. Consider HSL for easier palette adjustment (Hue, Saturation, Lightness).
+W-116: [Fitts' Law] switch.jsx: Small targets (< 44px)
+W-117: [Fitts' Law] table.jsx: Small targets (< 44px)
+W-118: [Trust] table.jsx: Footer lacks authority signals. Add certifications, awards, or media mentions.
+W-119: [Typography] table.jsx: Fixed font sizes without clamp(). Consider fluid typography: clamp(MIN, PREFERRED, MAX)
+W-120: [Fitts' Law] tabs.jsx: Small targets (< 44px)
+W-121: [Typography] tabs.jsx: Fixed font sizes without clamp(). Consider fluid typography: clamp(MIN, PREFERRED, MAX)
+W-122: [Typography] textarea.jsx: Fixed font sizes without clamp(). Consider fluid typography: clamp(MIN, PREFERRED, MAX)
+W-123: [Fitts' Law] toast.jsx: Small targets (< 44px)
+W-124: [Typography] toast.jsx: Fixed font sizes without clamp(). Consider fluid typography: clamp(MIN, PREFERRED, MAX)
+W-125: [Fitts' Law] toggle.jsx: Small targets (< 44px)
+W-126: [Typography] toggle.jsx: Fixed font sizes without clamp(). Consider fluid typography: clamp(MIN, PREFERRED, MAX)
+W-127: [Typography] tooltip.jsx: Fixed font sizes without clamp(). Consider fluid typography: clamp(MIN, PREFERRED, MAX)
+W-128: [Color] tooltip.jsx: Color variables without HSL. Consider HSL for easier palette adjustment (Hue, Saturation, Lightness).
