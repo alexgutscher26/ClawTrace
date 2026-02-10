@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { unstable_cache } from 'next/cache';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4, validate as uuidValidate } from 'uuid';
@@ -89,24 +90,27 @@ const JWT_SECRET = new TextEncoder().encode(process.env.SUPABASE_SERVICE_ROLE_KE
  *
  * @param {string} userId - The ID of the user whose subscription tier is to be retrieved.
  */
-async function getTier(userId) {
-  if (!userId) return 'free';
-  const { data } = await supabaseAdmin
-    .from('subscriptions')
-    .select('plan')
-    .eq('user_id', userId)
-    .neq('status', 'cancelled')
-    .maybeSingle();
-  return (data?.plan || 'free').toLowerCase();
-}
+const getTier = unstable_cache(
+  async (userId) => {
+    if (!userId) return 'free';
+    const { data } = await supabaseAdmin
+      .from('subscriptions')
+      .select('plan')
+      .eq('user_id', userId)
+      .neq('status', 'cancelled')
+      .maybeSingle();
+    return (data?.plan || 'free').toLowerCase();
+  },
+  ['user-tier'],
+  { tags: ['user-tier'], revalidate: 60 }
+);
 
 /**
  * Validates parameters for agent installation scripts.
  *
- * This function checks for the presence of agentId and agentSecret, ensuring they are not empty.
- * It also validates the format of these parameters using uuidValidate. Additionally, if an interval is provided,
- * it checks that the interval is a positive integer. If any validation fails, an error object is returned;
- * otherwise, null is returned.
+ * This function checks for the presence of agentId and validates its format using uuidValidate.
+ * It also validates the agentSecret format if provided and ensures that the interval, if present, is a positive integer.
+ * If any validation fails, an error object is returned; otherwise, null is returned.
  *
  * @param agentId - The unique identifier for the agent.
  * @param agentSecret - The secret key associated with the agent.
@@ -114,11 +118,14 @@ async function getTier(userId) {
  * @returns An error object if validation fails, or null if all parameters are valid.
  */
 function validateInstallParams(agentId, agentSecret, interval) {
-  if (!agentId || !agentSecret) {
-    return { error: 'Missing agent_id or agent_secret parameter', status: 400 };
+  if (!agentId) {
+    return { error: 'Missing agent_id parameter', status: 400 };
   }
-  if (!uuidValidate(agentId) || !uuidValidate(agentSecret)) {
-    return { error: 'Invalid agent_id or agent_secret format', status: 400 };
+  if (!uuidValidate(agentId)) {
+    return { error: 'Invalid agent_id format', status: 400 };
+  }
+  if (agentSecret && !uuidValidate(agentSecret)) {
+    return { error: 'Invalid agent_secret format', status: 400 };
   }
   if (interval && !/^\d+$/.test(interval)) {
     return { error: 'Invalid interval format', status: 400 };
@@ -246,9 +253,9 @@ export async function OPTIONS() {
 /**
  * Handle GET requests for various API endpoints and return appropriate responses.
  *
- * This function processes incoming requests, checks rate limits, and serves different responses based on the request path.
+ * This function processes incoming requests by checking rate limits and serving different responses based on the request path.
  * It includes health checks, agent installation scripts, user authentication, and data retrieval from the database.
- * The function also manages session tokens and handles errors gracefully.
+ * The function also manages session tokens and handles errors gracefully, ensuring that unauthorized access is restricted.
  *
  * @param request - The incoming request object.
  * @param context - The context object containing parameters and other relevant data.
@@ -273,15 +280,12 @@ export async function GET(request, context) {
     if (path === '/install-agent') {
       const { searchParams } = new URL(request.url);
       const agentId = searchParams.get('agent_id');
-      const agentSecret = searchParams.get('agent_secret');
+      const agentSecret =
+        request.headers.get('x-agent-secret') || searchParams.get('agent_secret') || '';
       let interval = searchParams.get('interval');
 
       const validation = validateInstallParams(agentId, agentSecret, interval);
       if (validation) return json({ error: validation.error }, validation.status);
-
-      if (!uuidValidate(agentId) || !uuidValidate(agentSecret)) {
-        return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
-      }
 
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
@@ -347,15 +351,12 @@ export async function GET(request, context) {
     if (path === '/install-agent-ps') {
       const { searchParams } = new URL(request.url);
       const agentId = searchParams.get('agent_id');
-      const agentSecret = searchParams.get('agent_secret');
+      const agentSecret =
+        request.headers.get('x-agent-secret') || searchParams.get('agent_secret') || '';
       let interval = searchParams.get('interval');
 
       const validation = validateInstallParams(agentId, agentSecret, interval);
       if (validation) return json({ error: validation.error }, validation.status);
-
-      if (!uuidValidate(agentId) || !uuidValidate(agentSecret)) {
-        return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
-      }
 
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
@@ -424,15 +425,12 @@ export async function GET(request, context) {
     if (path === '/install-agent-py') {
       const { searchParams } = new URL(request.url);
       const agentId = searchParams.get('agent_id');
-      const agentSecret = searchParams.get('agent_secret');
+      const agentSecret =
+        request.headers.get('x-agent-secret') || searchParams.get('agent_secret') || '';
       let interval = searchParams.get('interval');
 
       const validation = validateInstallParams(agentId, agentSecret, interval);
       if (validation) return json({ error: validation.error }, validation.status);
-
-      if (!uuidValidate(agentId) || !uuidValidate(agentSecret)) {
-        return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
-      }
 
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
@@ -974,7 +972,7 @@ export async function POST(request, context) {
       const handshakeLimit = await checkRateLimit(request, agent.id, 'handshake', agent.user_id);
       if (!handshakeLimit.allowed) return handshakeLimit.response;
 
-      const decryptedSecret = decrypt(agent.agent_secret);
+      const decryptedSecret = await decryptAsync(agent.agent_secret);
 
       if (body.signature) {
         // Hardened Handshake: HMAC-SHA256(agent_id + timestamp, secret)
@@ -1091,6 +1089,7 @@ export async function POST(request, context) {
 
       let tasksCount = 0;
       let errorsCount = 0;
+      let costPerTask = 0.01;
 
       if (agent && agent.metrics_json) {
         tasksCount = agent.metrics_json.tasks_completed || 0;
@@ -1104,7 +1103,7 @@ export async function POST(request, context) {
         const uptimeHours = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60));
 
         // Calculate cost based on model pricing (cost per task)
-        const costPerTask = MODEL_PRICING[agent.model] || 0.01;
+        costPerTask = MODEL_PRICING[agent.model] || 0.01;
         tasksCount += 1;
         errorsCount = body.status === 'error' ? errorsCount + 1 : errorsCount;
         const totalCost = parseFloat((tasksCount * costPerTask).toFixed(4));
@@ -1124,33 +1123,38 @@ export async function POST(request, context) {
       if (body.location) update.location = body.location;
       if (body.model) update.model = body.model;
 
-      const { error } = await supabaseAdmin.from('agents').update(update).eq('id', body.agent_id);
+      // Optimize: Update agent and insert metrics in parallel
+      const updateAgentPromise = supabaseAdmin.from('agents').update(update).eq('id', body.agent_id);
+
+      const insertMetricsPromise = body.metrics
+        ? (async () => {
+            try {
+              const { error: metricsError } = await supabaseAdmin.from('agent_metrics').insert({
+                agent_id: body.agent_id, // Use ID from body/token
+                user_id: userId, // Use userId from token/agent
+                cpu_usage: body.metrics.cpu_usage || 0,
+                memory_usage: body.metrics.memory_usage || 0,
+                latency_ms: body.metrics.latency_ms || 0,
+                uptime_hours: body.metrics.uptime_hours || 0,
+                tasks_completed: tasksCount,
+                errors_count: errorsCount,
+                cost_usd: tasksCount * costPerTask || 0,
+              });
+              if (metricsError) {
+                console.error('Failed to insert metrics:', metricsError);
+              }
+            } catch (e) {
+              console.error('Metrics insertion exception:', e);
+            }
+          })()
+        : Promise.resolve();
+
+      const [{ error }] = await Promise.all([updateAgentPromise, insertMetricsPromise]);
+
       if (error) throw error;
 
       // Include updated policy in heartbeat response
       const policy = getPolicy(policyProfile || DEFAULT_POLICY_PROFILE);
-
-      // Insert historical metrics for charts
-      if (body.metrics) {
-        try {
-          const { error: metricsError } = await supabaseAdmin.from('agent_metrics').insert({
-            agent_id: body.agent_id, // Use ID from body/token
-            user_id: userId, // Use userId from token/agent
-            cpu_usage: body.metrics.cpu_usage || 0,
-            memory_usage: body.metrics.memory_usage || 0,
-            latency_ms: body.metrics.latency_ms || 0,
-            uptime_hours: body.metrics.uptime_hours || 0,
-            tasks_completed: tasksCount,
-            errors_count: errorsCount,
-            cost_usd: (tasksCount * costPerTask) || 0,
-          });
-          if (metricsError) {
-            console.error('Failed to insert metrics:', metricsError);
-          }
-        } catch (e) {
-          console.error('Metrics insertion exception:', e);
-        }
-      }
 
       // Trigger smart alerts
       if (body.metrics) {
