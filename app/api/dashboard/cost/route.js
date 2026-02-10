@@ -8,6 +8,15 @@ const supabaseAdmin = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+/**
+ * Retrieves the user associated with the provided authorization token.
+ *
+ * This function checks the 'authorization' header of the request for a Bearer token.
+ * If the token is present, it uses the Supabase admin client to fetch the user data.
+ * In case of an error or if the token is invalid, it returns null.
+ *
+ * @param {Request} request - The request object containing headers for authorization.
+ */
 async function getUser(request) {
     const authHeader = request.headers.get('authorization');
     if (!authHeader?.startsWith('Bearer ')) return null;
@@ -20,6 +29,17 @@ async function getUser(request) {
     }
 }
 
+/**
+ * Handles the GET request to retrieve user-specific agent cost data and recommendations.
+ *
+ * This function first retrieves the user associated with the request. If the user is unauthorized, it returns a 401 response.
+ * It then fetches all agents for the user, aggregates their costs by model, and generates savings recommendations based on
+ * current pricing. The results include total costs, usage by model, and sorted recommendations for potential savings.
+ *
+ * @param request - The incoming request object containing user information.
+ * @returns A JSON response containing total cost, usage by model, and savings recommendations.
+ * @throws Error If there is an error retrieving agents or processing data.
+ */
 export async function GET(request) {
     const user = await getUser(request);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
