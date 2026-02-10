@@ -6,6 +6,13 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+/**
+ * Performs a debug check on the 'profiles' table in the database.
+ *
+ * This function checks the existence and accessibility of the 'public.profiles' table by attempting to retrieve its columns
+ * and performing a test insert. If the table is accessible, it logs a success message; otherwise, it logs any errors encountered.
+ * It also handles foreign key violations during the insert operation to confirm the table's existence without causing disruption.
+ */
 async function debug() {
     console.log('--- DB DEBUG START ---');
 
