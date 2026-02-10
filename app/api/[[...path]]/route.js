@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4, validate as uuidValidate } from 'uuid';
 import { SignJWT, jwtVerify } from 'jose';
-import { encrypt, decrypt } from '@/lib/encryption';
+import { encrypt, decrypt, decryptAsync } from '@/lib/encryption';
 import {
   getPolicy,
   DEFAULT_POLICY_PROFILE,
@@ -28,29 +28,48 @@ async function getScript(filename, replacements) {
 }
 
 /**
- * Decrypts the agent's configuration and secret.
+ * Decrypts the agent's configuration and secret asynchronously.
  *
  * This function takes an agent object, checks for the presence of a config_json and agent_secret,
- * and attempts to decrypt them using the decrypt function. If decryption is successful, the
- * decrypted values are parsed and assigned to a new object. In case of any errors during decryption,
- * an error message is logged to the console, and the original values are retained.
+ * and attempts to decrypt them using the async decrypt function to avoid blocking the event loop.
+ * If decryption is successful, the decrypted values are parsed and assigned to a new object.
+ * In case of any errors during decryption, an error message is logged to the console,
+ * and the original values are retained.
  *
  * @param {Object} a - The agent object containing configuration and secret to be decrypted.
  */
-const decryptAgent = (a) => {
+const decryptAgent = async (a) => {
   if (!a) return a;
   const decrypted = { ...a };
   try {
     if (a.config_json) {
-      const d = decrypt(a.config_json);
+      const d = await decryptAsync(a.config_json);
       decrypted.config_json = d ? JSON.parse(d) : a.config_json;
     }
-    if (a.agent_secret) decrypted.agent_secret = decrypt(a.agent_secret);
+    if (a.agent_secret) {
+      decrypted.agent_secret = await decryptAsync(a.agent_secret);
+    }
   } catch (e) {
     console.error('Failed to decrypt agent:', a.id, e);
   }
   return decrypted;
 };
+
+/**
+ * Processes items in batches to avoid blocking the event loop.
+ */
+async function processInBatches(items, batchSize, fn) {
+  const results = [];
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
+    const batchResults = await Promise.all(batch.map(fn));
+    results.push(...batchResults);
+    if (i + batchSize < items.length) {
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+  }
+  return results;
+}
 
 if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error('SUPABASE_SERVICE_ROLE_KEY is required');
@@ -275,10 +294,6 @@ export async function GET(request, context) {
       const validation = validateInstallParams(agentId, agentSecret, interval);
       if (validation) return json({ error: validation.error }, validation.status);
 
-      if (!validateUuid(agentId) || !validateUuid(agentSecret)) {
-        return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
-      }
-
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
         request.headers.get('origin') ||
@@ -353,10 +368,6 @@ export async function GET(request, context) {
 
       const validation = validateInstallParams(agentId, agentSecret, interval);
       if (validation) return json({ error: validation.error }, validation.status);
-
-      if (!validateUuid(agentId) || !validateUuid(agentSecret)) {
-        return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
-      }
 
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
@@ -435,10 +446,6 @@ export async function GET(request, context) {
 
       const validation = validateInstallParams(agentId, agentSecret, interval);
       if (validation) return json({ error: validation.error }, validation.status);
-
-      if (!validateUuid(agentId) || !validateUuid(agentSecret)) {
-        return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
-      }
 
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
@@ -535,7 +542,10 @@ export async function GET(request, context) {
       if (fleet_id) query = query.eq('fleet_id', fleet_id);
       const { data: agents, error } = await query.order('created_at', { ascending: false });
       if (error) throw error;
-      return json({ agents: agents.map(decryptAgent) });
+
+      // Optimize: Process decryption in batches to prevent event loop blocking
+      const decryptedAgents = await processInBatches(agents, 50, decryptAgent);
+      return json({ agents: decryptedAgents });
     }
 
     const agentMatch = path.match(/^\/agents\/([^/]+)$/);
@@ -550,7 +560,7 @@ export async function GET(request, context) {
         .maybeSingle();
       if (error) throw error;
       if (!agent) return json({ error: 'Agent not found' }, 404);
-      return json({ agent: decryptAgent(agent) });
+      return json({ agent: await decryptAgent(agent) });
     }
 
     const metricsMatch = path.match(/^\/agents\/([^/]+)\/metrics$/);
@@ -1704,7 +1714,7 @@ export async function PUT(request, context) {
 
       if (error) throw error;
       if (!agent) return json({ error: 'Agent not found' }, 404);
-      return json({ agent: decryptAgent(agent) });
+      return json({ agent: await decryptAgent(agent) });
     }
 
     const fleetMatch = path.match(/^\/fleets\/([^/]+)$/);
