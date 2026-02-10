@@ -92,7 +92,7 @@ _Adding the "SaaS" value-add that justifies the Pro/Enterprise tiers._
 _Visionary ideas for 2026 and beyond._
 
 - [x] **OpenClaw Terminal**: A secure, browser-based shell that allows developers to `ssh` into an agent directly from the dashboard for debugging.
-- [ ] **Predictive Scaling**: Automatically spin up more agent instances when wait-times/latency exceed 500ms across a fleet.
+- [x] **Predictive Scaling**: Automatically spin up more agent instances when wait-times/latency exceed 500ms across a fleet.
 - [ ] **Model Switcher**: A "Kill Switch" to instantly rotate all agents to an emergency backup model (e.g., rotate from GPT-4 to Claude 3 if OpenAI has an outage).
 - [ ] **Community Marketplace**: A repository of pre-configured agent "templates" (e.g., "SEO Agent", "Python Dev Agent") that can be provisioned in one click.
 
