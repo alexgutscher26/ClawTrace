@@ -51,7 +51,7 @@ export default function SettingsView() {
         const p = res.subscription?.plan || 'free';
         setTier(p.toLowerCase());
       })
-      .catch(() => { });
+      .catch(() => {});
   }, [api]);
 
   useEffect(() => {
@@ -60,7 +60,7 @@ export default function SettingsView() {
         .then((res) => {
           if (res.branding) setBranding(res.branding);
         })
-        .catch(() => { });
+        .catch(() => {});
     }
   }, [tier, api]);
 
