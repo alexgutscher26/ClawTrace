@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4, validate as validateUuid } from 'uuid';
 import { SignJWT, jwtVerify } from 'jose';
 import { encrypt, decrypt } from '@/lib/encryption';
 import { getPolicy } from '@/lib/policies';
@@ -24,8 +24,12 @@ const decryptAgent = (a) => {
   return decrypted;
 };
 
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error('SUPABASE_SERVICE_ROLE_KEY is required');
+}
+
 const JWT_SECRET = new TextEncoder().encode(
-  process.env.SUPABASE_SERVICE_ROLE_KEY || 'default-secret-for-development-only'
+  process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
 /**
@@ -195,10 +199,21 @@ export async function GET(request, context) {
         return json({ error: 'Missing agent_id or agent_secret parameter' }, 400);
       }
 
+      if (!validateUuid(agentId) || !validateUuid(agentSecret)) {
+        return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
+      }
+
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
         request.headers.get('origin') ||
         'http://localhost:3000';
+
+      try {
+        new URL(baseUrl);
+        if (baseUrl.includes('"') || baseUrl.includes("'")) throw new Error('Invalid characters');
+      } catch {
+        return json({ error: 'Invalid base URL' }, 400);
+      }
 
       // Determine user tier for heartbeat interval
       let interval = searchParams.get('interval');
@@ -236,6 +251,10 @@ export async function GET(request, context) {
         } else {
           interval = '300';
         }
+      }
+
+      if (!/^\d+$/.test(interval)) {
+        return json({ error: 'Invalid interval format' }, 400);
       }
 
       const script = `#!/bin/bash
@@ -420,10 +439,21 @@ done
         return json({ error: 'Missing agent_id or agent_secret parameter' }, 400);
       }
 
+      if (!validateUuid(agentId) || !validateUuid(agentSecret)) {
+        return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
+      }
+
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
         request.headers.get('origin') ||
         'http://localhost:3000';
+
+      try {
+        new URL(baseUrl);
+        if (baseUrl.includes('"') || baseUrl.includes("'")) throw new Error('Invalid characters');
+      } catch {
+        return json({ error: 'Invalid base URL' }, 400);
+      }
 
       // Determine user tier for heartbeat interval
       let interval = searchParams.get('interval');
@@ -461,6 +491,10 @@ done
         } else {
           interval = '300';
         }
+      }
+
+      if (!/^\d+$/.test(interval)) {
+        return json({ error: 'Invalid interval format' }, 400);
       }
 
       const psScript = [
@@ -627,10 +661,21 @@ done
         return json({ error: 'Missing agent_id or agent_secret parameter' }, 400);
       }
 
+      if (!validateUuid(agentId) || !validateUuid(agentSecret)) {
+        return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
+      }
+
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
         request.headers.get('origin') ||
         'http://localhost:3000';
+
+      try {
+        new URL(baseUrl);
+        if (baseUrl.includes('"') || baseUrl.includes("'")) throw new Error('Invalid characters');
+      } catch {
+        return json({ error: 'Invalid base URL' }, 400);
+      }
 
       // Determine user tier for heartbeat interval
       let interval = searchParams.get('interval');
@@ -668,6 +713,10 @@ done
         } else {
           interval = '300';
         }
+      }
+
+      if (!/^\d+$/.test(interval)) {
+        return json({ error: 'Invalid interval format' }, 400);
       }
 
       const pyLines = [
@@ -1167,7 +1216,7 @@ export async function POST(request, context) {
       }
 
       const body = await request.json();
-      const plainSecret = uuidv4();
+      const plainSecret = crypto.randomBytes(32).toString('hex');
       const policyProfile = body.policy_profile || 'dev';
       let policy = getPolicy(policyProfile);
 
@@ -1295,7 +1344,6 @@ export async function POST(request, context) {
       console.log('[HANDSHAKE] Decryption result:', {
         encrypted_length: agent.agent_secret?.length,
         decrypted_length: decryptedSecret?.length,
-        decrypted_preview: decryptedSecret?.substring(0, 8) + '...',
       });
 
       if (body.signature) {
