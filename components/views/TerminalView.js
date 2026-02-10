@@ -7,7 +7,13 @@ import 'xterm/css/xterm.css';
 
 /**
  * OpenClaw Terminal Component
- * Provides a secure, browser-based SSH interface for debugging agents.
+ *
+ * Provides a secure, browser-based SSH interface for debugging agents. It initializes a terminal, connects to a WebSocket for agent communication, and handles user input for command execution. The component also manages terminal resizing and cleans up resources on unmount.
+ *
+ * @param {Object} props - The component properties.
+ * @param {string} props.agentId - The ID of the agent to connect to.
+ * @param {function} props.onClose - Callback function to be called when the terminal is closed.
+ * @returns {JSX.Element} The rendered terminal component.
  */
 export default function OpenClawTerminal({ agentId, onClose }) {
     const terminalRef = useRef(null);
@@ -129,6 +135,16 @@ export default function OpenClawTerminal({ agentId, onClose }) {
         return () => resizeObserver.disconnect();
     }, []); // Only run once on mount
 
+    /**
+     * Process a command entered by the user in the terminal.
+     *
+     * The function trims the command and checks for specific commands such as 'exit', 'clear', 'help', and 'top'.
+     * If the command is recognized, it performs the corresponding action, such as clearing the terminal or displaying help information.
+     * If the command is not recognized, it simulates remote execution and provides a not found message after a delay.
+     *
+     * @param cmd - The command string entered by the user.
+     * @param term - The terminal object used for outputting results and messages.
+     */
     const processCommand = (cmd, term) => {
         const command = cmd.trim();
 
