@@ -43,9 +43,7 @@ if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error('SUPABASE_SERVICE_ROLE_KEY is required');
 }
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+const JWT_SECRET = new TextEncoder().encode(process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 /**
  * Retrieves the subscription tier for a given user.
@@ -84,10 +82,9 @@ function validateInstallParams(agentId, agentSecret, interval) {
   return null;
 }
 
-
 /**
  * Configuration for rate limiting based on subscription tiers.
- * 
+ *
  * capacity: Maximum number of request tokens in the bucket.
  * refillRate: The rate at which tokens are refilled per second.
  */
@@ -252,10 +249,6 @@ export async function GET(request, context) {
       const validation = validateInstallParams(agentId, agentSecret, interval);
       if (validation) return json({ error: validation.error }, validation.status);
 
-      if (!validateUuid(agentId) || !validateUuid(agentSecret)) {
-        return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
-      }
-
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
         request.headers.get('origin') ||
@@ -330,10 +323,6 @@ export async function GET(request, context) {
 
       const validation = validateInstallParams(agentId, agentSecret, interval);
       if (validation) return json({ error: validation.error }, validation.status);
-
-      if (!validateUuid(agentId) || !validateUuid(agentSecret)) {
-        return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
-      }
 
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
@@ -412,10 +401,6 @@ export async function GET(request, context) {
 
       const validation = validateInstallParams(agentId, agentSecret, interval);
       if (validation) return json({ error: validation.error }, validation.status);
-
-      if (!validateUuid(agentId) || !validateUuid(agentSecret)) {
-        return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
-      }
 
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
