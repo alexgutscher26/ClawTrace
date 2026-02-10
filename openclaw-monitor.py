@@ -104,7 +104,9 @@ def get_mem():
             for line in r.stdout.split("\n"):
                 if ":" in line:
                     k,v = line.split(":",1)
-                    d[k.strip()] = int(v.strip().rstrip("."))
+                    val = v.strip().rstrip(".")
+                    if val.isdigit():
+                        d[k.strip()] = int(val)
             active = d.get("Pages active",0)+d.get("Pages wired down",0)
             total = active+d.get("Pages free",0)+d.get("Pages speculative",0)
             return int(active/max(total,1)*100)
