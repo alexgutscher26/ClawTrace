@@ -20,6 +20,7 @@ class TestGetCpu(unittest.TestCase):
     @patch('platform.system')
     @patch('time.sleep')  # Mock sleep to speed up test
     def test_get_cpu_linux(self, mock_sleep, mock_system):
+        """Test CPU usage calculation on a Linux system."""
         mock_system.return_value = "Linux"
 
         # Prepare mock data for /proc/stat
