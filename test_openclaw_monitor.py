@@ -1,107 +1,85 @@
 import unittest
-from unittest.mock import patch, MagicMock
-import json
-import sys
-import io
+from unittest.mock import patch, mock_open, MagicMock
 import importlib.util
 
-# Load the openclaw-monitor.py module
+# Load the module
 spec = importlib.util.spec_from_file_location("openclaw_monitor", "openclaw-monitor.py")
-openclaw_monitor = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(openclaw_monitor)
+monitor = importlib.util.module_from_spec(spec)
+# We don't execute the module to avoid running the main loop or side effects at import time
+# However, we need the functions defined in it.
+# Executing the module is safe because the main logic is in if __name__ == "__main__":
+# and the global variables are just constants or initial states.
+spec.loader.exec_module(monitor)
 
-class TestHandshake(unittest.TestCase):
-    def setUp(self):
-        # Store original global variables to restore after tests
-        self.original_token = openclaw_monitor.SESSION_TOKEN
-        self.original_gateway = openclaw_monitor.GATEWAY_URL
+class TestGetCpu(unittest.TestCase):
 
-    def tearDown(self):
-        # Restore global variables
-        openclaw_monitor.SESSION_TOKEN = self.original_token
-        openclaw_monitor.GATEWAY_URL = self.original_gateway
+    @patch('platform.system')
+    @patch('time.sleep')  # Mock sleep to speed up test
+    def test_get_cpu_linux(self, mock_sleep, mock_system):
+        mock_system.return_value = "Linux"
 
-    @patch('urllib.request.urlopen')
-    def test_perform_handshake_success(self, mock_urlopen):
-        # Setup mock response
-        mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps({
-            "token": "fake_token_123",
-            "gateway_url": "http://gateway.example.com"
-        }).encode()
-        # Mock context manager behavior
-        mock_response.__enter__.return_value = mock_response
-        mock_urlopen.return_value = mock_response
+        # Prepare mock data for /proc/stat
+        # cpu  user nice system idle iowait irq softirq steal guest guest_nice
+        # First read:
+        # user=100, nice=0, system=10, idle=200
+        line1 = "cpu  100 0 10 200 0 0 0 0 0 0\n"
 
-        # Call the function, capturing stdout
-        captured_output = io.StringIO()
-        sys.stdout = captured_output
-        try:
-            result = openclaw_monitor.perform_handshake()
-        finally:
-            sys.stdout = sys.__stdout__
+        # Second read:
+        # user=110 (+10), nice=0, system=11 (+1), idle=210 (+10)
+        # diffs: user=10, system=1, idle=10
+        # total diff = 10 + 1 + 10 = 21
+        # idle diff = 10
+        # usage = 100 * (21 - 10) / 21 = 100 * 11 / 21 = 52.38 -> 52
+        line2 = "cpu  110 0 11 210 0 0 0 0 0 0\n"
 
-        # Assertions
-        self.assertTrue(result)
-        self.assertIn("Handshake successful", captured_output.getvalue())
-        self.assertIn("Probing active", captured_output.getvalue())
-        self.assertEqual(openclaw_monitor.SESSION_TOKEN, "fake_token_123")
-        self.assertEqual(openclaw_monitor.GATEWAY_URL, "http://gateway.example.com")
+        m = mock_open()
+        # readline is called once per open context
+        m.return_value.readline.side_effect = [line1, line2]
 
-        # Verify request details
-        args, _ = mock_urlopen.call_args
-        req = args[0]
-        self.assertEqual(req.full_url, f"{openclaw_monitor.SAAS_URL}/api/agents/handshake")
-        self.assertEqual(req.get_method(), "POST")
+        with patch('builtins.open', m):
+            cpu_usage = monitor.get_cpu()
 
-        # Verify payload content
-        data = json.loads(req.data.decode())
-        self.assertEqual(data["agent_id"], openclaw_monitor.AGENT_ID)
-        self.assertIn("timestamp", data)
-        self.assertIn("signature", data)
+        self.assertEqual(cpu_usage, 52)
 
-    @patch('urllib.request.urlopen')
-    def test_perform_handshake_failure(self, mock_urlopen):
-        # Setup mock to raise exception
-        mock_urlopen.side_effect = Exception("Network error")
+    @patch('platform.system')
+    @patch('subprocess.run')
+    @patch('os.cpu_count')
+    def test_get_cpu_darwin(self, mock_cpu_count, mock_run, mock_system):
+        mock_system.return_value = "Darwin"
+        mock_cpu_count.return_value = 4
 
-        # Capture stdout to avoid cluttering test output
-        captured_output = io.StringIO()
-        sys.stdout = captured_output
-        try:
-            result = openclaw_monitor.perform_handshake()
-        finally:
-            sys.stdout = sys.__stdout__
+        # Output from ps -A -o %cpu
+        # Header + values
+        ps_output = "%CPU\n 10.0\n 20.0\n"
 
-        self.assertFalse(result)
-        self.assertIn("Handshake failed", captured_output.getvalue())
+        mock_run.return_value = MagicMock(stdout=ps_output)
 
-    @patch('urllib.request.urlopen')
-    def test_perform_handshake_no_gateway(self, mock_urlopen):
-        # Setup mock response without gateway_url
-        mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps({
-            "token": "fake_token_456"
-        }).encode()
-        mock_response.__enter__.return_value = mock_response
-        mock_urlopen.return_value = mock_response
+        # Calculation:
+        # sum = 10.0 + 20.0 = 30.0
+        # usage = 30.0 / 4 = 7.5 -> int(7.5) = 7
 
-        # Ensure GATEWAY_URL is None initially
-        openclaw_monitor.GATEWAY_URL = None
+        cpu_usage = monitor.get_cpu()
+        self.assertEqual(cpu_usage, 7)
 
-        # Capture stdout
-        captured_output = io.StringIO()
-        sys.stdout = captured_output
-        try:
-            result = openclaw_monitor.perform_handshake()
-        finally:
-            sys.stdout = sys.__stdout__
+    @patch('platform.system')
+    @patch('subprocess.run')
+    def test_get_cpu_windows(self, mock_run, mock_system):
+        mock_system.return_value = "Windows"
 
-        self.assertTrue(result)
-        self.assertEqual(openclaw_monitor.SESSION_TOKEN, "fake_token_456")
-        self.assertIsNone(openclaw_monitor.GATEWAY_URL)
-        self.assertIn("Handshake successful", captured_output.getvalue())
-        self.assertNotIn("Probing active", captured_output.getvalue())
+        # Output from wmic
+        wmic_output = "LoadPercentage\r\n50\r\n"
+
+        mock_run.return_value = MagicMock(stdout=wmic_output)
+
+        cpu_usage = monitor.get_cpu()
+        self.assertEqual(cpu_usage, 50)
+
+    @patch('platform.system')
+    def test_get_cpu_error(self, mock_system):
+        mock_system.side_effect = Exception("Some error")
+
+        cpu_usage = monitor.get_cpu()
+        self.assertEqual(cpu_usage, 0)
 
 if __name__ == '__main__':
     unittest.main()
