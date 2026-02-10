@@ -1,11 +1,19 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4, validate as validateUuid } from 'uuid';
 import { SignJWT, jwtVerify } from 'jose';
 import { encrypt, decrypt } from '@/lib/encryption';
-import { getPolicy } from '@/lib/policies';
+import {
+  getPolicy,
+  DEFAULT_POLICY_PROFILE,
+  POLICY_DEV,
+  POLICY_OPS,
+  POLICY_EXEC,
+} from '@/lib/policies';
 import { processSmartAlerts } from '@/lib/alerts';
+import { RATE_LIMIT_CONFIG } from '@/lib/rate-limits';
+import { MODEL_PRICING } from '@/lib/pricing';
 
 const decryptAgent = (a) => {
   if (!a) return a;
@@ -22,27 +30,13 @@ const decryptAgent = (a) => {
   return decrypted;
 };
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.SUPABASE_SERVICE_ROLE_KEY || 'default-secret-for-development-only'
-);
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error('SUPABASE_SERVICE_ROLE_KEY is required');
+}
 
-const RATE_LIMIT_CONFIG = {
-  free: {
-    global: { capacity: 60, refillRate: 1 }, // 60 req / min
-    handshake: { capacity: 5, refillRate: 5 / 600 }, // 5 req / 10 min
-    heartbeat: { capacity: 3, refillRate: 1 / 300 }, // 1 req / 5 min
-  },
-  pro: {
-    global: { capacity: 600, refillRate: 10 }, // 600 req / min
-    handshake: { capacity: 50, refillRate: 50 / 600 }, // 50 req / 10 min
-    heartbeat: { capacity: 20, refillRate: 1 / 15 }, // 1 req / 15s
-  },
-  enterprise: {
-    global: { capacity: 5000, refillRate: 100 }, // 5000 req / min
-    handshake: { capacity: 500, refillRate: 1 }, // 60 req / min
-    heartbeat: { capacity: 200, refillRate: 2 }, // 2 req / s
-  },
-};
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 /**
  * Retrieves the subscription tier for a given user.
@@ -211,10 +205,21 @@ export async function GET(request, context) {
         return json({ error: 'Missing agent_id or agent_secret parameter' }, 400);
       }
 
+      if (!validateUuid(agentId) || !validateUuid(agentSecret)) {
+        return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
+      }
+
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
         request.headers.get('origin') ||
         'http://localhost:3000';
+
+      try {
+        new URL(baseUrl);
+        if (baseUrl.includes('"') || baseUrl.includes("'")) throw new Error('Invalid characters');
+      } catch {
+        return json({ error: 'Invalid base URL' }, 400);
+      }
 
       // Determine user tier for heartbeat interval
       let interval = searchParams.get('interval');
@@ -234,12 +239,15 @@ export async function GET(request, context) {
             .eq('id', agentId)
             .single();
 
-          const profile = agentFull?.policy_profile || 'dev';
+          const profile = agentFull?.policy_profile || DEFAULT_POLICY_PROFILE;
           let policyInterval = tier === 'free' ? 300 : 60;
 
-          if (profile === 'ops') policyInterval = 60;
-          else if (profile === 'exec') policyInterval = 600;
-          else if (!['dev', 'ops', 'exec'].includes(profile) && tier === 'enterprise') {
+          if (profile === POLICY_OPS) policyInterval = 60;
+          else if (profile === POLICY_EXEC) policyInterval = 600;
+          else if (
+            ![POLICY_DEV, POLICY_OPS, POLICY_EXEC].includes(profile) &&
+            tier === 'enterprise'
+          ) {
             const { data: cp } = await supabaseAdmin
               .from('custom_policies')
               .select('heartbeat_interval')
@@ -252,6 +260,10 @@ export async function GET(request, context) {
         } else {
           interval = '300';
         }
+      }
+
+      if (!/^\d+$/.test(interval)) {
+        return json({ error: 'Invalid interval format' }, 400);
       }
 
       const script = `#!/bin/bash
@@ -436,10 +448,21 @@ done
         return json({ error: 'Missing agent_id or agent_secret parameter' }, 400);
       }
 
+      if (!validateUuid(agentId) || !validateUuid(agentSecret)) {
+        return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
+      }
+
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
         request.headers.get('origin') ||
         'http://localhost:3000';
+
+      try {
+        new URL(baseUrl);
+        if (baseUrl.includes('"') || baseUrl.includes("'")) throw new Error('Invalid characters');
+      } catch {
+        return json({ error: 'Invalid base URL' }, 400);
+      }
 
       // Determine user tier for heartbeat interval
       let interval = searchParams.get('interval');
@@ -459,12 +482,15 @@ done
             .eq('id', agentId)
             .single();
 
-          const profile = agentFull?.policy_profile || 'dev';
+          const profile = agentFull?.policy_profile || DEFAULT_POLICY_PROFILE;
           let policyInterval = tier === 'free' ? 300 : 60;
 
-          if (profile === 'ops') policyInterval = 60;
-          else if (profile === 'exec') policyInterval = 600;
-          else if (!['dev', 'ops', 'exec'].includes(profile) && tier === 'enterprise') {
+          if (profile === POLICY_OPS) policyInterval = 60;
+          else if (profile === POLICY_EXEC) policyInterval = 600;
+          else if (
+            ![POLICY_DEV, POLICY_OPS, POLICY_EXEC].includes(profile) &&
+            tier === 'enterprise'
+          ) {
             const { data: cp } = await supabaseAdmin
               .from('custom_policies')
               .select('heartbeat_interval')
@@ -477,6 +503,10 @@ done
         } else {
           interval = '300';
         }
+      }
+
+      if (!/^\d+$/.test(interval)) {
+        return json({ error: 'Invalid interval format' }, 400);
       }
 
       const psScript = [
@@ -643,10 +673,21 @@ done
         return json({ error: 'Missing agent_id or agent_secret parameter' }, 400);
       }
 
+      if (!validateUuid(agentId) || !validateUuid(agentSecret)) {
+        return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
+      }
+
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
         request.headers.get('origin') ||
         'http://localhost:3000';
+
+      try {
+        new URL(baseUrl);
+        if (baseUrl.includes('"') || baseUrl.includes("'")) throw new Error('Invalid characters');
+      } catch {
+        return json({ error: 'Invalid base URL' }, 400);
+      }
 
       // Determine user tier for heartbeat interval
       let interval = searchParams.get('interval');
@@ -666,12 +707,15 @@ done
             .eq('id', agentId)
             .single();
 
-          const profile = agentFull?.policy_profile || 'dev';
+          const profile = agentFull?.policy_profile || DEFAULT_POLICY_PROFILE;
           let policyInterval = tier === 'free' ? 300 : 60;
 
-          if (profile === 'ops') policyInterval = 60;
-          else if (profile === 'exec') policyInterval = 600;
-          else if (!['dev', 'ops', 'exec'].includes(profile) && tier === 'enterprise') {
+          if (profile === POLICY_OPS) policyInterval = 60;
+          else if (profile === POLICY_EXEC) policyInterval = 600;
+          else if (
+            ![POLICY_DEV, POLICY_OPS, POLICY_EXEC].includes(profile) &&
+            tier === 'enterprise'
+          ) {
             const { data: cp } = await supabaseAdmin
               .from('custom_policies')
               .select('heartbeat_interval')
@@ -684,6 +728,10 @@ done
         } else {
           interval = '300';
         }
+      }
+
+      if (!/^\d+$/.test(interval)) {
+        return json({ error: 'Invalid interval format' }, 400);
       }
 
       const pyLines = [
@@ -1184,11 +1232,11 @@ export async function POST(request, context) {
 
       const body = await request.json();
       const plainSecret = uuidv4();
-      const policyProfile = body.policy_profile || 'dev';
+      const policyProfile = body.policy_profile || DEFAULT_POLICY_PROFILE;
       let policy = getPolicy(policyProfile);
 
       // Check for custom policy if enterprise user
-      if (!['dev', 'ops', 'exec'].includes(policyProfile)) {
+      if (![POLICY_DEV, POLICY_OPS, POLICY_EXEC].includes(policyProfile)) {
         const { data: customPolicy } = await supabaseAdmin
           .from('custom_policies')
           .select('*')
@@ -1216,7 +1264,11 @@ export async function POST(request, context) {
             skills: policy.skills,
             model: body.model || 'claude-sonnet-4',
             data_scope:
-              policyProfile === 'dev' ? 'full' : policyProfile === 'ops' ? 'system' : 'read-only',
+              policyProfile === POLICY_DEV
+                ? 'full'
+                : policyProfile === POLICY_OPS
+                  ? 'system'
+                  : 'read-only',
           }
         ),
         metrics_json: {
@@ -1246,7 +1298,7 @@ export async function POST(request, context) {
             ...agent,
             agent_secret: plainSecret,
             config_json: body.config_json || {
-              profile: 'dev',
+              profile: DEFAULT_POLICY_PROFILE,
               skills: ['code', 'search'],
               model: 'claude-sonnet-4',
               data_scope: 'full',
@@ -1331,7 +1383,7 @@ export async function POST(request, context) {
       }
 
       const token = await createAgentToken(agent.id, agent.fleet_id);
-      const policyProfile = agent.policy_profile || 'dev';
+      const policyProfile = agent.policy_profile || DEFAULT_POLICY_PROFILE;
       let policy = getPolicy(policyProfile);
 
       // Tier-based heartbeat clamping
@@ -1394,28 +1446,6 @@ export async function POST(request, context) {
         const uptimeHours = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60));
 
         // Calculate cost based on model pricing (cost per task)
-        const MODEL_PRICING = {
-          'claude-opus-4.5': 0.0338,
-          'claude-sonnet-4': 0.009,
-          'claude-3': 0.009,
-          'claude-haiku': 0.0015,
-          'gpt-4o': 0.009,
-          'gpt-4o-mini': 0.0004,
-          'gpt-4': 0.018,
-          'gpt-3.5-turbo': 0.001,
-          'gemini-3-pro': 0.0056,
-          'gemini-2-flash': 0.0015,
-          'grok-4.1-mini': 0.0004,
-          'grok-2': 0.003,
-          'llama-3.3-70b': 0.0003,
-          'llama-3': 0.0003,
-          'qwen-2.5-72b': 0.0003,
-          'mistral-large': 0.002,
-          'mistral-medium': 0.001,
-          'deepseek-v3': 0.0002,
-          'gpt-4-turbo': 0.012,
-        };
-
         const costPerTask = MODEL_PRICING[agent.model] || 0.01;
         tasksCount += 1;
         errorsCount = body.status === 'error' ? errorsCount + 1 : errorsCount;
@@ -1516,7 +1546,7 @@ export async function POST(request, context) {
       const demoAgents = [
         {
           name: 'alpha-coder',
-          policy_profile: 'dev',
+          policy_profile: POLICY_DEV,
           gateway_url: 'http://192.168.1.100:8080',
           status: 'healthy',
           model: 'gpt-4',
@@ -1532,7 +1562,7 @@ export async function POST(request, context) {
             memory_usage: 58,
           },
           config_json: {
-            profile: 'dev',
+            profile: POLICY_DEV,
             skills: ['code', 'search', 'deploy'],
             model: 'gpt-4',
             data_scope: 'full',
@@ -1541,7 +1571,7 @@ export async function POST(request, context) {
         },
         {
           name: 'beta-researcher',
-          policy_profile: 'ops',
+          policy_profile: POLICY_OPS,
           gateway_url: 'http://10.0.1.50:8080',
           status: 'healthy',
           model: 'claude-3',
@@ -1557,7 +1587,7 @@ export async function POST(request, context) {
             memory_usage: 45,
           },
           config_json: {
-            profile: 'ops',
+            profile: POLICY_OPS,
             skills: ['search', 'analyze', 'report'],
             model: 'claude-3',
             data_scope: 'read-only',
@@ -1566,7 +1596,7 @@ export async function POST(request, context) {
         },
         {
           name: 'gamma-deployer',
-          policy_profile: 'ops',
+          policy_profile: POLICY_OPS,
           gateway_url: 'http://172.16.0.10:8080',
           status: 'idle',
           model: 'gpt-4',
@@ -1582,7 +1612,7 @@ export async function POST(request, context) {
             memory_usage: 30,
           },
           config_json: {
-            profile: 'ops',
+            profile: POLICY_OPS,
             skills: ['deploy', 'monitor', 'rollback'],
             model: 'gpt-4',
             data_scope: 'full',
@@ -1591,7 +1621,7 @@ export async function POST(request, context) {
         },
         {
           name: 'delta-monitor',
-          policy_profile: 'exec',
+          policy_profile: POLICY_EXEC,
           gateway_url: 'http://192.168.2.25:8080',
           status: 'error',
           model: 'gpt-3.5-turbo',
@@ -1607,7 +1637,7 @@ export async function POST(request, context) {
             memory_usage: 92,
           },
           config_json: {
-            profile: 'exec',
+            profile: POLICY_EXEC,
             skills: ['monitor', 'alert'],
             model: 'gpt-3.5-turbo',
             data_scope: 'summary-only',
@@ -1616,7 +1646,7 @@ export async function POST(request, context) {
         },
         {
           name: 'epsilon-analyst',
-          policy_profile: 'dev',
+          policy_profile: POLICY_DEV,
           gateway_url: 'http://10.0.2.100:8080',
           status: 'offline',
           model: 'gpt-4',
@@ -1632,7 +1662,7 @@ export async function POST(request, context) {
             memory_usage: 0,
           },
           config_json: {
-            profile: 'dev',
+            profile: POLICY_DEV,
             skills: ['analyze', 'report', 'visualize'],
             model: 'gpt-4',
             data_scope: 'full',
