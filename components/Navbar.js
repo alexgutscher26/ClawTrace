@@ -6,6 +6,17 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Zap, X, Menu, ArrowLeft } from 'lucide-react';
 
+/**
+ * Renders a responsive navigation bar with authentication options.
+ *
+ * The Navbar component utilizes session information to conditionally render links for settings, console, and logout actions. It also includes branding and a mobile menu toggle. The handleLogout function is called to sign out the user and refresh the session state. The component adapts its appearance based on the transparent prop and the open state for mobile navigation.
+ *
+ * @param {Object} props - The component props.
+ * @param {Object} props.session - The current user session.
+ * @param {Object} props.branding - The branding information for the application.
+ * @param {boolean} [props.transparent=false] - Determines if the navbar should be transparent.
+ * @returns {JSX.Element} The rendered Navbar component.
+ */
 export default function Navbar({ session, branding, transparent = false }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
