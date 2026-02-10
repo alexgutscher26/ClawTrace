@@ -382,28 +382,28 @@ export default function DashboardView() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-border/40 border-b">
-                      <th className="text-muted-foreground p-3 text-left text-xs font-medium">
+                      <th scope="col" className="text-muted-foreground p-3 text-left text-xs font-medium">
                         Name
                       </th>
-                      <th className="text-muted-foreground p-3 text-left text-xs font-medium">
+                      <th scope="col" className="text-muted-foreground p-3 text-left text-xs font-medium">
                         Status
                       </th>
-                      <th className="text-muted-foreground hidden p-3 text-left text-xs font-medium md:table-cell">
+                      <th scope="col" className="text-muted-foreground hidden p-3 text-left text-xs font-medium md:table-cell">
                         Gateway
                       </th>
-                      <th className="text-muted-foreground p-3 text-left text-xs font-medium">
+                      <th scope="col" className="text-muted-foreground p-3 text-left text-xs font-medium">
                         Policy
                       </th>
-                      <th className="text-muted-foreground hidden p-3 text-left text-xs font-medium md:table-cell">
+                      <th scope="col" className="text-muted-foreground hidden p-3 text-left text-xs font-medium md:table-cell">
                         Model
                       </th>
-                      <th className="text-muted-foreground hidden p-3 text-left text-xs font-medium lg:table-cell">
+                      <th scope="col" className="text-muted-foreground hidden p-3 text-left text-xs font-medium lg:table-cell">
                         Location
                       </th>
-                      <th className="text-muted-foreground p-3 text-left text-xs font-medium">
+                      <th scope="col" className="text-muted-foreground p-3 text-left text-xs font-medium">
                         Heartbeat
                       </th>
-                      <th className="text-muted-foreground p-3 text-right text-xs font-medium">
+                      <th scope="col" className="text-muted-foreground p-3 text-right text-xs font-medium">
                         Actions
                       </th>
                     </tr>
@@ -414,16 +414,20 @@ export default function DashboardView() {
                       return (
                         <tr
                           key={agent.id}
-                          className="cursor-pointer border-b border-white/5 transition hover:bg-white/5"
-                          onClick={() => navigate(`/dashboard/agents/${agent.id}`)}
+                          className="border-b border-white/5 transition hover:bg-white/5"
                         >
                           <td className="p-3">
-                            <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => navigate(`/dashboard/agents/${agent.id}`)}
+                              className="flex items-center gap-3 text-left hover:underline focus:outline-none focus:underline"
+                              aria-label={`View agent ${agent.name}`}
+                            >
                               <div
                                 className={`h-1.5 w-1.5 rounded-full ${agent.status === 'healthy' ? 'bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]' : agent.status === 'error' ? 'animate-pulse bg-red-500' : 'bg-zinc-600'}`}
+                                aria-hidden="true"
                               />
                               <span className="text-sm font-bold tracking-tight">{agent.name}</span>
-                            </div>
+                            </button>
                           </td>
                           <td className="p-3">
                             <Badge
@@ -453,13 +457,14 @@ export default function DashboardView() {
                           <td className="p-3 font-mono text-sm text-zinc-500">
                             {timeAgo(agent.last_heartbeat)}
                           </td>
-                          <td className="p-3 text-right" onClick={(e) => e.stopPropagation()}>
+                          <td className="p-3 text-right">
                             <div className="flex items-center justify-end gap-1">
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 className="h-7 w-7 p-0 text-zinc-400 hover:text-white"
                                 onClick={() => navigate(`/dashboard/agents/${agent.id}`)}
+                                aria-label={`View details for ${agent.name}`}
                               >
                                 <Eye className="h-3.5 w-3.5" />
                               </Button>
@@ -468,6 +473,7 @@ export default function DashboardView() {
                                 size="sm"
                                 className="h-7 w-7 p-0 text-zinc-600 hover:bg-transparent hover:text-red-500"
                                 onClick={() => handleDeleteAgent(agent.id)}
+                                aria-label={`Delete agent ${agent.name}`}
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>

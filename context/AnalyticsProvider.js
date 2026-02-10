@@ -16,6 +16,10 @@ import { usePathname, useSearchParams } from 'next/navigation';
  * @returns {JSX.Element} The rendered provider component with children.
  */
 export function AnalyticsProvider({ children }) {
+  const { session } = useFleet();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   // Initialize PostHog client-side only
   useEffect(() => {
     if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY && !posthog.__loaded) {
@@ -34,22 +38,20 @@ export function AnalyticsProvider({ children }) {
             maskAllInputFields: false,
             maskTextSelector: '.sensitive',
           },
+          enable_recording_console_log: true,
           loaded: (ph) => {
             if (process.env.NODE_ENV === 'development') ph.debug();
             posthog.__loaded = true;
           },
         });
+        window.posthog = posthog;
       } catch (e) {
         console.warn('PostHog init failed:', e);
       }
     }
   }, []);
 
-  const { session } = useFleet();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  // Track pageviews on route change
+  // Track pageviews on route change (App Router)
   useEffect(() => {
     if (typeof window !== 'undefined' && posthog.__loaded) {
       let url = window.origin + pathname;
@@ -67,11 +69,8 @@ export function AnalyticsProvider({ children }) {
     }
   }, [pathname, searchParams]);
 
-  // Additional listener for hash-only changes (common in this app)
+  // Listener for hash-only changes (common in this app)
   useEffect(() => {
-    /**
-     * Handles the hash change event by capturing pageleave and pageview events.
-     */
     const handleHashChange = (event) => {
       // Capture pageleave for the old URL
       if (event?.oldURL) {
