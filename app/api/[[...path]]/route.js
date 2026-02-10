@@ -24,6 +24,16 @@ async function getScript(filename, replacements) {
   return content;
 }
 
+/**
+ * Decrypts the agent's configuration and secret.
+ *
+ * This function takes an agent object, checks for the presence of a config_json and agent_secret,
+ * and attempts to decrypt them using the decrypt function. If decryption is successful, the
+ * decrypted values are parsed and assigned to a new object. In case of any errors during decryption,
+ * an error message is logged to the console, and the original values are retained.
+ *
+ * @param {Object} a - The agent object containing configuration and secret to be decrypted.
+ */
 const decryptAgent = (a) => {
   if (!a) return a;
   const decrypted = { ...a };
