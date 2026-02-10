@@ -15,6 +15,9 @@ import { processSmartAlerts } from '@/lib/alerts';
 import { promises as fs } from 'fs';
 import path from 'path';
 
+/**
+ * Reads a script file and replaces placeholders with specified values.
+ */
 async function getScript(filename, replacements) {
   const filePath = path.join(process.cwd(), 'lib/scripts', filename);
   let content = await fs.readFile(filePath, 'utf8');
