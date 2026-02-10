@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 """OpenClaw Fleet Monitor - Cross-platform Heartbeat Agent"""
-# Agent: 79a68826-b5af-49a3-b9db-6c322c858f17
 # Run: python3 openclaw-monitor.py
 
 import json, time, urllib.request, platform, os, hmac, hashlib
 
-SAAS_URL = "http://localhost:3000"
-AGENT_ID = "79a68826-b5af-49a3-b9db-6c322c858f17"
-AGENT_SECRET = "4721c562-21eb-4b65-ae77-dcd6ec94f710"
-INTERVAL = 300
+SAAS_URL = os.getenv("OPENCLAW_SAAS_URL", "http://localhost:3000")
+AGENT_ID = os.getenv("OPENCLAW_AGENT_ID")
+AGENT_SECRET = os.getenv("OPENCLAW_AGENT_SECRET")
+INTERVAL = int(os.getenv("OPENCLAW_INTERVAL", "300"))
 SESSION_TOKEN = None
 GATEWAY_URL = None
 _last_cpu_stats = None
@@ -176,6 +175,13 @@ if __name__ == "__main__":
     print()
     print("  OpenClaw Fleet Monitor")
     print("  --------------------------------")
+
+    if not AGENT_ID or not AGENT_SECRET:
+        print("  \033[91mError: OPENCLAW_AGENT_ID and OPENCLAW_AGENT_SECRET must be set.\033[0m")
+        print("  Please set these environment variables and run the agent again.")
+        print()
+        exit(1)
+
     print(f"  Agent:    {AGENT_ID}")
     print(f"  SaaS:     {SAAS_URL}")
     print(f"  Interval: {INTERVAL}s")
