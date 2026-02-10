@@ -18,7 +18,8 @@ async function proxyRequest(request, { params }) {
   });
 
   const headers = new Headers(request.headers);
-  headers.set('host', targetUrl.host); // Set correct host header for the target
+  headers.delete('host');
+  headers.delete('connection');
 
   const requestInit = {
     method: request.method,
