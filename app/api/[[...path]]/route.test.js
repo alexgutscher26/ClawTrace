@@ -1,5 +1,24 @@
 import { describe, test, expect, mock, beforeAll } from 'bun:test';
-import { v4 as uuidv4 } from 'uuid';
+
+// Mock dependencies
+mock.module('uuid', () => ({
+  v4: () => '00000000-0000-0000-0000-000000000000',
+  validate: (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str),
+}));
+
+mock.module('jose', () => {
+  return {
+    SignJWT: class {
+      setProtectedHeader() { return this; }
+      setIssuedAt() { return this; }
+      setExpirationTime() { return this; }
+      sign() { return Promise.resolve('mock_token'); }
+    },
+    jwtVerify: () => Promise.resolve({ payload: { agent_id: '123' } }),
+  };
+});
+
+const { v4: uuidv4 } = await import('uuid');
 
 // Mock environment variables
 process.env.NEXT_PUBLIC_SUPABASE_URL = 'http://localhost:54321';
@@ -72,7 +91,7 @@ describe('Vulnerability Fix Verification', () => {
 
     // It should be a JSON response with 400 error
     expect(response.status).toBe(400);
-    expect(response.json).toEqual({ error: 'Invalid agent_id or agent_secret format' });
+    expect(response.json).toEqual({ error: 'Invalid agent_id format' });
   });
 
   test('Should reject invalid interval with 400', async () => {
