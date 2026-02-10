@@ -11,6 +11,8 @@ OpenClaw Fleet is a high-performance, secure, and scalable command center design
 - **🚀 Real-time Telemetry**: Sub-millisecond latency heartbeat system via WebSockets. Monitor CPU, Memory, and Latency across thousands of nodes concurrently.
 - **🔐 Zero-Knowledge Security**: End-to-End Encryption (E2EE) powered by AES-256-GCM. Agent configurations and secrets are encrypted in the browser and never leave the edge in plain text.
 - **📡 Remote Execution**: Instantly dispatch shell commands or scripts to any individual agent or entire fleets. Stream `stdout`/`stderr` back to the console in real-time.
+- **🔌 Plugin Architecture**: Seamlessly extend agent capabilities with custom Python/JS scripts for specialized metric collection.
+- **🔍 Auto-Discovery**: Zero-config pairing via local network scanning to find OpenClaw gateways instantly.
 - **🛡️ Policy Engine**: Define granular "Guardrails" and profiles (Dev, Ops, Exec) to control agent capabilities, resource usage, and network access.
 - **📦 Single Binary / Edge First**: Agents are lightweight daemons that run on Linux, macOS, and Windows. No complex dependencies, just pure performance.
 - **🎨 Premium UX**: A brutalist, grid-based interface with glassmorphism aesthetics, designed for focus and operational clarity.

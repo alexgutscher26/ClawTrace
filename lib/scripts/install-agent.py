@@ -8,6 +8,14 @@ import json, time, urllib.request, platform, os, hmac, hashlib
 SAAS_URL = "{{BASE_URL}}"
 AGENT_ID = "{{AGENT_ID}}"
 AGENT_SECRET = "{{AGENT_SECRET}}"
+
+if not AGENT_SECRET:
+    AGENT_SECRET = os.environ.get("OPENCLAW_AGENT_SECRET", "")
+
+if not AGENT_SECRET:
+    print("Error: AGENT_SECRET is not set. Please set OPENCLAW_AGENT_SECRET environment variable.")
+    exit(1)
+
 INTERVAL = {{INTERVAL}}
 SESSION_TOKEN = None
 GATEWAY_URL = None

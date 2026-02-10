@@ -6,6 +6,9 @@ import { Card } from '@/components/ui/card';
 
 import { useFleet } from '@/context/FleetContext';
 
+/**
+ * Renders the documentation view for Fleet, including navigation and content sections.
+ */
 export default function DocsView() {
   const { session, branding } = useFleet();
   const [activePage, setActivePage] = useState('Introduction');
@@ -13,7 +16,7 @@ export default function DocsView() {
   const sections = [
     {
       title: 'Getting Started',
-      items: ['Introduction', 'Installation', 'Architecture', 'Quick Start'],
+      items: ['Introduction', 'Installation', 'Architecture', 'Quick Start', 'CLI Reference'],
     },
     { title: 'Core Concepts', items: ['Agents', 'Fleets', 'Policies', 'Security'] },
     { title: 'API Reference', items: ['Authentication', 'Endpoints', 'Webhooks'] },
@@ -203,6 +206,51 @@ export default function DocsView() {
           <pre className="border border-white/10 bg-zinc-950 p-4 font-mono text-xs text-zinc-400">
             Authorization: Bearer sk_live_...
           </pre>
+        </div>
+      ),
+    },
+    'CLI Reference': {
+      title: 'CLI Reference',
+      subtitle: 'Command Line Interface Guide.',
+      body: (
+        <div className="space-y-8">
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-white uppercase">Auto-Discovery</h3>
+            <p className="text-sm text-zinc-400">
+              Find local OpenClaw gateways automatically without manual configuration.
+            </p>
+            <div className="border border-white/10 bg-zinc-950 p-4 font-mono text-xs text-emerald-400">
+              fleet-monitor discover
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-white uppercase">Plugin System</h3>
+            <p className="text-sm text-zinc-400">
+              Extend agent metrics with custom scripts (Python, JS, etc.) that output JSON.
+            </p>
+            <div className="space-y-2">
+              <p className="text-xs text-zinc-500">1. Create a script (e.g. queue.py)</p>
+              <pre className="border border-white/10 bg-zinc-950 p-3 font-mono text-xs text-zinc-400">
+                {`import json
+print(json.dumps({"queue_length": 42}))`}
+              </pre>
+              <p className="text-xs text-zinc-500">2. Run monitor with plugins</p>
+              <div className="border border-white/10 bg-zinc-950 p-3 font-mono text-xs text-emerald-400">
+                fleet-monitor monitor ... --plugins=./queue.py
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-white uppercase">Service Mode</h3>
+            <p className="text-sm text-zinc-400">
+              Run the agent as a persistent background service (systemd or LaunchAgent).
+            </p>
+            <div className="border border-white/10 bg-zinc-950 p-4 font-mono text-xs text-emerald-400">
+              fleet-monitor install-service --saas-url=...
+            </div>
+          </div>
         </div>
       ),
     },
