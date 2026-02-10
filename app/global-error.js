@@ -4,8 +4,13 @@ import { useEffect } from 'react';
 import posthog from 'posthog-js';
 
 /**
- * GlobalError must include <html> and <body> tags since it replaces the entire
- * root layout during a critical system failure.
+ * Renders a global error page during a critical system failure.
+ *
+ * The GlobalError component captures the provided error and logs it to the console. If the PostHog analytics library is loaded, it captures the error with a severity of 'fatal'. The component returns a structured HTML layout that informs the user of the system kernel panic, displays the error message, and provides options for attempting a kernel reset or forcing a hard reload of the page.
+ *
+ * @param {Object} props - The component props.
+ * @param {Error} props.error - The error object containing error details.
+ * @param {Function} props.reset - A function to reset the kernel.
  */
 export default function GlobalError({ error, reset }) {
   useEffect(() => {
