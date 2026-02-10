@@ -55,14 +55,23 @@ async function proxyRequest(request, { params }) {
   }
 }
 
+/**
+ * Handles GET requests by proxying them.
+ */
 export async function GET(request, context) {
   return proxyRequest(request, context);
 }
 
+/**
+ * Handles POST requests by proxying them.
+ */
 export async function POST(request, context) {
   return proxyRequest(request, context);
 }
 
+/**
+ * Handles OPTIONS HTTP requests and returns a 204 response with CORS headers.
+ */
 export async function OPTIONS(request) {
   return new NextResponse(null, {
     status: 204,
