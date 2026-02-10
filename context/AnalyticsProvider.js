@@ -54,12 +54,26 @@ export function AnalyticsProvider({ children }) {
       posthog.capture('$pageview', {
         $current_url: url,
       });
+
+      // Capture pageleave when the path or search params change
+      return () => {
+        posthog.capture('$pageleave', {
+          $current_url: url,
+        });
+      };
     }
   }, [pathname, searchParams]);
 
   // Handle hash changes for legacy hash-routing support
   useEffect(() => {
-    const handleHashChange = () => {
+    const handleHashChange = (event) => {
+      // Capture pageleave for the old URL
+      if (event?.oldURL) {
+        posthog.capture('$pageleave', {
+          $current_url: event.oldURL,
+        });
+      }
+
       posthog.capture('$pageview', {
         $current_url: window.location.href,
       });
