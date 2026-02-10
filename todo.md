@@ -80,10 +80,10 @@ _Adding the "SaaS" value-add that justifies the Pro/Enterprise tiers._
 
 ### � Self-Hosting & Deployment
 
-- [ ] **Dockerized Fleet**: Provide a `docker-compose.yml` for users who want to host the entire Fleet Dashboard in private air-gapped VPCs.
-- [ ] **Deployment Templates**:
-  - [ ] One-click DigitalOcean Droplet creation for new agents.
-  - [ ] Terraform/OpenTofu provider for managing fleets via IaC.
+- [x] **Dockerized Fleet**: Provide a `docker-compose.yml` for users who want to host the entire Fleet Dashboard in private air-gapped VPCs.
+- [x] **Deployment Templates**:
+  - [x] One-click DigitalOcean Droplet creation for new agents.
+  - [x] Terraform/OpenTofu provider for managing fleets via IaC.
 
 ---
 
@@ -95,14 +95,6 @@ _Visionary ideas for 2026 and beyond._
 - [ ] **Predictive Scaling**: Automatically spin up more agent instances when wait-times/latency exceed 500ms across a fleet.
 - [ ] **Model Switcher**: A "Kill Switch" to instantly rotate all agents to an emergency backup model (e.g., rotate from GPT-4 to Claude 3 if OpenAI has an outage).
 - [ ] **Community Marketplace**: A repository of pre-configured agent "templates" (e.g., "SEO Agent", "Python Dev Agent") that can be provisioned in one click.
-
----
-
-## 🧹 TECHNICAL DEBT / MAINTENANCE
-
-- [ ] **Refactor Monolith**: Split `app/api/[[...path]]/route.js` into distinct files for `/fleets`, `/agents`, `/alerts`, and `/billing`.
-- [ ] **Typings**: Convert the project to **TypeScript** to prevent the "undefined" errors seen in early bug logs.
-- [x] **Dependency Update**: Audit and update 60+ dependencies listed in `package.json`.
 
 ---
 
