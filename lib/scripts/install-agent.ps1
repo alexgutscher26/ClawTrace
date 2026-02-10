@@ -1,16 +1,16 @@
-# OpenClaw Fleet Monitor - PowerShell Heartbeat Agent
+# ClawFleet Agent - PowerShell Heartbeat Agent
 # Agent: {{AGENT_ID}}
-# Run: powershell -ExecutionPolicy Bypass -File openclaw-monitor.ps1
+# Run: powershell -ExecutionPolicy Bypass -File clawfleet-agent.ps1
 
 $SaasUrl = "{{BASE_URL}}"
 $AgentId = "{{AGENT_ID}}"
 $AgentSecret = "{{AGENT_SECRET}}"
 
 if ([string]::IsNullOrEmpty($AgentSecret)) {
-    $AgentSecret = $env:OPENCLAW_AGENT_SECRET
+    $AgentSecret = $env:CLAWFLEET_AGENT_SECRET
 }
 if ([string]::IsNullOrEmpty($AgentSecret)) {
-    Write-Host "Error: AGENT_SECRET is not set. Please set OPENCLAW_AGENT_SECRET environment variable." -ForegroundColor Red
+    Write-Host "Error: AGENT_SECRET is not set. Please set CLAWFLEET_AGENT_SECRET environment variable." -ForegroundColor Red
     exit 1
 }
 
@@ -19,7 +19,7 @@ $SessionToken = $null
 $GatewayUrl = $null
 
 Write-Host ""
-Write-Host "  OpenClaw Fleet Monitor" -ForegroundColor Green
+Write-Host "  ClawFleet Agent" -ForegroundColor Green
 Write-Host "  --------------------------------"
 Write-Host "  Agent:    $AgentId"
 Write-Host "  SaaS:     $SaasUrl"

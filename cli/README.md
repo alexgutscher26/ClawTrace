@@ -1,21 +1,21 @@
-# Fleet Monitor CLI
+# ClawFleet Monitor CLI
 
-Heartbeat agent and configuration manager for Fleet Orchestrator. Install on any machine running an agent to send real-time metrics and manage configurations from the terminal.
+Heartbeat agent and configuration manager for ClawFleet Orchestrator. Install on any machine running an agent to send real-time metrics and manage configurations from the terminal.
 
 ## Install
 
 ```bash
-npm i -g openclaw-fleet-monitor
+npm i -g clawfleet-monitor
 ```
 
 ## Quick Start
 
-1. Register at your Fleet dashboard and add an agent
+1. Register at your ClawFleet dashboard and add an agent
 2. Copy the agent ID and Secret from the dashboard
 3. Run the monitor:
 
 ```bash
-fleet-monitor monitor --saas-url=https://your-fleet-app.com --agent-id=YOUR_AGENT_UUID --agent-secret=YOUR_AGENT_SECRET
+clawfleet monitor --saas-url=https://your-fleet-app.com --agent-id=YOUR_AGENT_UUID --agent-secret=YOUR_AGENT_SECRET
 ```
 
 ## Commands
@@ -24,7 +24,7 @@ fleet-monitor monitor --saas-url=https://your-fleet-app.com --agent-id=YOUR_AGEN
 |-----------|------------------------------------------|
 | `monitor` | Start sending heartbeats to the dashboard|
 | `config`  | Push configuration updates to the agent  |
-| `discover`| Scan local network for OpenClaw gateways |
+| `discover`| Scan local network for ClawFleet gateways |
 | `install-service`| Auto-configure systemd/LaunchAgent persistence |
 | `status`  | Show local system metrics                |
 | `help`    | Show help message                        |
@@ -33,7 +33,7 @@ fleet-monitor monitor --saas-url=https://your-fleet-app.com --agent-id=YOUR_AGEN
 
 | Option       | Required | Default | Description                     |
 |--------------|----------|---------|----------------------------------|
-| `--saas-url` | Yes      | -       | Your Fleet dashboard URL         |
+| `--saas-url` | Yes      | -       | Your ClawFleet dashboard URL         |
 | `--agent-id` | Yes      | -       | Agent UUID from dashboard        |
 | `--agent-secret`| Yes   | -       | Agent Secret for authentication  |
 | `--interval` | No       | 300     | Heartbeat interval in seconds    |
@@ -56,7 +56,7 @@ Update your agent's configuration directly from the CLI.
 If you don't know your Gateway URL, you can scan your local network:
 
 ```bash
-fleet-monitor discover
+clawfleet discover
 ```
 
 ## Plugin System
@@ -71,7 +71,7 @@ print(json.dumps({"queue_length": 42, "db_status": "ok"}))
 
 **Run with Plugins:**
 ```bash
-fleet-monitor monitor ... --plugins=./queue.py
+clawfleet-monitor monitor ... --plugins=./queue.py
 ```
 
 ## Service Mode
@@ -79,29 +79,29 @@ fleet-monitor monitor ... --plugins=./queue.py
 Install the agent as a background service (Linux/macOS):
 
 ```bash
-fleet-monitor install-service --saas-url=... --agent-id=... --agent-secret=...
+clawfleet install-service --saas-url=... --agent-id=... --agent-secret=...
 ```
 
 This will automatically create and enable:
-- **Linux**: systemd unit (`/etc/systemd/system/fleet-monitor.service`)
-- **macOS**: LaunchAgent (`~/Library/LaunchAgents/com.openclaw.monitor.plist`)
+- **Linux**: systemd unit (`/etc/systemd/system/clawfleet-monitor.service`)
+- **macOS**: LaunchAgent (`~/Library/LaunchAgents/com.clawfleet.monitor.plist`)
 
 ## Examples
 
 ```bash
 # Standard 5-minute heartbeat
-fleet-monitor monitor --saas-url=https://fleet.openclaw.dev --agent-id=abc-123 --agent-secret=secret-123
+clawfleet monitor --saas-url=https://fleet.clawfleet.sh --agent-id=abc-123 --agent-secret=secret-123
 
 # Push configuration update (Change model and skills)
-fleet-monitor config push \
-  --saas-url=https://fleet.openclaw.dev \
+clawfleet config push \
+  --saas-url=https://fleet.clawfleet.sh \
   --agent-id=abc-123 \
   --agent-secret=secret-123 \
   --model=claude-sonnet-4 \
   --skills=code,search
 
 # Check system status locally with plugins
-fleet-monitor status --plugins=./queue.py
+clawfleet status --plugins=./queue.py
 ```
 
 ## What It Reports

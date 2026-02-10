@@ -5,28 +5,37 @@ const font = Plus_Jakarta_Sans({ subsets: ['latin'] });
 
 export const metadata = {
   title: {
-    default: 'Claw Fleet Orchestrator',
-    template: '%s | Claw Fleet Orchestrator',
+    default: 'ClawFleet Orchestrator',
+    template: '%s | ClawFleet Orchestrator',
   },
   description:
-    'Scale your AI agents from 1 to 100 with centralized fleet management, real-time monitoring, and policy enforcement.',
-  keywords: ['AI agents', 'fleet management', 'orchestration', 'monitoring', 'policy enforcement', 'SaaS', 'LLM ops'],
-  authors: [{ name: 'OpenClaw Team' }],
-  creator: 'OpenClaw',
+    'Monitor and manage 1,000+ AI agents with sub-millisecond telemetry. The high-performance command center for autonomous silicon fleets.',
+  keywords: [
+    'sub-millisecond telemetry',
+    'AI agents',
+    'fleet management',
+    'orchestration',
+    'low-latency monitoring',
+    'E2EE agents',
+    'agent swarms',
+    'policy guardrails',
+  ],
+  authors: [{ name: 'ClawFleet Team' }],
+  creator: 'ClawFleet',
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://claw.openclaw.ai',
-    title: 'Claw Fleet Orchestrator',
+    url: 'https://clawfleet.sh',
+    title: 'ClawFleet | Sub-ms Agent Orchestration',
     description:
-      'Scale your AI agents from 1 to 100 with centralized fleet management, real-time monitoring, and policy enforcement.',
-    siteName: 'Claw Fleet Orchestrator',
+      'Monitor and manage 1,000+ AI agents with sub-millisecond telemetry. The high-performance command center for autonomous silicon fleets.',
+    siteName: 'ClawFleet',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Claw Fleet Orchestrator',
+    title: 'ClawFleet | Sub-ms Agent Orchestration',
     description:
-      'Scale your AI agents from 1 to 100 with centralized fleet management, real-time monitoring, and policy enforcement.',
+      'Monitor and manage 1,000+ AI agents with sub-millisecond telemetry. The high-performance command center for autonomous silicon fleets.',
     creator: '@snackforcode',
   },
   icons: {

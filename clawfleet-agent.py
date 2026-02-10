@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""OpenClaw Fleet Monitor - Cross-platform Heartbeat Agent"""
-# Run: python3 openclaw-monitor.py
+"""ClawFleet Agent - Cross-platform Heartbeat Agent"""
+# Run: python3 clawfleet-agent.py
 
 import json, time, urllib.request, platform, os, hmac, hashlib, sys
 
-SAAS_URL = os.environ.get("OPENCLAW_SAAS_URL", "http://localhost:3000")
-AGENT_ID = os.environ.get("OPENCLAW_AGENT_ID")
-AGENT_SECRET = os.environ.get("OPENCLAW_AGENT_SECRET")
-INTERVAL = int(os.environ.get("OPENCLAW_INTERVAL", "300"))
+SAAS_URL = os.environ.get("CLAWFLEET_SAAS_URL", "http://localhost:3000")
+AGENT_ID = os.environ.get("CLAWFLEET_AGENT_ID")
+AGENT_SECRET = os.environ.get("CLAWFLEET_AGENT_SECRET")
+INTERVAL = int(os.environ.get("CLAWFLEET_INTERVAL", "300"))
 SESSION_TOKEN = None
 GATEWAY_URL = None
 _last_cpu_stats = None
@@ -176,15 +176,15 @@ def send_heartbeat():
 if __name__ == "__main__":
     if not AGENT_ID or not AGENT_SECRET:
         print("Error: Agent ID and Agent Secret are required.")
-        print("Set OPENCLAW_AGENT_ID and OPENCLAW_AGENT_SECRET environment variables.")
+        print("Set CLAWFLEET_AGENT_ID and CLAWFLEET_AGENT_SECRET environment variables.")
         sys.exit(1)
 
     print()
-    print("  OpenClaw Fleet Monitor")
+    print("  ClawFleet Agent")
     print("  --------------------------------")
 
     if not AGENT_ID or not AGENT_SECRET:
-        print("  \033[91mError: OPENCLAW_AGENT_ID and OPENCLAW_AGENT_SECRET must be set.\033[0m")
+        print("  \033[91mError: CLAWFLEET_AGENT_ID and CLAWFLEET_AGENT_SECRET must be set.\033[0m")
         print("  Please set these environment variables and run the agent again.")
         print()
         exit(1)

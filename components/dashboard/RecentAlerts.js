@@ -43,9 +43,7 @@ export function RecentAlerts({ alerts, handleResolveAlert }) {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-muted-foreground text-xs">
-                {timeAgo(alert.created_at)}
-              </span>
+              <span className="text-muted-foreground text-xs">{timeAgo(alert.created_at)}</span>
               {!alert.resolved && (
                 <Button
                   variant="outline"
@@ -57,10 +55,7 @@ export function RecentAlerts({ alerts, handleResolveAlert }) {
                 </Button>
               )}
               {alert.resolved && (
-                <Badge
-                  variant="outline"
-                  className="border-emerald-500/30 text-xs text-emerald-400"
-                >
+                <Badge variant="outline" className="border-emerald-500/30 text-xs text-emerald-400">
                   Resolved
                 </Badge>
               )}

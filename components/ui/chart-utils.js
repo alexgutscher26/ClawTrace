@@ -1,4 +1,3 @@
-
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = {
   light: '',

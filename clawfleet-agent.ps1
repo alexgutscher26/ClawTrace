@@ -1,39 +1,26 @@
-# OpenClaw Fleet Monitor - PowerShell Heartbeat Agent
-# Run: powershell -ExecutionPolicy Bypass -File openclaw-monitor.ps1
+# ClawFleet Agent - PowerShell Heartbeat Agent
+# Agent: f91c8b47-21f4-4a11-9f62-69ab913b6dd2
+# Run: powershell -ExecutionPolicy Bypass -File clawfleet-agent.ps1
 
-param (
-    [string]$AgentId = $env:OPENCLAW_AGENT_ID,
-    [string]$AgentSecret = $env:OPENCLAW_AGENT_SECRET,
-    [string]$SaasUrl = $env:OPENCLAW_SAAS_URL,
-    [int]$Interval = $(if ($env:OPENCLAW_INTERVAL) { $env:OPENCLAW_INTERVAL } else { 60 })
-)
+$SaasUrl = "http://localhost:3000"
+$AgentId = "f91c8b47-21f4-4a11-9f62-69ab913b6dd2"
+$AgentSecret = "1dff9a14-61dc-42d1-9d5c-13901f5fac37"
 
-if (-not $SaasUrl) { $SaasUrl = "http://localhost:3000" }
-
-if (-not $AgentId) {
-    Write-Host "Error: Agent ID is required. Set OPENCLAW_AGENT_ID or pass -AgentId." -ForegroundColor Red
+if ([string]::IsNullOrEmpty($AgentSecret)) {
+    $AgentSecret = $env:CLAWFLEET_AGENT_SECRET
+}
+if ([string]::IsNullOrEmpty($AgentSecret)) {
+    Write-Host "Error: AGENT_SECRET is not set. Please set CLAWFLEET_AGENT_SECRET environment variable." -ForegroundColor Red
     exit 1
 }
 
-if (-not $AgentSecret) {
-    Write-Host "Error: Agent Secret is required. Set OPENCLAW_AGENT_SECRET or pass -AgentSecret." -ForegroundColor Red
-    exit 1
-}
-
+$Interval = 300
 $SessionToken = $null
 $GatewayUrl = $null
 
 Write-Host ""
-Write-Host "  OpenClaw Fleet Monitor" -ForegroundColor Green
+Write-Host "  ClawFleet Agent" -ForegroundColor Green
 Write-Host "  --------------------------------"
-
-if (-not $AgentId -or -not $AgentSecret) {
-    Write-Host "  Error: OPENCLAW_AGENT_ID and OPENCLAW_AGENT_SECRET must be set." -ForegroundColor Red
-    Write-Host "  Please set these environment variables and run the agent again."
-    Write-Host ""
-    exit 1
-}
-
 Write-Host "  Agent:    $AgentId"
 Write-Host "  SaaS:     $SaasUrl"
 Write-Host "  Interval: $($Interval)s"
@@ -68,7 +55,7 @@ function Send-Heartbeat {
     if (-not $SessionToken) {
         if (-not (Perform-Handshake)) { return }
     }
-    
+
     $status = "healthy"
     $latency = 0
     if ($GatewayUrl) {

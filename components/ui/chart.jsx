@@ -40,7 +40,6 @@ const ChartContainer = React.forwardRef(({ id, className, children, config, ...p
 });
 ChartContainer.displayName = 'Chart';
 
-
 const ChartStyle = ({ id, config }) => {
   const styles = generateChartStyles(id, config);
 

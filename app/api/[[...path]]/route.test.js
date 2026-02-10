@@ -10,10 +10,18 @@ const { v4: uuidv4 } = await import('uuid');
 
 mock.module('jose', () => ({
   SignJWT: class {
-    setProtectedHeader() { return this; }
-    setIssuedAt() { return this; }
-    setExpirationTime() { return this; }
-    sign() { return Promise.resolve('token'); }
+    setProtectedHeader() {
+      return this;
+    }
+    setIssuedAt() {
+      return this;
+    }
+    setExpirationTime() {
+      return this;
+    }
+    sign() {
+      return Promise.resolve('token');
+    }
   },
   jwtVerify: () => Promise.resolve({ payload: {} }),
 }));
@@ -27,7 +35,8 @@ mock.module('@/lib/encryption', () => ({
 mock.module('fs', () => {
   const fs = {
     promises: {
-      readFile: () => Promise.resolve('SCRIPT CONTENT\nAGENT_ID="{{AGENT_ID}}"\nAGENT_SECRET="{{AGENT_SECRET}}"'),
+      readFile: () =>
+        Promise.resolve('SCRIPT CONTENT\nAGENT_ID="{{AGENT_ID}}"\nAGENT_SECRET="{{AGENT_SECRET}}"'),
     },
   };
   return {
@@ -50,7 +59,8 @@ mock.module('path', () => {
 process.env.NEXT_PUBLIC_SUPABASE_URL = 'http://localhost:54321';
 process.env.SUPABASE_SERVICE_ROLE_KEY = 'eyToMock...';
 process.env.NEXT_PUBLIC_BASE_URL = 'http://localhost:3000';
-process.env.INTERNAL_ENCRYPTION_KEY = '0000000000000000000000000000000000000000000000000000000000000000'; // 32 bytes hex
+process.env.INTERNAL_ENCRYPTION_KEY =
+  '0000000000000000000000000000000000000000000000000000000000000000'; // 32 bytes hex
 
 // Mock supabase-js
 mock.module('@supabase/supabase-js', () => {
@@ -61,14 +71,15 @@ mock.module('@supabase/supabase-js', () => {
         select: () => ({
           eq: () => ({
             neq: () => ({ maybeSingle: () => Promise.resolve({ data: { plan: 'free' } }) }),
-            maybeSingle: () => Promise.resolve({
-              data: {
-                user_id: 'user123',
-                id: '00000000-0000-0000-0000-000000000000',
-                agent_secret: '{"iv":"mock_iv","authTag":"mock_tag","content":"mock_content"}',
-                policy_profile: 'dev'
-              }
-            }),
+            maybeSingle: () =>
+              Promise.resolve({
+                data: {
+                  user_id: 'user123',
+                  id: '00000000-0000-0000-0000-000000000000',
+                  agent_secret: '{"iv":"mock_iv","authTag":"mock_tag","content":"mock_content"}',
+                  policy_profile: 'dev',
+                },
+              }),
             single: () => Promise.resolve({ data: { policy_profile: 'dev' } }),
           }),
         }),
@@ -188,9 +199,9 @@ describe('Vulnerability Fix Verification', () => {
 
     // Generate signature using mocked secret 'mock-secret' and mocked Agent ID
     const signature = crypto
-          .createHmac('sha256', 'mock-secret')
-          .update(mockedAgentId + timestamp)
-          .digest('hex');
+      .createHmac('sha256', 'mock-secret')
+      .update(mockedAgentId + timestamp)
+      .digest('hex');
 
     const req = {
       headers: {
@@ -200,11 +211,12 @@ describe('Vulnerability Fix Verification', () => {
         },
       },
       url: `http://localhost:3000/api/agents/handshake`,
-      json: () => Promise.resolve({
-        agent_id: mockedAgentId,
-        timestamp: timestamp,
-        signature: signature
-      })
+      json: () =>
+        Promise.resolve({
+          agent_id: mockedAgentId,
+          timestamp: timestamp,
+          signature: signature,
+        }),
     };
 
     const context = {

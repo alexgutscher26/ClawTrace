@@ -16,11 +16,11 @@ resource "digitalocean_droplet" "fleet_agent" {
   name   = "fleet-agent-${var.agent_name}"
   region = var.region
   size   = "s-1vcpu-1gb"
-  tags   = ["openclaw-fleet"]
+  tags   = ["clawfleet"]
 
   user_data = <<-EOF
     #!/bin/bash
-    curl -sL https://fleet.sh/install | bash -s -- --key=${var.fleet_key} --agent-id=${var.agent_id}
+    curl -sL https://clawfleet.sh/install | bash -s -- --key=${var.fleet_key} --agent-id=${var.agent_id}
   EOF
 }
 
@@ -40,11 +40,11 @@ variable "agent_name" {
 }
 
 variable "fleet_key" {
-  description = "OpenClaw Fleet API Key"
+  description = "ClawFleet API Key"
   sensitive   = true
 }
 
 variable "agent_id" {
-  description = "OpenClaw Agent ID (optional, auto-generated if not provided)"
+  description = "ClawFleet Agent ID (optional, auto-generated if not provided)"
   default     = ""
 }

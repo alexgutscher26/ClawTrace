@@ -1,4 +1,3 @@
-
 import { describe, it, expect } from 'bun:test';
 import { generateChartStyles } from './chart-utils';
 
@@ -31,7 +30,7 @@ describe('generateChartStyles', () => {
 
   it('should sanitize CSS injection via key', () => {
     const id = 'test-id';
-    const key = "series1: red; } body { background: pink; } .foo {";
+    const key = 'series1: red; } body { background: pink; } .foo {';
     const config = {
       [key]: { color: 'red' },
     };

@@ -1,9 +1,9 @@
 {
-  "name": "openclaw-fleet-monitor",
-  "version": "1.0.4",
-  "description": "CLI heartbeat agent and configuration manager for Fleet Monitor",
+  "name": "clawfleet-monitor",
+  "version": "1.0.2",
+  "description": "CLI heartbeat agent and configuration manager for ClawFleet Monitor",
   "bin": {
-    "fleet-monitor": "./index.js"
+    "clawfleet": "./index.js"
   },
   "main": "index.js",
   "files": [
@@ -11,7 +11,7 @@
     "README.md"
   ],
   "keywords": [
-    "openclaw",
+    "clawfleet",
     "fleet",
     "ai-agent",
     "monitoring",

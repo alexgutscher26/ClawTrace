@@ -2,12 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import posthog from 'posthog-js';
 import { toast } from 'sonner';
-import {
-  Server,
-  Plus,
-  RefreshCw,
-  AlertTriangle,
-} from 'lucide-react';
+import { Server, Plus, RefreshCw, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -34,7 +29,6 @@ import { RecentAlerts } from '@/components/dashboard/RecentAlerts';
  *
  * @returns {JSX.Element} The rendered dashboard view.
  */
-
 
 /**
  * Renders the dashboard view for managing AI agents within a fleet.
@@ -77,14 +71,14 @@ export default function DashboardView() {
         setTier(p.toLowerCase());
         if (res.limits) setLimits(res.limits[p.toLowerCase()] || res.limits.free);
       })
-      .catch(() => { });
+      .catch(() => {});
   }, [api]);
 
   useEffect(() => {
     if (tier === 'enterprise' || tier === 'pro') {
       api('/api/custom-policies')
         .then((res) => setCustomPolicies(res.policies || []))
-        .catch(() => { });
+        .catch(() => {});
     }
   }, [api, tier]);
 
@@ -312,7 +306,7 @@ export default function DashboardView() {
             <Button
               size="sm"
               variant="destructive"
-              className="bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/30"
+              className="border border-red-500/30 bg-red-500/10 text-red-500 hover:bg-red-500/20"
               onClick={() => setEmergencyOpen(true)}
             >
               <AlertTriangle className="mr-1 h-4 w-4" />

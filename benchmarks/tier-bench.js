@@ -1,4 +1,3 @@
-
 const { performance } = require('perf_hooks');
 
 // Mock latency for DB call
@@ -6,7 +5,7 @@ const DB_LATENCY_MS = 50;
 
 // Simulate getTier (Uncached)
 async function getTierUncached(userId) {
-  await new Promise(resolve => setTimeout(resolve, DB_LATENCY_MS)); // Simulate DB delay
+  await new Promise((resolve) => setTimeout(resolve, DB_LATENCY_MS)); // Simulate DB delay
   return 'pro';
 }
 

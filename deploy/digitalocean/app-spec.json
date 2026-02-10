@@ -1,30 +1,30 @@
 [
-    {
-        "slug": "openclaw-fleet-agent",
-        "name": "OpenClaw Fleet Agent",
-        "description": "Deploy a high-performance OpenClaw Agent node automatically connected to your Fleet.",
-        "documentation": "https://fleet.sh/docs/deployment",
-        "image": "openclaw/fleet-agent:latest",
-        "category": "ai",
-        "stack": {
-            "extends": {
-                "file": "docker-compose.yml",
-                "service": "agent"
-            }
-        },
-        "env": [
-            {
-                "key": "FLEET_KEY",
-                "label": "Fleet API Key",
-                "description": "Your API Key from the Fleet Dashboard",
-                "required": true
-            },
-            {
-                "key": "AGENT_NAME",
-                "label": "Agent Name",
-                "description": "Unique name for this agent node",
-                "default": "do-agent-01"
-            }
-        ]
-    }
+  {
+    "slug": "clawfleet-agent",
+    "name": "ClawFleet Agent",
+    "description": "Deploy a high-performance ClawFleet Agent node automatically connected to your Fleet.",
+    "documentation": "https://clawfleet.com/docs/deployment",
+    "image": "clawfleet/agent:latest",
+    "category": "ai",
+    "stack": {
+      "extends": {
+        "file": "docker-compose.yml",
+        "service": "agent"
+      }
+    },
+    "env": [
+      {
+        "key": "FLEET_KEY",
+        "label": "ClawFleet API Key",
+        "description": "Your API Key from the ClawFleet Dashboard",
+        "required": true
+      },
+      {
+        "key": "AGENT_NAME",
+        "label": "Agent Name",
+        "description": "Unique name for this agent node",
+        "default": "do-agent-01"
+      }
+    ]
+  }
 ]

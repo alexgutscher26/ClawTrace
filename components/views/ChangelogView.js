@@ -194,12 +194,13 @@ export default function ChangelogView() {
                     {release.items.map((item, i) => (
                       <div key={i} className="group flex gap-4">
                         <div
-                          className={`mt-0.5 h-fit shrink-0 rounded-sm px-2 py-1 font-mono text-[9px] font-bold tracking-tighter uppercase ${item.type === 'feature'
-                            ? 'bg-white text-black'
-                            : item.type === 'security'
-                              ? 'bg-red-500 text-white'
-                              : 'bg-zinc-800 text-zinc-400'
-                            }`}
+                          className={`mt-0.5 h-fit shrink-0 rounded-sm px-2 py-1 font-mono text-[9px] font-bold tracking-tighter uppercase ${
+                            item.type === 'feature'
+                              ? 'bg-white text-black'
+                              : item.type === 'security'
+                                ? 'bg-red-500 text-white'
+                                : 'bg-zinc-800 text-zinc-400'
+                          }`}
                         >
                           {item.type}
                         </div>

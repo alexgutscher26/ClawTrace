@@ -425,7 +425,7 @@ export async function GET(request, context) {
         status: 200,
         headers: {
           'Content-Type': 'text/plain; charset=utf-8',
-          'Content-Disposition': 'attachment; filename="openclaw-monitor.ps1"',
+          'Content-Disposition': 'attachment; filename="clawfleet-agent.ps1"',
         },
       });
     }
@@ -499,7 +499,7 @@ export async function GET(request, context) {
         status: 200,
         headers: {
           'Content-Type': 'text/plain; charset=utf-8',
-          'Content-Disposition': 'attachment; filename="openclaw-monitor.py"',
+          'Content-Disposition': 'attachment; filename="clawfleet-agent.py"',
         },
       });
     }
@@ -1133,29 +1133,32 @@ export async function POST(request, context) {
       if (body.model) update.model = body.model;
 
       // Optimize: Update agent and insert metrics in parallel
-      const updateAgentPromise = supabaseAdmin.from('agents').update(update).eq('id', body.agent_id);
+      const updateAgentPromise = supabaseAdmin
+        .from('agents')
+        .update(update)
+        .eq('id', body.agent_id);
 
       const insertMetricsPromise = body.metrics
         ? (async () => {
-            try {
-              const { error: metricsError } = await supabaseAdmin.from('agent_metrics').insert({
-                agent_id: body.agent_id, // Use ID from body/token
-                user_id: userId, // Use userId from token/agent
-                cpu_usage: body.metrics.cpu_usage || 0,
-                memory_usage: body.metrics.memory_usage || 0,
-                latency_ms: body.metrics.latency_ms || 0,
-                uptime_hours: body.metrics.uptime_hours || 0,
-                tasks_completed: tasksCount,
-                errors_count: errorsCount,
-                cost_usd: tasksCount * costPerTask || 0,
-              });
-              if (metricsError) {
-                console.error('Failed to insert metrics:', metricsError);
-              }
-            } catch (e) {
-              console.error('Metrics insertion exception:', e);
+          try {
+            const { error: metricsError } = await supabaseAdmin.from('agent_metrics').insert({
+              agent_id: body.agent_id, // Use ID from body/token
+              user_id: userId, // Use userId from token/agent
+              cpu_usage: body.metrics.cpu_usage || 0,
+              memory_usage: body.metrics.memory_usage || 0,
+              latency_ms: body.metrics.latency_ms || 0,
+              uptime_hours: body.metrics.uptime_hours || 0,
+              tasks_completed: tasksCount,
+              errors_count: errorsCount,
+              cost_usd: tasksCount * costPerTask || 0,
+            });
+            if (metricsError) {
+              console.error('Failed to insert metrics:', metricsError);
             }
-          })()
+          } catch (e) {
+            console.error('Metrics insertion exception:', e);
+          }
+        })()
         : Promise.resolve();
 
       const [{ error }] = await Promise.all([updateAgentPromise, insertMetricsPromise]);

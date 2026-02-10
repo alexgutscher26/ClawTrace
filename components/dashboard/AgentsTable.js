@@ -1,10 +1,5 @@
 import React from 'react';
-import {
-  Eye,
-  Trash2,
-  ChevronLeft,
-  ChevronRight,
-} from 'lucide-react';
+import { Eye, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -45,22 +40,34 @@ export function AgentsTable({ agents, totalPages, page, setPage, navigate, handl
                 <th scope="col" className="text-muted-foreground p-3 text-left text-xs font-medium">
                   Status
                 </th>
-                <th scope="col" className="text-muted-foreground hidden p-3 text-left text-xs font-medium md:table-cell">
+                <th
+                  scope="col"
+                  className="text-muted-foreground hidden p-3 text-left text-xs font-medium md:table-cell"
+                >
                   Gateway
                 </th>
                 <th scope="col" className="text-muted-foreground p-3 text-left text-xs font-medium">
                   Policy
                 </th>
-                <th scope="col" className="text-muted-foreground hidden p-3 text-left text-xs font-medium md:table-cell">
+                <th
+                  scope="col"
+                  className="text-muted-foreground hidden p-3 text-left text-xs font-medium md:table-cell"
+                >
                   Model
                 </th>
-                <th scope="col" className="text-muted-foreground hidden p-3 text-left text-xs font-medium lg:table-cell">
+                <th
+                  scope="col"
+                  className="text-muted-foreground hidden p-3 text-left text-xs font-medium lg:table-cell"
+                >
                   Location
                 </th>
                 <th scope="col" className="text-muted-foreground p-3 text-left text-xs font-medium">
                   Heartbeat
                 </th>
-                <th scope="col" className="text-muted-foreground p-3 text-right text-xs font-medium">
+                <th
+                  scope="col"
+                  className="text-muted-foreground p-3 text-right text-xs font-medium"
+                >
                   Actions
                 </th>
               </tr>
@@ -76,7 +83,7 @@ export function AgentsTable({ agents, totalPages, page, setPage, navigate, handl
                     <td className="p-3">
                       <button
                         onClick={() => navigate(`/dashboard/agents/${agent.id}`)}
-                        className="flex items-center gap-3 text-left hover:underline focus:outline-none focus:underline"
+                        className="flex items-center gap-3 text-left hover:underline focus:underline focus:outline-none"
                         aria-label={`View agent ${agent.name}`}
                       >
                         <div

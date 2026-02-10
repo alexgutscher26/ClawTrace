@@ -44,19 +44,19 @@ export default function LandingView() {
               v1.4.1 Release Live
             </div>
 
-            <h1 className="animate-in fade-in slide-in-from-bottom-6 fill-mode-both mb-8 bg-linear-to-b from-white to-white/50 bg-clip-text text-5xl leading-[0.9] font-black tracking-tighter text-transparent duration-700 md:text-7xl">
-              ORCHESTRATE YOUR <br />
-              <span className="text-white italic">SILICON FLEET</span>
+            <h1 className="animate-in fade-in slide-in-from-bottom-6 fill-mode-both mb-8 bg-linear-to-b from-white to-white/50 bg-clip-text text-5xl leading-[0.9] font-black tracking-tighter text-transparent duration-700 md:text-8xl">
+              SUB-MILLISECOND <br />
+              <span className="text-white italic">ORCHESTRATION</span>
             </h1>
 
             <p className="animate-in fade-in slide-in-from-bottom-8 fill-mode-both mx-auto mb-10 max-w-2xl text-lg leading-relaxed font-light text-zinc-400 delay-100 duration-700 md:text-xl">
-              A high-performance command center for autonomous agent swarms. Real-time telemetry,
-              remote execution, and policy enforcement in a single binary.
+              Stop polling. Start listening. ClawFleet delivers 0.1ms telemetry across your agent
+              swarms. Zero-knowledge security, remote execution, and policy guardrails as standard.
             </p>
 
             <div className="animate-in fade-in slide-in-from-bottom-8 fill-mode-both flex flex-col items-center justify-center gap-4 delay-200 duration-700 sm:flex-row">
               <Link href={session ? '/dashboard' : '/register'}>
-                <Button className="h-12 w-full rounded-none bg-white px-8 text-xs font-bold tracking-widest text-black uppercase transition-all hover:bg-zinc-200 sm:w-auto">
+                <Button className="h-12 w-full rounded-none bg-emerald-500 px-8 text-xs font-bold tracking-widest text-black uppercase transition-all hover:bg-emerald-400 sm:w-auto">
                   {session ? 'Enter Console' : 'Initialize Fleet'}{' '}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
@@ -86,16 +86,48 @@ export default function LandingView() {
         </div>
       </section>
 
-      {/* Features Grid */}
+      {/* Performance Comparison */}
+      <section className="border-y border-white/5 bg-black py-24">
+        <div className="container mx-auto px-6">
+          <div className="mb-16 text-center">
+            <h2 className="text-3xl font-black tracking-tighter uppercase italic md:text-5xl">
+              Milliseconds = Life
+            </h2>
+            <p className="mt-4 font-mono text-[10px] tracking-widest text-zinc-500 uppercase">
+              Latency kills agent efficiency. We solved it.
+            </p>
+          </div>
+          <div className="mx-auto flex max-w-4xl flex-col items-center gap-12 md:flex-row">
+            <div className="flex-1 space-y-4 rounded-none border border-white/5 bg-zinc-950 p-8">
+              <span className="font-mono text-[10px] font-bold tracking-widest text-zinc-500 uppercase">
+                Legacy Orchestrators
+              </span>
+              <div className="text-4xl font-black text-red-500/50">2500ms</div>
+              <p className="text-sm font-light text-zinc-500">
+                HTTP Polling waterfalls create significant lag in agent coordination.
+              </p>
+            </div>
+            <div className="relative flex-1 scale-110 space-y-4 rounded-none border border-emerald-500/30 bg-emerald-500/5 p-8 shadow-[0_0_50px_-12px_rgba(16,185,129,0.3)] outline-2 outline-emerald-500/50">
+              <div className="absolute -top-3 left-8 bg-emerald-500 px-2 py-0.5 font-mono text-[8px] font-black text-black">
+                WINNER
+              </div>
+              <span className="font-mono text-[10px] font-bold tracking-widest text-emerald-500 uppercase">
+                ClawFleet
+              </span>
+              <div className="text-5xl font-black text-emerald-400">0.2ms</div>
+              <p className="text-sm font-light text-zinc-300">
+                Binary WebSocket heartbeats ensure your fleet responds at silicon speeds.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Technical Specs Grid */}
       <section className="border-t border-white/5 bg-zinc-950/50 py-24">
         <div className="container mx-auto px-6">
           <div className="grid gap-12 md:grid-cols-3">
             {[
-              {
-                icon: Zap,
-                title: 'Real-time Telemetry',
-                desc: 'Sub-millisecond latency heartbeat system via WebSocket. Monitor thousands of agents concurrently.',
-              },
               {
                 icon: Shield,
                 title: 'Zero Trust Security',
@@ -111,16 +143,6 @@ export default function LandingView() {
                 title: 'Self-Hosted First',
                 desc: 'Deploy the entire stack with a single Docker Compose. You own your meaningful data.',
               },
-              {
-                icon: TerminalIcon,
-                title: 'Developer Native',
-                desc: 'Built by engineers, for engineers. TypeScript SDK, CLI tools, and REST API included.',
-              },
-              {
-                icon: Code,
-                title: 'Open Source',
-                desc: 'MIT Licensed. Audit the code, fork it, extend it. No vendor lock-in ever.',
-              },
             ].map((f, i) => (
               <div
                 key={i}
@@ -131,6 +153,105 @@ export default function LandingView() {
                 <p className="text-sm leading-relaxed font-light text-zinc-400">{f.desc}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section id="pricing" className="border-t border-white/5 bg-zinc-950 py-32">
+        <div className="container mx-auto px-6">
+          <div className="mb-20 text-center">
+            <h2 className="mb-4 text-4xl font-black tracking-tight uppercase italic md:text-6xl">
+              Developer Tiers
+            </h2>
+            <p className="font-mono text-sm text-zinc-500">Free to start, performance to scale.</p>
+          </div>
+
+          <div className="grid gap-8 md:grid-cols-3">
+            {/* Free Tier */}
+            <div className="flex flex-col border border-white/10 bg-black/50 p-8 transition-colors hover:border-white/20">
+              <h3 className="mb-2 text-xl font-black uppercase">Standard</h3>
+              <div className="mb-8 flex items-baseline gap-1">
+                <span className="text-4xl font-black">$0</span>
+                <span className="text-xs font-light text-zinc-500 uppercase">/forever</span>
+              </div>
+              <ul className="mb-10 flex-1 space-y-4 font-mono text-[10px] text-zinc-400 uppercase">
+                <li className="flex items-center gap-2">
+                  <Zap className="h-3 w-3 text-emerald-500" /> Up to 5 Agent Nodes
+                </li>
+                <li className="flex items-center gap-2">
+                  <Zap className="h-3 w-3 text-emerald-500" /> 24h Data Retention
+                </li>
+                <li className="flex items-center gap-2">
+                  <Zap className="h-3 w-3 text-emerald-500" /> Community Support
+                </li>
+              </ul>
+              <Button
+                variant="outline"
+                className="h-12 w-full rounded-none border-white/20 font-mono text-xs font-bold uppercase hover:bg-white/10"
+              >
+                Initialize Free
+              </Button>
+            </div>
+
+            {/* Pro Tier */}
+            <div className="relative flex flex-col border border-emerald-500/50 bg-emerald-500/5 p-8 shadow-[0_30px_60px_-15px_rgba(16,185,129,0.1)]">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-emerald-500 px-3 py-1 font-mono text-[10px] font-black tracking-widest text-black uppercase">
+                Recommended
+              </div>
+              <h3 className="mb-2 text-xl font-black text-emerald-400 uppercase italic">Pro</h3>
+              <div className="mb-8 flex items-baseline gap-1">
+                <span className="text-4xl font-black">$99</span>
+                <span className="text-xs font-light text-zinc-500 uppercase">/month</span>
+              </div>
+              <ul className="mb-10 flex-1 space-y-4 font-mono text-[10px] text-zinc-200 uppercase">
+                <li className="flex items-center gap-2">
+                  <Zap className="h-3 w-3 text-emerald-500" /> Unlimited Agents
+                </li>
+                <li className="flex items-center gap-2">
+                  <Zap className="h-3 w-3 text-emerald-500" /> Custom Policy Guardrails
+                </li>
+                <li className="flex items-center gap-2">
+                  <Zap className="h-3 w-3 text-emerald-500" /> 30-Day Metrics History
+                </li>
+                <li className="flex items-center gap-2">
+                  <Zap className="h-3 w-3 text-emerald-500" /> Multi-Channel Alerts
+                </li>
+              </ul>
+              <Link href="/checkout">
+                <Button className="h-12 w-full rounded-none bg-emerald-500 font-mono text-xs font-black text-black uppercase hover:bg-emerald-400">
+                  Upgrade to Pro
+                </Button>
+              </Link>
+            </div>
+
+            {/* Enterprise Tier */}
+            <div className="flex flex-col border border-white/10 bg-black/50 p-8 transition-colors hover:border-white/20">
+              <h3 className="mb-2 text-xl font-black uppercase">Enterprise</h3>
+              <div className="mb-8 flex items-baseline gap-1">
+                <span className="text-4xl font-black">Custom</span>
+              </div>
+              <ul className="mb-10 flex-1 space-y-4 font-mono text-[10px] text-zinc-400 uppercase">
+                <li className="flex items-center gap-2">
+                  <Zap className="h-3 w-3 text-emerald-500" /> SSO & SAML
+                </li>
+                <li className="flex items-center gap-2">
+                  <Zap className="h-3 w-3 text-emerald-500" /> Air-Gapped Deployment
+                </li>
+                <li className="flex items-center gap-2">
+                  <Zap className="h-3 w-3 text-emerald-500" /> 24/7 Priority Support
+                </li>
+                <li className="flex items-center gap-2">
+                  <Zap className="h-3 w-3 text-emerald-500" /> Custom Branding
+                </li>
+              </ul>
+              <Button
+                variant="outline"
+                className="h-12 w-full rounded-none border-white/20 font-mono text-xs font-bold uppercase hover:bg-white/10"
+              >
+                Contact Sales
+              </Button>
+            </div>
           </div>
         </div>
       </section>
@@ -163,7 +284,7 @@ export default function LandingView() {
             </span>
           </div>
           <p className="font-mono text-[10px] tracking-widest text-zinc-600 uppercase">
-            © 2026 OpenClaw Systems Inc. • MIT License
+            © 2026 ClawFleet Systems Inc. • MIT License
           </p>
         </div>
       </footer>

@@ -1,4 +1,4 @@
-import { describe, test, expect, mock, beforeEach, afterEach } from "bun:test";
+import { describe, test, expect, mock, beforeEach, afterEach } from 'bun:test';
 
 // Internal state for the React mock
 const listeners = new Set();
@@ -8,7 +8,7 @@ let renderApp = () => {};
 let lastResult;
 
 // Mock React module
-mock.module("react", () => {
+mock.module('react', () => {
   const useState = (initialValue) => {
     const currentIndex = hookIndex;
     if (hooksState[currentIndex] === undefined) {
@@ -30,8 +30,10 @@ mock.module("react", () => {
     const currentIndex = hookIndex;
     const prevDeps = hooksState[currentIndex];
 
-    const hasChanged = !prevDeps || !deps ||
-      (deps.length !== prevDeps.length) ||
+    const hasChanged =
+      !prevDeps ||
+      !deps ||
+      deps.length !== prevDeps.length ||
       deps.some((dep, i) => dep !== prevDeps[i]);
 
     if (hasChanged) {
@@ -49,7 +51,7 @@ mock.module("react", () => {
   return {
     useState,
     useEffect,
-    default: { useState, useEffect }
+    default: { useState, useEffect },
   };
 });
 
@@ -65,7 +67,7 @@ const triggerResize = (width) => {
   });
 };
 
-describe("useIsMobile Hook", () => {
+describe('useIsMobile Hook', () => {
   let useIsMobile;
 
   beforeEach(async () => {
@@ -92,19 +94,19 @@ describe("useIsMobile Hook", () => {
           },
           removeEventListener: (type, listener) => {
             if (type === 'change') {
-               for (const l of listeners) {
-                  if (l.listener === listener) {
-                      listeners.delete(l);
-                      break;
-                  }
-               }
+              for (const l of listeners) {
+                if (l.listener === listener) {
+                  listeners.delete(l);
+                  break;
+                }
+              }
             }
           },
         };
       },
     };
 
-    const module = await import("./use-mobile.jsx");
+    const module = await import('./use-mobile.jsx');
     useIsMobile = module.useIsMobile;
 
     renderApp = () => {
@@ -117,50 +119,50 @@ describe("useIsMobile Hook", () => {
     global.window = originalWindow;
   });
 
-  test("should return false when width is greater than breakpoint (768px)", async () => {
+  test('should return false when width is greater than breakpoint (768px)', async () => {
     global.window.innerWidth = 1024;
 
     renderApp();
-    await new Promise(r => setTimeout(r, 10));
+    await new Promise((r) => setTimeout(r, 10));
 
     expect(lastResult).toBe(false);
   });
 
-  test("should return true when width is less than breakpoint (768px)", async () => {
+  test('should return true when width is less than breakpoint (768px)', async () => {
     global.window.innerWidth = 500;
 
     renderApp();
-    await new Promise(r => setTimeout(r, 10));
+    await new Promise((r) => setTimeout(r, 10));
 
     expect(lastResult).toBe(true);
   });
 
-  test("should update when window resizes from desktop to mobile", async () => {
+  test('should update when window resizes from desktop to mobile', async () => {
     global.window.innerWidth = 1024;
     renderApp();
-    await new Promise(r => setTimeout(r, 10));
+    await new Promise((r) => setTimeout(r, 10));
     expect(lastResult).toBe(false);
 
     // Resize
     triggerResize(500);
 
     // Wait for update
-    await new Promise(r => setTimeout(r, 10));
+    await new Promise((r) => setTimeout(r, 10));
 
     expect(lastResult).toBe(true);
   });
 
-  test("should update when window resizes from mobile to desktop", async () => {
+  test('should update when window resizes from mobile to desktop', async () => {
     global.window.innerWidth = 500;
     renderApp();
-    await new Promise(r => setTimeout(r, 10));
+    await new Promise((r) => setTimeout(r, 10));
     expect(lastResult).toBe(true);
 
     // Resize
     triggerResize(1024);
 
     // Wait for update
-    await new Promise(r => setTimeout(r, 10));
+    await new Promise((r) => setTimeout(r, 10));
 
     expect(lastResult).toBe(false);
   });

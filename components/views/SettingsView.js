@@ -62,7 +62,7 @@ export default function SettingsView() {
         const p = res.subscription?.plan || 'free';
         setTier(p.toLowerCase());
       })
-      .catch(() => { });
+      .catch(() => {});
   }, [api]);
 
   useEffect(() => {
@@ -71,7 +71,7 @@ export default function SettingsView() {
         .then((res) => {
           if (res.branding) setBranding(res.branding);
         })
-        .catch(() => { });
+        .catch(() => {});
     }
   }, [tier, api]);
 
@@ -146,10 +146,14 @@ export default function SettingsView() {
             .filter(Boolean),
           guardrails: {
             ...newPolicy.guardrails,
-            approved_tools: newPolicy.guardrails.approved_tools === '*'
-              ? ['*']
-              : newPolicy.guardrails.approved_tools.split(',').map(t => t.trim()).filter(Boolean)
-          }
+            approved_tools:
+              newPolicy.guardrails.approved_tools === '*'
+                ? ['*']
+                : newPolicy.guardrails.approved_tools
+                    .split(',')
+                    .map((t) => t.trim())
+                    .filter(Boolean),
+          },
         }),
       });
       toast.success('Custom policy created!');
@@ -499,7 +503,10 @@ export default function SettingsView() {
                             onChange={(e) =>
                               setNewPolicy({
                                 ...newPolicy,
-                                guardrails: { ...newPolicy.guardrails, budget_limit_usd: parseFloat(e.target.value) },
+                                guardrails: {
+                                  ...newPolicy.guardrails,
+                                  budget_limit_usd: parseFloat(e.target.value),
+                                },
                               })
                             }
                             className="h-12 rounded-none border-white/20 bg-zinc-900"
@@ -515,7 +522,10 @@ export default function SettingsView() {
                             onChange={(e) =>
                               setNewPolicy({
                                 ...newPolicy,
-                                guardrails: { ...newPolicy.guardrails, max_execution_time_sec: parseInt(e.target.value) },
+                                guardrails: {
+                                  ...newPolicy.guardrails,
+                                  max_execution_time_sec: parseInt(e.target.value),
+                                },
                               })
                             }
                             className="h-12 rounded-none border-white/20 bg-zinc-900"
@@ -530,7 +540,10 @@ export default function SettingsView() {
                             onChange={(e) =>
                               setNewPolicy({
                                 ...newPolicy,
-                                guardrails: { ...newPolicy.guardrails, approved_tools: e.target.value },
+                                guardrails: {
+                                  ...newPolicy.guardrails,
+                                  approved_tools: e.target.value,
+                                },
                               })
                             }
                             className="h-12 rounded-none border-white/20 bg-zinc-900"

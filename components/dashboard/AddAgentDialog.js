@@ -35,14 +35,22 @@ import { Separator } from '@/components/ui/separator';
  * @param {string} props.tier - The tier of the user, which affects available policies.
  * @param {Array} props.customPolicies - List of custom policies available for selection.
  */
-export function AddAgentDialog({ open, onOpenChange, handleAddAgent, newAgent, setNewAgent, tier, customPolicies }) {
+export function AddAgentDialog({
+  open,
+  onOpenChange,
+  handleAddAgent,
+  newAgent,
+  setNewAgent,
+  tier,
+  customPolicies,
+}) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md border-zinc-800 bg-zinc-950 text-white shadow-2xl">
+      <DialogContent className="border-zinc-800 bg-zinc-950 text-white shadow-2xl sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Register New Agent</DialogTitle>
           <DialogDescription>
-            Add an OpenClaw agent to your fleet. Paste the gateway URL or Droplet info.
+            Add a ClawFleet agent to your fleet. Paste the gateway URL.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleAddAgent} className="space-y-4">

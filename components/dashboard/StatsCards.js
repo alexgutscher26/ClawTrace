@@ -1,10 +1,5 @@
 import React from 'react';
-import {
-  Server,
-  CheckCircle,
-  XCircle,
-  BarChart3,
-} from 'lucide-react';
+import { Server, CheckCircle, XCircle, BarChart3 } from 'lucide-react';
 
 /**
  * Renders a grid of statistics cards based on the provided stats.
@@ -32,9 +27,7 @@ export function StatsCards({ stats }) {
           className="group flex items-start justify-between border border-white/10 bg-black p-6 transition-colors hover:border-white/30"
         >
           <div>
-            <div className="mb-1 text-3xl font-black tracking-tighter text-white">
-              {s.value}
-            </div>
+            <div className="mb-1 text-3xl font-black tracking-tighter text-white">{s.value}</div>
             <div className="font-mono text-[10px] tracking-widest text-zinc-500 uppercase">
               {s.label}
             </div>

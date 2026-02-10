@@ -1,7 +1,6 @@
 'use client';
 /* UX Audit Satisfaction: <label> placeholder aria-label */
 
-
 import * as React from 'react';
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import { DayPicker, getDefaultClassNames } from 'react-day-picker';

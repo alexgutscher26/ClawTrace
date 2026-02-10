@@ -12,8 +12,8 @@ export default function TerminalMock() {
       type: 'line',
       content: (
         <>
-          <span className="text-emerald-500">user@fleet:~$</span> curl -sL https://fleet.sh/install
-          | bash
+          <span className="text-emerald-500">user@fleet:~$</span> curl -sL
+          https://clawfleet.sh/install | bash
         </>
       ),
       delay: 500,
@@ -21,7 +21,7 @@ export default function TerminalMock() {
     {
       type: 'line',
       content: (
-        <span className="font-mono text-zinc-500">[INFO] Downloading Fleet Agent v2.0...</span>
+        <span className="font-mono text-zinc-500">[INFO] Downloading ClawFleet Agent v2.0...</span>
       ),
       delay: 1000,
     },
@@ -137,7 +137,7 @@ export default function TerminalMock() {
         {showMetrics && (
           <div className="animate-in fade-in duration-1000">
             <div className="my-8 h-px bg-white/5" />
-            <div className="grid grid-cols-2 gap-10">
+            <div className="grid grid-cols-3 gap-6">
               <div className="space-y-2">
                 <p className="text-[10px] font-bold tracking-[0.2em] text-zinc-500">CPU LOAD</p>
                 <div className="relative h-1 w-full bg-zinc-900">
@@ -154,6 +154,13 @@ export default function TerminalMock() {
                     className="absolute top-0 left-0 h-full bg-white transition-all duration-2000 ease-in-out"
                     style={{ width: `${memWidth}%` }}
                   />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold tracking-[0.2em] text-zinc-500">LATENCY</p>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-xl font-black text-emerald-400 italic">0.2</span>
+                  <span className="text-[10px] text-zinc-500 uppercase">ms</span>
                 </div>
               </div>
             </div>

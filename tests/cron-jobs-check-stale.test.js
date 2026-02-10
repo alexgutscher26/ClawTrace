@@ -1,6 +1,5 @@
-
-import { describe, test, expect, mock, beforeEach } from "bun:test";
-import { checkStaleAgents } from "@/lib/cron-jobs/check-stale";
+import { describe, test, expect, mock, beforeEach } from 'bun:test';
+import { checkStaleAgents } from '@/lib/cron-jobs/check-stale';
 
 // Mock dependencies
 const mockSupabaseAdmin = {
@@ -13,7 +12,7 @@ const mockSupabaseAdmin = {
 
 const mockProcessSmartAlerts = mock(() => Promise.resolve());
 
-describe("checkStaleAgents", () => {
+describe('checkStaleAgents', () => {
   beforeEach(() => {
     mockSupabaseAdmin.from.mockClear();
     mockSupabaseAdmin.update.mockClear();
@@ -23,7 +22,7 @@ describe("checkStaleAgents", () => {
     mockProcessSmartAlerts.mockClear();
   });
 
-  test("should update stale agents and return success", async () => {
+  test('should update stale agents and return success', async () => {
     // Setup mock return
     mockSupabaseAdmin.select.mockResolvedValue({ data: [], error: null });
 
@@ -31,17 +30,17 @@ describe("checkStaleAgents", () => {
 
     expect(result.success).toBe(true);
     expect(result.updated_count).toBe(0);
-    expect(mockSupabaseAdmin.from).toHaveBeenCalledWith("agents");
-    expect(mockSupabaseAdmin.update).toHaveBeenCalledWith({ status: "offline" });
-    expect(mockSupabaseAdmin.eq).toHaveBeenCalledWith("status", "online");
+    expect(mockSupabaseAdmin.from).toHaveBeenCalledWith('agents');
+    expect(mockSupabaseAdmin.update).toHaveBeenCalledWith({ status: 'offline' });
+    expect(mockSupabaseAdmin.eq).toHaveBeenCalledWith('status', 'online');
     expect(mockSupabaseAdmin.lt).toHaveBeenCalled();
     expect(mockProcessSmartAlerts).not.toHaveBeenCalled();
   });
 
-  test("should trigger alerts for updated agents", async () => {
+  test('should trigger alerts for updated agents', async () => {
     const staleAgents = [
-      { id: "agent-1", name: "Agent 1" },
-      { id: "agent-2", name: "Agent 2" },
+      { id: 'agent-1', name: 'Agent 1' },
+      { id: 'agent-2', name: 'Agent 2' },
     ];
     mockSupabaseAdmin.select.mockResolvedValue({ data: staleAgents, error: null });
 
@@ -52,19 +51,19 @@ describe("checkStaleAgents", () => {
     expect(result.updated_agents).toEqual(staleAgents);
 
     expect(mockProcessSmartAlerts).toHaveBeenCalledTimes(2);
-    expect(mockProcessSmartAlerts).toHaveBeenCalledWith("agent-1", "offline", {});
-    expect(mockProcessSmartAlerts).toHaveBeenCalledWith("agent-2", "offline", {});
+    expect(mockProcessSmartAlerts).toHaveBeenCalledWith('agent-1', 'offline', {});
+    expect(mockProcessSmartAlerts).toHaveBeenCalledWith('agent-2', 'offline', {});
   });
 
-  test("should throw error on database failure", async () => {
-    mockSupabaseAdmin.select.mockResolvedValue({ data: null, error: { message: "DB Failure" } });
+  test('should throw error on database failure', async () => {
+    mockSupabaseAdmin.select.mockResolvedValue({ data: null, error: { message: 'DB Failure' } });
 
     try {
       await checkStaleAgents(mockSupabaseAdmin, mockProcessSmartAlerts);
       // Fail if no error
       expect(true).toBe(false);
     } catch (e) {
-      expect(e.message).toBe("DB Failure");
+      expect(e.message).toBe('DB Failure');
     }
   });
 });

@@ -9,7 +9,7 @@ const ITERATIONS = 1000;
 // Use a moderate payload
 const PAYLOAD = JSON.stringify({
   data: 'x'.repeat(10 * 1024), // 10KB string
-  metadata: 'Moderate Payload'
+  metadata: 'Moderate Payload',
 });
 const encryptedSecret = encrypt(PAYLOAD);
 
@@ -33,14 +33,13 @@ async function runBenchmark() {
   running = false;
 
   // Wait for immediate to stop
-  await new Promise(resolve => setTimeout(resolve, 10));
+  await new Promise((resolve) => setTimeout(resolve, 10));
 
   const syncTime = endSync - startSync;
   console.log(`\n--- Synchronous Decryption ---`);
   console.log(`Total Time: ${syncTime.toFixed(2)}ms`);
   console.log(`Avg Time per Op: ${(syncTime / ITERATIONS).toFixed(4)}ms`);
   console.log(`Event Loop Ticks (setImmediate) during execution: ${syncTicks}`);
-
 
   // --- Asynchronous Benchmark (Concurrent) ---
   let asyncTicks = 0;
@@ -61,7 +60,7 @@ async function runBenchmark() {
   running = false;
 
   // Wait for immediate to stop
-  await new Promise(resolve => setTimeout(resolve, 10));
+  await new Promise((resolve) => setTimeout(resolve, 10));
 
   const asyncTime = endAsync - startAsync;
   console.log(`\n--- Asynchronous Decryption (Concurrent) ---`);

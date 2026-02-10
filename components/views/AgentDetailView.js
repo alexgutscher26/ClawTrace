@@ -36,7 +36,15 @@ import SetupInstructions from '@/components/SetupInstructions';
 import { STATUS_CONFIG, timeAgo } from '@/lib/view-utils';
 import { getPolicy } from '@/lib/policies';
 import { encryptE2EE } from '@/lib/client-crypto';
-import OpenClawTerminal from '@/components/views/TerminalView'; // OpenClaw Terminal
+import dynamic from 'next/dynamic';
+const ClawFleetTerminal = dynamic(() => import('@/components/views/TerminalView'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-64 w-full items-center justify-center bg-zinc-950 font-mono text-zinc-500">
+      Initializing Secure Shell...
+    </div>
+  ),
+});
 
 import { useFleet } from '@/context/FleetContext';
 import { useRouter, useParams } from 'next/navigation';
@@ -187,6 +195,15 @@ export default function AgentDetailView() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-emerald-500/30 bg-emerald-500/5 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
+              onClick={() => setTerminalOpen(true)}
+            >
+              <Terminal className="mr-1 h-4 w-4" />
+              SSH
+            </Button>
             <Badge
               variant="outline"
               className={`${getPolicy(agent.policy_profile).color} ${getPolicy(agent.policy_profile).bg} rounded-none px-3 py-1 font-mono text-xs`}
@@ -197,15 +214,6 @@ export default function AgentDetailView() {
             <Button variant="outline" size="sm" onClick={handleRestart} disabled={restarting}>
               <RefreshCw className={`mr-1 h-4 w-4 ${restarting ? 'animate-spin' : ''}`} />
               {restarting ? 'Restarting...' : 'Restart'}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-emerald-500/30 bg-emerald-500/5 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
-              onClick={() => setTerminalOpen(true)}
-            >
-              <Terminal className="mr-1 h-4 w-4" />
-              SSH
             </Button>
             <Button
               variant="outline"
@@ -222,20 +230,32 @@ export default function AgentDetailView() {
         </div>
 
         {terminalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-            <div className="relative h-3/4 w-3/4 max-w-5xl rounded-lg border border-white/20 bg-zinc-950 shadow-2xl flex flex-col">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+            <div className="relative flex h-3/4 w-3/4 max-w-5xl flex-col rounded-lg border border-white/20 bg-zinc-950 shadow-2xl">
               <div className="flex items-center justify-between border-b border-white/10 bg-zinc-900 px-4 py-2">
                 <div className="flex items-center gap-2">
                   <Terminal className="h-4 w-4 text-emerald-500" />
-                  <span className="font-mono text-xs font-bold text-white">OpenClaw Secure Shell</span>
-                  <Badge variant="outline" className="ml-2 border-emerald-500/30 text-[10px] text-emerald-400">E2EE ACTIVE</Badge>
+                  <span className="font-mono text-xs font-bold text-white">
+                    ClawFleet Secure Shell
+                  </span>
+                  <Badge
+                    variant="outline"
+                    className="ml-2 border-emerald-500/30 text-[10px] text-emerald-400"
+                  >
+                    E2EE ACTIVE
+                  </Badge>
                 </div>
-                <Button variant="ghost" size="icon" className="h-6 w-6 text-zinc-400 hover:text-white" onClick={() => setTerminalOpen(false)}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-zinc-400 hover:text-white"
+                  onClick={() => setTerminalOpen(false)}
+                >
                   <XCircle className="h-4 w-4" />
                 </Button>
               </div>
               <div className="flex-1 overflow-hidden p-0">
-                <OpenClawTerminal agentId={agentId} onClose={() => setTerminalOpen(false)} />
+                <ClawFleetTerminal agentId={agentId} onClose={() => setTerminalOpen(false)} />
               </div>
             </div>
           </div>
@@ -430,7 +450,7 @@ export default function AgentDetailView() {
                     Connect This Agent
                   </CardTitle>
                   <CardDescription>
-                    Run one of these commands on the machine where your OpenClaw agent is running.
+                    Run one of these commands on the machine where your ClawFleet agent is running.
                     Pick your OS below.
                   </CardDescription>
                 </CardHeader>
@@ -516,7 +536,7 @@ export default function AgentDetailView() {
                           const profile = c.profile || agent.policy_profile || 'dev';
                           const model = c.model || agent.model || 'claude-sonnet-4';
                           const scope = c.data_scope || (profile === 'dev' ? 'full' : 'restricted');
-                          const cmd = `fleet-monitor config push --agent-id=${agent.id} --saas-url=${window.location.origin} --agent-secret=${agent.agent_secret} --model=${model} --skills=${skills} --profile=${profile} --data-scope=${scope}`;
+                          const cmd = `clawfleet config push --agent-id=${agent.id} --saas-url=${window.location.origin} --agent-secret=${agent.agent_secret} --model=${model} --skills=${skills} --profile=${profile} --data-scope=${scope}`;
                           navigator.clipboard.writeText(cmd);
                           toast.success('Command copied');
                         } catch {
@@ -536,9 +556,9 @@ export default function AgentDetailView() {
                         const profile = c.profile || agent.policy_profile || 'dev';
                         const model = c.model || agent.model || 'claude-sonnet-4';
                         const scope = c.data_scope || (profile === 'dev' ? 'full' : 'restricted');
-                        return `fleet-monitor config push --agent-id=${agent.id} --saas-url=${typeof window !== 'undefined' ? window.location.origin : ''} --agent-secret=${agent.agent_secret} --model=${model} --skills=${skills} --profile=${profile} --data-scope=${scope}`;
+                        return `clawfleet config push --agent-id=${agent.id} --saas-url=${typeof window !== 'undefined' ? window.location.origin : ''} --agent-secret=${agent.agent_secret} --model=${model} --skills=${skills} --profile=${profile} --data-scope=${scope}`;
                       } catch (e) {
-                        return `fleet-monitor config push --agent-id=${agent.id} --config-file=./config.json (Fix JSON to see full command)`;
+                        return `clawfleet config push --agent-id=${agent.id} --config-file=./config.json (Fix JSON to see full command)`;
                       }
                     })()}
                   </code>

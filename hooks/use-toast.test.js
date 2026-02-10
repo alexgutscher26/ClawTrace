@@ -33,7 +33,7 @@ describe('use-toast reducer', () => {
 
     const updateAction = {
       type: 'UPDATE_TOAST',
-      toast: { id: '1', title: 'Updated Title' }
+      toast: { id: '1', title: 'Updated Title' },
     };
 
     const state = reducer(initialState, updateAction);
@@ -49,7 +49,7 @@ describe('use-toast reducer', () => {
 
     const updateAction = {
       type: 'UPDATE_TOAST',
-      toast: { id: '999', title: 'Non-existent' }
+      toast: { id: '999', title: 'Non-existent' },
     };
 
     const state = reducer(initialState, updateAction);

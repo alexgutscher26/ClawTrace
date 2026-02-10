@@ -1,4 +1,3 @@
-
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { isValidCronRequest, unauthorizedResponse } from '@/lib/cron-auth';

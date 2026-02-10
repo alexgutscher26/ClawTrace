@@ -25,12 +25,12 @@ export default function DocsView() {
 
   const content = {
     Introduction: {
-      title: 'Introduction to Fleet',
+      title: 'Introduction to ClawFleet',
       subtitle: 'Orchestrate your AI swarms.',
       body: (
         <div className="space-y-8">
           <p className="text-lg leading-relaxed text-zinc-400">
-            Fleet is a lightweight, secure, and scalable orchestration platform for managing
+            ClawFleet is a lightweight, secure, and scalable orchestration platform for managing
             autonomous AI agent swarms. Designed for high-performance environments, it provides
             real-time telemetry, remote execution, and policy enforcement.
           </p>
@@ -57,25 +57,25 @@ export default function DocsView() {
     },
     Installation: {
       title: 'Installation',
-      subtitle: 'Deploying the Fleet Agent.',
+      subtitle: 'Deploying the ClawFleet Agent.',
       body: (
         <div className="space-y-6">
           <p className="text-zinc-400">
-            The Fleet Agent is a standalone binary that runs on Linux, macOS, and Windows. It
-            connects to the Fleet Gateway and executes commands from the Control Plane.
+            The ClawFleet Agent is a standalone binary that runs on Linux, macOS, and Windows. It
+            connects to the ClawFleet Gateway and executes commands from the Control Plane.
           </p>
           <div className="space-y-2">
             <h3 className="text-sm font-bold text-white uppercase">
               One-Line Install (Linux/macOS)
             </h3>
             <div className="border border-white/10 bg-zinc-950 p-4 font-mono text-xs text-emerald-400">
-              curl -sL https://fleet.sh/install | bash
+              curl -sL https://clawfleet.sh/install | bash
             </div>
           </div>
           <div className="space-y-2">
             <h3 className="text-sm font-bold text-white uppercase">NPM Global Install</h3>
             <div className="border border-white/10 bg-zinc-950 p-4 font-mono text-xs text-emerald-400">
-              npm install -g openclaw-fleet-monitor
+              npm install -g clawfleet-monitor
             </div>
           </div>
         </div>
@@ -217,10 +217,10 @@ export default function DocsView() {
           <div className="space-y-4">
             <h3 className="text-sm font-bold text-white uppercase">Auto-Discovery</h3>
             <p className="text-sm text-zinc-400">
-              Find local OpenClaw gateways automatically without manual configuration.
+              Find local ClawFleet gateways automatically without manual configuration.
             </p>
             <div className="border border-white/10 bg-zinc-950 p-4 font-mono text-xs text-emerald-400">
-              fleet-monitor discover
+              clawfleet discover
             </div>
           </div>
 
@@ -237,7 +237,7 @@ print(json.dumps({"queue_length": 42}))`}
               </pre>
               <p className="text-xs text-zinc-500">2. Run monitor with plugins</p>
               <div className="border border-white/10 bg-zinc-950 p-3 font-mono text-xs text-emerald-400">
-                fleet-monitor monitor ... --plugins=./queue.py
+                clawfleet monitor ... --plugins=./queue.py
               </div>
             </div>
           </div>
@@ -248,7 +248,7 @@ print(json.dumps({"queue_length": 42}))`}
               Run the agent as a persistent background service (systemd or LaunchAgent).
             </p>
             <div className="border border-white/10 bg-zinc-950 p-4 font-mono text-xs text-emerald-400">
-              fleet-monitor install-service --saas-url=...
+              clawfleet install-service --saas-url=...
             </div>
           </div>
         </div>
