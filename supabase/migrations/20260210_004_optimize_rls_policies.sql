@@ -89,10 +89,23 @@ CREATE POLICY "Users can delete own alert configs" ON public.alert_configs FOR D
 DROP POLICY IF EXISTS "Users can view own custom policies" ON public.custom_policies;
 DROP POLICY IF EXISTS "Users can update own custom policies" ON public.custom_policies;
 DROP POLICY IF EXISTS "Users can delete own custom policies" ON public.custom_policies;
+DROP POLICY IF EXISTS "Enterprise users can insert custom policies" ON public.custom_policies;
 
 CREATE POLICY "Users can view own custom policies" ON public.custom_policies FOR SELECT USING ((select auth.uid()) = user_id);
 CREATE POLICY "Users can update own custom policies" ON public.custom_policies FOR UPDATE USING ((select auth.uid()) = user_id);
 CREATE POLICY "Users can delete own custom policies" ON public.custom_policies FOR DELETE USING ((select auth.uid()) = user_id);
+
+CREATE POLICY "Enterprise users can insert custom policies"
+    ON public.custom_policies FOR INSERT
+    WITH CHECK (
+        (select auth.uid()) = user_id
+        AND EXISTS (
+             SELECT 1 FROM public.subscriptions
+             WHERE user_id = (select auth.uid())
+             AND plan = 'enterprise'
+             AND status IN ('active', 'trialing')
+        )
+    );
 
 -- 10. ENTERPRISE BRANDING
 DROP POLICY IF EXISTS "Users can manage their own branding" ON public.enterprise_branding;
