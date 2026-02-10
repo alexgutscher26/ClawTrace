@@ -50,6 +50,8 @@ import { useRouter } from 'next/navigation';
  *
  * @returns {JSX.Element} The rendered dashboard view.
  */
+import EmergencyModelSwitcher from '@/components/EmergencyModelSwitcher';
+
 export default function DashboardView() {
   const { session, api, masterPassphrase, branding } = useFleet();
   const router = useRouter();
@@ -63,6 +65,7 @@ export default function DashboardView() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
+  const [emergencyOpen, setEmergencyOpen] = useState(false);
   const [seeding, setSeeding] = useState(false);
   const [agents, setAgents] = useState([]);
   const [page, setPage] = useState(1);
@@ -76,14 +79,14 @@ export default function DashboardView() {
         setTier(p.toLowerCase());
         if (res.limits) setLimits(res.limits[p.toLowerCase()] || res.limits.free);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [api]);
 
   useEffect(() => {
     if (tier === 'enterprise' || tier === 'pro') {
       api('/api/custom-policies')
         .then((res) => setCustomPolicies(res.policies || []))
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [api, tier]);
 
@@ -307,6 +310,15 @@ export default function DashboardView() {
             >
               <Plus className="mr-1 h-4 w-4" />
               Add Agent
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              className="bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/30"
+              onClick={() => setEmergencyOpen(true)}
+            >
+              <AlertTriangle className="mr-1 h-4 w-4" />
+              EMERGENCY
             </Button>
           </div>
         </div>
@@ -657,6 +669,14 @@ export default function DashboardView() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Emergency Switcher Component */}
+      <EmergencyModelSwitcher
+        open={emergencyOpen}
+        onOpenChange={setEmergencyOpen}
+        api={api}
+        fleetId={selectedFleet}
+      />
     </div>
   );
 }
