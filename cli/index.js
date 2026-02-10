@@ -4,6 +4,7 @@ const os = require('os');
 const fs = require('fs');
 const https = require('https');
 const http = require('http');
+const { exec } = require('child_process');
 
 // ============ CLI ARGUMENT PARSER ============
 function parseArgs(argv) {
@@ -22,7 +23,33 @@ function parseArgs(argv) {
 }
 
 // ============ SYSTEM METRICS COLLECTOR ============
-function collectMetrics() {
+// ============ SYSTEM METRICS COLLECTOR ============
+
+async function runPlugin(path) {
+  return new Promise((resolve) => {
+    let cmd;
+    if (path.endsWith('.js')) cmd = `node "${path}"`;
+    else if (path.endsWith('.py')) cmd = `python "${path}"`;
+    else cmd = `"${path}"`;
+
+    exec(cmd, { timeout: 5000 }, (error, stdout) => {
+      if (error) {
+        log(`${COLORS.red}Plugin error (${path}): ${error.message}${COLORS.reset}`);
+        resolve({});
+        return;
+      }
+      try {
+        const json = JSON.parse(stdout.trim());
+        resolve(json);
+      } catch (e) {
+        log(`${COLORS.red}Plugin output error (${path}): Invalid JSON${COLORS.reset}`);
+        resolve({});
+      }
+    });
+  });
+}
+
+async function collectMetrics(plugins = []) {
   const cpus = os.cpus();
   let totalIdle = 0, totalTick = 0;
   for (const cpu of cpus) {
@@ -35,12 +62,19 @@ function collectMetrics() {
   const freeMem = os.freemem();
   const memoryUsage = Math.round(((totalMem - freeMem) / totalMem) * 100);
 
-  return {
+  const metrics = {
     cpu_usage: cpuUsage,
     memory_usage: memoryUsage,
-    latency_ms: Math.round(Math.random() * 100 + 50), // simulated for now
+    latency_ms: Math.round(Math.random() * 100 + 50),
     uptime_hours: Math.round(os.uptime() / 3600),
   };
+
+  if (plugins && plugins.length > 0) {
+    const pluginResults = await Promise.all(plugins.map(runPlugin));
+    pluginResults.forEach(r => Object.assign(metrics, r));
+  }
+
+  return metrics;
 }
 
 // ============ HTTP REQUEST HELPER ============
@@ -129,6 +163,17 @@ function printStatus(metrics) {
   console.log(`  ${COLORS.magenta}MEM${COLORS.reset}    ${metrics.memory_usage}%`);
   console.log(`  ${COLORS.yellow}LAT${COLORS.reset}    ${metrics.latency_ms}ms`);
   console.log(`  ${COLORS.dim}UPTIME ${metrics.uptime_hours}h${COLORS.reset}`);
+
+  // Print custom metrics from plugins
+  const standardKeys = ['cpu_usage', 'memory_usage', 'latency_ms', 'uptime_hours'];
+  const customKeys = Object.keys(metrics).filter(k => !standardKeys.includes(k));
+
+  if (customKeys.length > 0) {
+    console.log();
+    for (const key of customKeys) {
+      console.log(`  ${COLORS.green}${key}${COLORS.reset}    ${metrics[key]}`);
+    }
+  }
   console.log();
 }
 
@@ -179,6 +224,7 @@ async function monitorCommand(args) {
   const agentSecret = args.agent_secret;
   const interval = parseInt(args.interval || '300', 10); // default 5 min (300s)
   const status = args.status || 'healthy';
+  const plugins = args.plugins ? args.plugins.split(',').map(p => p.trim()) : [];
 
   let sessionToken = null;
 
@@ -200,7 +246,9 @@ async function monitorCommand(args) {
   printBanner();
   log(`${COLORS.green}Starting monitor for agent ${COLORS.bold}${agentId}${COLORS.reset}`);
   log(`${COLORS.dim}SaaS URL: ${saasUrl}${COLORS.reset}`);
+  log(`${COLORS.dim}SaaS URL: ${saasUrl}${COLORS.reset}`);
   log(`${COLORS.dim}Interval: ${interval}s${COLORS.reset}`);
+  if (plugins.length > 0) log(`${COLORS.dim}Plugins:  ${plugins.length} active${COLORS.reset}`);
   console.log();
 
   async function performHandshake() {
@@ -227,7 +275,7 @@ async function monitorCommand(args) {
       if (!ok) return;
     }
 
-    const metrics = collectMetrics();
+    const metrics = await collectMetrics(plugins);
     try {
       const result = await postHeartbeat(saasUrl, agentId, status, metrics, sessionToken);
       if (result.status === 200) {
@@ -257,9 +305,10 @@ async function monitorCommand(args) {
   }
 }
 
-function statusCommand(args) {
+async function statusCommand(args) {
   printBanner();
-  const metrics = collectMetrics();
+  const plugins = args.plugins ? args.plugins.split(',').map(p => p.trim()) : [];
+  const metrics = await collectMetrics(plugins);
   console.log(`\n  ${COLORS.bold}System Status${COLORS.reset}`);
   console.log(`  ${COLORS.dim}────────────────${COLORS.reset}`);
   printStatus(metrics);
@@ -571,6 +620,7 @@ function helpCommand() {
   console.log(`    --agent-secret Agent Secret from dashboard ${COLORS.red}(required)${COLORS.reset}`);
   console.log(`    --interval     Heartbeat interval in seconds (default: 300)`);
   console.log(`    --status       Agent status to report (default: healthy)`);
+  console.log(`    --plugins      Comma-separated paths to metric scripts (e.g. ./queue.py)`);
   console.log(`    --model        AI Model (e.g. claude-sonnet-4)`);
   console.log(`    --skills       Comma-separated skills (e.g. code,search)`);
   console.log(`    --config-file  Path to JSON configuration file`);

@@ -24,6 +24,7 @@ fleet-monitor monitor --saas-url=https://your-fleet-app.com --agent-id=YOUR_AGEN
 |-----------|------------------------------------------|
 | `monitor` | Start sending heartbeats to the dashboard|
 | `config`  | Push configuration updates to the agent  |
+| `discover`| Scan local network for OpenClaw gateways |
 | `status`  | Show local system metrics                |
 | `help`    | Show help message                        |
 
@@ -36,6 +37,7 @@ fleet-monitor monitor --saas-url=https://your-fleet-app.com --agent-id=YOUR_AGEN
 | `--agent-secret`| Yes   | -       | Agent Secret for authentication  |
 | `--interval` | No       | 300     | Heartbeat interval in seconds    |
 | `--status`   | No       | healthy | Status to report (healthy/idle)  |
+| `--plugins`  | No       | -       | Path to custom metric scripts    |
 
 ## Config Push Options
 
@@ -47,6 +49,29 @@ Update your agent's configuration directly from the CLI.
 | `--skills`   | No       | Comma-separated list of skills   |
 | `--profile`  | No       | Agent profile (dev, prod)        |
 | `--data-scope`| No      | Data access scope (full, etc.)   |
+
+## Auto-Discovery
+
+If you don't know your Gateway URL, you can scan your local network:
+
+```bash
+fleet-monitor discover
+```
+
+## Plugin System
+
+You can extend the agent's telemetry by writing custom scripts (Python, JS, or any executable) that output JSON.
+
+**Example Plugin (`queue.py`):**
+```python
+import json
+print(json.dumps({"queue_length": 42, "db_status": "ok"}))
+```
+
+**Run with Plugins:**
+```bash
+fleet-monitor monitor ... --plugins=./queue.py
+```
 
 ## Examples
 
@@ -62,8 +87,8 @@ fleet-monitor config push \
   --model=claude-sonnet-4 \
   --skills=code,search
 
-# Check system status locally
-fleet-monitor status
+# Check system status locally with plugins
+fleet-monitor status --plugins=./queue.py
 ```
 
 ## What It Reports
