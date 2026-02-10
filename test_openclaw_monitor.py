@@ -45,6 +45,7 @@ class TestGetCpu(unittest.TestCase):
     @patch('subprocess.run')
     @patch('os.cpu_count')
     def test_get_cpu_darwin(self, mock_cpu_count, mock_run, mock_system):
+        """Test CPU usage calculation on Darwin systems."""
         mock_system.return_value = "Darwin"
         mock_cpu_count.return_value = 4
 
@@ -76,6 +77,7 @@ class TestGetCpu(unittest.TestCase):
 
     @patch('platform.system')
     def test_get_cpu_error(self, mock_system):
+        """Test the behavior of get_cpu when an error occurs."""
         mock_system.side_effect = Exception("Some error")
 
         cpu_usage = monitor.get_cpu()
