@@ -22,8 +22,12 @@ const decryptAgent = (a) => {
   return decrypted;
 };
 
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error('SUPABASE_SERVICE_ROLE_KEY is required');
+}
+
 const JWT_SECRET = new TextEncoder().encode(
-  process.env.SUPABASE_SERVICE_ROLE_KEY || 'default-secret-for-development-only'
+  process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
 const RATE_LIMIT_CONFIG = {
