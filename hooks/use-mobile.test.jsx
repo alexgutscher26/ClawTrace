@@ -4,16 +4,23 @@ import { describe, test, expect, mock, beforeEach, afterEach } from "bun:test";
 const listeners = new Set();
 let hooksState = [];
 let hookIndex = 0;
+/** Renders the application. */
 let renderApp = () => {};
 let lastResult;
 
 // Mock React module
 mock.module("react", () => {
+  /**
+   * Custom hook that manages state in a functional component.
+   */
   const useState = (initialValue) => {
     const currentIndex = hookIndex;
     if (hooksState[currentIndex] === undefined) {
       hooksState[currentIndex] = initialValue;
     }
+    /**
+     * Updates the state and schedules a re-render if the new value is different.
+     */
     const setState = (newValue) => {
       const value = typeof newValue === 'function' ? newValue(hooksState[currentIndex]) : newValue;
       if (hooksState[currentIndex] !== value) {
@@ -26,6 +33,14 @@ mock.module("react", () => {
     return [hooksState[currentIndex], setState];
   };
 
+  /**
+   * Executes a side effect based on dependency changes.
+   *
+   * This function checks if the dependencies have changed since the last render. If they have, it runs the provided callback asynchronously to avoid synchronous recursion issues. The current dependencies are then stored in the hooks state for future comparisons. The function also manages the hook index to ensure proper tracking of effects.
+   *
+   * @param {Function} callback - The effect callback to be executed.
+   * @param {Array} deps - The dependencies array that determines when the effect should run.
+   */
   const useEffect = (callback, deps) => {
     const currentIndex = hookIndex;
     const prevDeps = hooksState[currentIndex];
