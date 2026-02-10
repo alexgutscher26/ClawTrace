@@ -6,6 +6,9 @@ import { Card } from '@/components/ui/card';
 
 import { useFleet } from '@/context/FleetContext';
 
+/**
+ * Renders the documentation view for Fleet, including navigation and content sections.
+ */
 export default function DocsView() {
   const { session, branding } = useFleet();
   const [activePage, setActivePage] = useState('Introduction');
