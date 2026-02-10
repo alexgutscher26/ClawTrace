@@ -9,7 +9,7 @@ import { usePathname, useSearchParams } from 'next/navigation';
 /**
  * Provides analytics tracking using PostHog for the application.
  *
- * This component initializes the PostHog client when the component mounts, handling pageview and pageleave events manually for both App Router state and hash changes. It also manages user identity and session state, ensuring that the correct user information is sent to PostHog. The component uses various hooks to track changes in the session, pathname, and search parameters.
+ * This component initializes the PostHog client when the component mounts, handling pageview and pageleave events manually for both App Router state and hash changes. It manages user identity and session state by utilizing hooks to track changes in the session, pathname, and search parameters. The component ensures that the correct user information is sent to PostHog while configuring various settings for optimal tracking.
  *
  * @param {Object} props - The component props.
  * @param {ReactNode} props.children - The child components to be rendered within the provider.
@@ -70,6 +70,16 @@ export function AnalyticsProvider({ children }) {
   return null;
 }
 
+/**
+ * Initializes the PostHog analytics provider and manages session tracking.
+ *
+ * This function sets up PostHog with various configurations, including API hosts and session recording options.
+ * It also listens for hash changes to capture pageleave and pageview events, and manages user identity based on the session state.
+ *
+ * @param {Object} props - The properties object.
+ * @param {ReactNode} props.children - The child components to be rendered within the provider.
+ * @returns {JSX.Element} The rendered AnalyticsProvider component.
+ */
 export function AnalyticsProvider({ children }) {
   const { session } = useFleet();
 
