@@ -16,6 +16,7 @@ export function AnalyticsProvider({ children }) {
           ui_host: 'https://us.posthog.com',
           person_profiles: 'always',
           capture_pageview: false, // We handle it manually for hash routing support
+          capture_pageleave: true,
           persistence: 'localStorage',
           autocapture: true,
           capture_performance: true,
