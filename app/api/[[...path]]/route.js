@@ -253,9 +253,7 @@ export async function OPTIONS() {
 /**
  * Handle GET requests for various API endpoints and return appropriate responses.
  *
- * This function processes incoming requests by checking rate limits and serving different responses based on the request path.
- * It includes health checks, agent installation scripts, user authentication, and data retrieval from the database.
- * The function also manages session tokens and handles errors gracefully, ensuring that unauthorized access is restricted.
+ * This function processes incoming requests by checking rate limits, serving different responses based on the request path, and managing user authentication. It includes health checks, agent installation scripts, and data retrieval from the database. The function also handles errors gracefully, ensuring that unauthorized access is restricted and that appropriate responses are returned for each endpoint.
  *
  * @param request - The incoming request object.
  * @param context - The context object containing parameters and other relevant data.
