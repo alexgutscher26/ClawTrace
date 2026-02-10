@@ -3,6 +3,18 @@ import { NextResponse } from 'next/server';
 const POSTHOG_API_HOST = 'https://us.i.posthog.com';
 const POSTHOG_ASSETS_HOST = 'https://us-assets.i.posthog.com';
 
+/**
+ * Proxies a request to a target URL based on the provided parameters.
+ *
+ * This function constructs a target URL using the slug from the parameters and determines whether to use the static or API host.
+ * It forwards query parameters and modifies headers as necessary before making a fetch request.
+ * The response is then processed to strip problematic headers and ensure CORS compliance before returning a new response.
+ *
+ * @param request - The original request object to be proxied.
+ * @param params - An object containing parameters, including the slug for the target URL.
+ * @returns A NextResponse object containing the proxied response.
+ * @throws Error If the fetch request fails, logs the error and returns a JSON response with a 500 status.
+ */
 async function proxyRequest(request, { params }) {
   const { slug } = await params;
   const path = slug.join('/');
