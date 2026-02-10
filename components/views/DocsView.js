@@ -238,6 +238,16 @@ print(json.dumps({"queue_length": 42}))`}
               </div>
             </div>
           </div>
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-white uppercase">Service Mode</h3>
+            <p className="text-sm text-zinc-400">
+              Run the agent as a persistent background service (systemd or LaunchAgent).
+            </p>
+            <div className="border border-white/10 bg-zinc-950 p-4 font-mono text-xs text-emerald-400">
+              fleet-monitor install-service --saas-url=...
+            </div>
+          </div>
         </div>
       ),
     },

@@ -2,6 +2,7 @@
 
 const os = require('os');
 const fs = require('fs');
+const path = require('path');
 const https = require('https');
 const http = require('http');
 const { exec } = require('child_process');
@@ -598,15 +599,124 @@ async function discoverCommand(args) {
   }
 }
 
+async function installServiceCommand(args) {
+  printBanner();
+
+  const saasUrl = args.saas_url;
+  const agentId = args.agent_id;
+  const agentSecret = args.agent_secret;
+
+  if (!saasUrl || !agentId || !agentSecret) {
+    console.error(`${COLORS.red}Error: --saas-url, --agent-id, and --agent-secret are required for service installation${COLORS.reset}`);
+    return;
+  }
+
+  const scriptPath = fs.realpathSync(process.argv[1]);
+  const nodePath = process.execPath;
+  const platform = os.platform();
+  const user = os.userInfo().username;
+
+  log(`${COLORS.green}Installing service for platform: ${platform} (${user})${COLORS.reset}`);
+
+  if (platform === 'linux') {
+    const serviceFile = `/etc/systemd/system/fleet-monitor.service`;
+    const serviceContent = `[Unit]
+Description=Fleet Monitor Agent
+After=network.target
+
+[Service]
+ExecStart=${nodePath} "${scriptPath}" monitor --saas-url="${saasUrl}" --agent-id="${agentId}" --agent-secret="${agentSecret}" --interval="${args.interval || 300}" --plugins="${args.plugins || ''}"
+Restart=always
+User=${user}
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
+`;
+
+    try {
+      fs.writeFileSync(serviceFile, serviceContent);
+      log(`${COLORS.green}✓ Service file created at ${serviceFile}${COLORS.reset}`);
+      log(`${COLORS.dim}Enabling and starting service...${COLORS.reset}`);
+      exec('systemctl daemon-reload && systemctl enable fleet-monitor && systemctl start fleet-monitor', (err, stdout, stderr) => {
+        if (err) {
+          log(`${COLORS.red}Error starting service: ${err.message}${COLORS.reset}`);
+          if (stderr) console.error(stderr);
+        } else {
+          log(`${COLORS.green}✓ Service installed and started!${COLORS.reset}`);
+        }
+      });
+    } catch (err) {
+      if (err.code === 'EACCES') {
+        log(`${COLORS.red}Permission denied. Try running with sudo.${COLORS.reset}`);
+        console.log(`\nOr manually create ${serviceFile} with content:\n`);
+        console.log(serviceContent);
+      } else {
+        log(`${COLORS.red}Error: ${err.message}${COLORS.reset}`);
+      }
+    }
+
+  } else if (platform === 'darwin') {
+    const plistFile = `${os.homedir()}/Library/LaunchAgents/com.openclaw.monitor.plist`;
+    const plistContent = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.openclaw.monitor</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>${nodePath}</string>
+        <string>${scriptPath}</string>
+        <string>monitor</string>
+        <string>--saas-url=${saasUrl}</string>
+        <string>--agent-id=${agentId}</string>
+        <string>--agent-secret=${agentSecret}</string>
+        <string>--interval=${args.interval || 300}</string>
+        <string>--plugins=${args.plugins || ''}</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/fleet-monitor.out</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/fleet-monitor.err</string>
+</dict>
+</plist>`;
+
+    try {
+      const launchAgentsDir = path.dirname(plistFile);
+      if (!fs.existsSync(launchAgentsDir)) fs.mkdirSync(launchAgentsDir, { recursive: true });
+
+      fs.writeFileSync(plistFile, plistContent);
+      log(`${COLORS.green}✓ LaunchAgent created at ${plistFile}${COLORS.reset}`);
+
+      exec(`launchctl unload ${plistFile} 2>/dev/null; launchctl load ${plistFile}`, (err) => {
+        if (err) log(`${COLORS.yellow}Warning: Could not auto-load service. You may need to logout/login.${COLORS.reset}`);
+        else log(`${COLORS.green}✓ Service loaded!${COLORS.reset}`);
+      });
+
+    } catch (err) {
+      log(`${COLORS.red}Error: ${err.message}${COLORS.reset}`);
+    }
+
+  } else {
+    log(`${COLORS.yellow}Platform '${platform}' not supported for auto-install.${COLORS.reset}`);
+  }
+}
+
 function helpCommand() {
   printBanner();
   console.log(`
   ${COLORS.bold}Commands:${COLORS.reset}`);
-  console.log(`    ${COLORS.green}monitor${COLORS.reset}    Start sending heartbeats to your Fleet dashboard`);
-  console.log(`    ${COLORS.green}config${COLORS.reset}     Manage agent configuration`);
-  console.log(`    ${COLORS.green}discover${COLORS.reset}   Scan local network for OpenClaw gateways`);
-  console.log(`    ${COLORS.green}status${COLORS.reset}     Show local system metrics`);
-  console.log(`    ${COLORS.green}help${COLORS.reset}       Show this help message`);
+  console.log(`    ${COLORS.green}monitor${COLORS.reset}           Start sending heartbeats to your Fleet dashboard`);
+  console.log(`    ${COLORS.green}config${COLORS.reset}            Manage agent configuration`);
+  console.log(`    ${COLORS.green}discover${COLORS.reset}          Scan local network for OpenClaw gateways`);
+  console.log(`    ${COLORS.green}install-service${COLORS.reset}   Auto-configure systemd/LaunchAgent persistence`);
+  console.log(`    ${COLORS.green}status${COLORS.reset}            Show local system metrics`);
+  console.log(`    ${COLORS.green}help${COLORS.reset}              Show this help message`);
   console.log(`
   ${COLORS.bold}Monitor Usage:${COLORS.reset}`);
   console.log(`  fleet-monitor monitor --saas-url=https://your-app.com --agent-id=<UUID> --agent-secret=<SECRET>`);
@@ -657,6 +767,9 @@ switch (command) {
     break;
   case 'discover':
     discoverCommand(args);
+    break;
+  case 'install-service':
+    installServiceCommand(args);
     break;
   case 'help':
   case '--help':
