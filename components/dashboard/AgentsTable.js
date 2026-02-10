@@ -11,6 +11,21 @@ import { Badge } from '@/components/ui/badge';
 import { STATUS_CONFIG, timeAgo } from '@/lib/view-utils';
 import { getPolicy } from '@/lib/policies';
 
+/**
+ * Renders a table displaying a list of agents with their details.
+ *
+ * This component takes in a list of agents and displays their name, status, gateway, policy, model, location, and last heartbeat.
+ * It also provides navigation buttons for viewing agent details and deleting agents.
+ * Pagination controls are shown if there are multiple pages of agents.
+ *
+ * @param {Object} props - The component props.
+ * @param {Array} props.agents - The list of agents to display.
+ * @param {number} props.totalPages - The total number of pages for pagination.
+ * @param {number} props.page - The current page number.
+ * @param {Function} props.setPage - Function to set the current page.
+ * @param {Function} props.navigate - Function to navigate to a different route.
+ * @param {Function} props.handleDeleteAgent - Function to handle the deletion of an agent.
+ */
 export function AgentsTable({ agents, totalPages, page, setPage, navigate, handleDeleteAgent }) {
   if (agents.length === 0) return null;
 
