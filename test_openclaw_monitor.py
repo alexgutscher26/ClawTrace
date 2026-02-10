@@ -69,6 +69,7 @@ class TestGetCpu(unittest.TestCase):
     @patch('platform.system')
     @patch('subprocess.run')
     def test_get_cpu_windows(self, mock_run, mock_system):
+        """Test CPU usage retrieval on Windows."""
         mock_system.return_value = "Windows"
 
         # Output from wmic
@@ -81,7 +82,7 @@ class TestGetCpu(unittest.TestCase):
 
     @patch('platform.system')
     def test_get_cpu_error(self, mock_system):
-        """Test the behavior of get_cpu when an error occurs."""
+        """Test get_cpu behavior when an error occurs."""
         mock_system.side_effect = Exception("Some error")
 
         cpu_usage = monitor.get_cpu()
