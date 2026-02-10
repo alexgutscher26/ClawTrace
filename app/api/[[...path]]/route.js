@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4, validate as uuidValidate } from 'uuid';
 import { SignJWT, jwtVerify } from 'jose';
 import { encrypt, decrypt } from '@/lib/encryption';
 import { getPolicy } from '@/lib/policies';
@@ -63,6 +63,22 @@ async function getTier(userId) {
     .neq('status', 'cancelled')
     .maybeSingle();
   return (data?.plan || 'free').toLowerCase();
+}
+
+/**
+ * Validates parameters for agent installation scripts.
+ */
+function validateInstallParams(agentId, agentSecret, interval) {
+  if (!agentId || !agentSecret) {
+    return { error: 'Missing agent_id or agent_secret parameter', status: 400 };
+  }
+  if (!uuidValidate(agentId) || !uuidValidate(agentSecret)) {
+    return { error: 'Invalid agent_id or agent_secret format', status: 400 };
+  }
+  if (interval && !/^\d+$/.test(interval)) {
+    return { error: 'Invalid interval format', status: 400 };
+  }
+  return null;
 }
 
 /**
@@ -206,10 +222,10 @@ export async function GET(request, context) {
       const { searchParams } = new URL(request.url);
       const agentId = searchParams.get('agent_id');
       const agentSecret = searchParams.get('agent_secret');
+      let interval = searchParams.get('interval');
 
-      if (!agentId || !agentSecret) {
-        return json({ error: 'Missing agent_id or agent_secret parameter' }, 400);
-      }
+      const validation = validateInstallParams(agentId, agentSecret, interval);
+      if (validation) return json({ error: validation.error }, validation.status);
 
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
@@ -217,7 +233,6 @@ export async function GET(request, context) {
         'http://localhost:3000';
 
       // Determine user tier for heartbeat interval
-      let interval = searchParams.get('interval');
       if (!interval) {
         // Get agent's user_id to determine tier
         const { data: agent } = await supabaseAdmin
@@ -431,10 +446,10 @@ done
       const { searchParams } = new URL(request.url);
       const agentId = searchParams.get('agent_id');
       const agentSecret = searchParams.get('agent_secret');
+      let interval = searchParams.get('interval');
 
-      if (!agentId || !agentSecret) {
-        return json({ error: 'Missing agent_id or agent_secret parameter' }, 400);
-      }
+      const validation = validateInstallParams(agentId, agentSecret, interval);
+      if (validation) return json({ error: validation.error }, validation.status);
 
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
@@ -442,7 +457,6 @@ done
         'http://localhost:3000';
 
       // Determine user tier for heartbeat interval
-      let interval = searchParams.get('interval');
       if (!interval) {
         // Get agent's user_id to determine tier
         const { data: agent } = await supabaseAdmin
@@ -638,10 +652,10 @@ done
       const { searchParams } = new URL(request.url);
       const agentId = searchParams.get('agent_id');
       const agentSecret = searchParams.get('agent_secret');
+      let interval = searchParams.get('interval');
 
-      if (!agentId || !agentSecret) {
-        return json({ error: 'Missing agent_id or agent_secret parameter' }, 400);
-      }
+      const validation = validateInstallParams(agentId, agentSecret, interval);
+      if (validation) return json({ error: validation.error }, validation.status);
 
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
@@ -649,7 +663,6 @@ done
         'http://localhost:3000';
 
       // Determine user tier for heartbeat interval
-      let interval = searchParams.get('interval');
       if (!interval) {
         // Get agent's user_id to determine tier
         const { data: agent } = await supabaseAdmin
