@@ -7,7 +7,7 @@ import json, time, urllib.request, platform, os, hmac, hashlib
 
 SAAS_URL = "http://localhost:3000"
 AGENT_ID = "79a68826-b5af-49a3-b9db-6c322c858f17"
-AGENT_SECRET = "4721c562-21eb-4b65-ae77-dcd6ec94f710"
+AGENT_SECRET = "YOUR_AGENT_SECRET"
 INTERVAL = 300
 SESSION_TOKEN = None
 GATEWAY_URL = None
