@@ -1,5 +1,3 @@
-'use client';
-
 import LandingView from '@/components/views/LandingView';
 
 /**

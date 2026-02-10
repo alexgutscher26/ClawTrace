@@ -45,6 +45,17 @@ def perform_handshake():
         return False
 
 def get_cpu():
+    """Retrieve the current CPU usage percentage based on the operating system.
+    
+    The function checks the platform type and retrieves CPU statistics accordingly.
+    For Linux, it reads from `/proc/stat` to calculate the CPU usage based on
+    previous and current statistics. For macOS, it uses the `ps` command to gather
+    CPU usage data, while for Windows, it utilizes the `wmic` command. If any
+    errors occur during execution, the function returns 0.
+    
+    Returns:
+        int: The CPU usage percentage, or 0 if an error occurs.
+    """
     global _last_cpu_stats
     try:
         if platform.system() == "Linux":

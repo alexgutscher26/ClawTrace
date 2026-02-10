@@ -1,8 +1,12 @@
 import unittest
-from unittest.mock import patch, mock_open, MagicMock
-import importlib.util
+from unittest.mock import patch, MagicMock
+import json
+import sys
+import io
 
-# Load the module
+# Import the module to be tested
+# Since the filename has a hyphen, we use importlib.
+import importlib.util
 spec = importlib.util.spec_from_file_location("openclaw_monitor", "openclaw-monitor.py")
 monitor = importlib.util.module_from_spec(spec)
 # We don't execute the module to avoid running the main loop or side effects at import time

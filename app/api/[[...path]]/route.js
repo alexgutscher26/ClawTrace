@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4, validate as uuidValidate } from 'uuid';
 import { SignJWT, jwtVerify } from 'jose';
-import { encrypt, decrypt } from '@/lib/encryption';
+import { encrypt, decrypt, decryptAsync } from '@/lib/encryption';
 import {
   getPolicy,
   DEFAULT_POLICY_PROFILE,
@@ -11,6 +11,8 @@ import {
   POLICY_OPS,
   POLICY_EXEC,
 } from '@/lib/policies';
+import { RATE_LIMIT_CONFIG } from '@/lib/rate-limits';
+import { MODEL_PRICING } from '@/lib/pricing';
 import { processSmartAlerts } from '@/lib/alerts';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -28,37 +30,54 @@ async function getScript(filename, replacements) {
 }
 
 /**
- * Decrypts the agent's configuration and secret.
+ * Decrypts the agent's configuration and secret asynchronously.
  *
  * This function takes an agent object, checks for the presence of a config_json and agent_secret,
- * and attempts to decrypt them using the decrypt function. If decryption is successful, the
- * decrypted values are parsed and assigned to a new object. In case of any errors during decryption,
- * an error message is logged to the console, and the original values are retained.
+ * and attempts to decrypt them using the async decrypt function to avoid blocking the event loop.
+ * If decryption is successful, the decrypted values are parsed and assigned to a new object.
+ * In case of any errors during decryption, an error message is logged to the console,
+ * and the original values are retained.
  *
  * @param {Object} a - The agent object containing configuration and secret to be decrypted.
  */
-const decryptAgent = (a) => {
+const decryptAgent = async (a) => {
   if (!a) return a;
   const decrypted = { ...a };
   try {
     if (a.config_json) {
-      const d = decrypt(a.config_json);
+      const d = await decryptAsync(a.config_json);
       decrypted.config_json = d ? JSON.parse(d) : a.config_json;
     }
-    if (a.agent_secret) decrypted.agent_secret = decrypt(a.agent_secret);
+    if (a.agent_secret) {
+      decrypted.agent_secret = await decryptAsync(a.agent_secret);
+    }
   } catch (e) {
     console.error('Failed to decrypt agent:', a.id, e);
   }
   return decrypted;
 };
 
+/**
+ * Processes items in batches to avoid blocking the event loop.
+ */
+async function processInBatches(items, batchSize, fn) {
+  const results = [];
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
+    const batchResults = await Promise.all(batch.map(fn));
+    results.push(...batchResults);
+    if (i + batchSize < items.length) {
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+  }
+  return results;
+}
+
 if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error('SUPABASE_SERVICE_ROLE_KEY is required');
 }
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+const JWT_SECRET = new TextEncoder().encode(process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 /**
  * Retrieves the subscription tier for a given user.
@@ -107,28 +126,6 @@ function validateInstallParams(agentId, agentSecret, interval) {
   return null;
 }
 
-
-/**
- * Configuration for rate limiting based on subscription tiers.
- * 
- * capacity: Maximum number of request tokens in the bucket.
- * refillRate: The rate at which tokens are refilled per second.
- */
-const RATE_LIMIT_CONFIG = {
-  free: {
-    global: { capacity: 60, refillRate: 1 }, // 60 requests burst, 1 req/sec
-    agent_heartbeat: { capacity: 10, refillRate: 0.2 }, // 1 heartbeat every 5s
-  },
-  pro: {
-    global: { capacity: 600, refillRate: 10 }, // 600 requests burst, 10 req/sec
-    agent_heartbeat: { capacity: 100, refillRate: 2 },
-  },
-  enterprise: {
-    global: { capacity: 6000, refillRate: 100 }, // High throughput
-    agent_heartbeat: { capacity: 1000, refillRate: 20 },
-  },
-};
-
 /**
  * Check the rate limit for a given request and identifier.
  *
@@ -140,10 +137,17 @@ const RATE_LIMIT_CONFIG = {
  * @param identifier - A unique identifier for the rate limit check.
  * @param type - The type of rate limit to check (default is 'global').
  * @param userId - The ID of the user (optional).
+ * @param cachedTier - The cached subscription tier (optional).
  * @returns An object indicating whether the request is allowed and, if not, the error response.
  */
-async function checkRateLimit(request, identifier, type = 'global', userId = null) {
-  const tier = await getTier(userId);
+async function checkRateLimit(
+  request,
+  identifier,
+  type = 'global',
+  userId = null,
+  cachedTier = null
+) {
+  const tier = cachedTier || (await getTier(userId));
   const tierConfig = RATE_LIMIT_CONFIG[tier] || RATE_LIMIT_CONFIG.free;
   const config = tierConfig[type] || RATE_LIMIT_CONFIG.free[type];
 
@@ -182,8 +186,8 @@ async function checkRateLimit(request, identifier, type = 'global', userId = nul
 /**
  * Creates a JWT token for the specified agent and fleet.
  */
-async function createAgentToken(agentId, fleetId) {
-  return await new SignJWT({ agent_id: agentId, fleet_id: fleetId })
+async function createAgentToken(agentId, fleetId, extraPayload = {}) {
+  return await new SignJWT({ agent_id: agentId, fleet_id: fleetId, ...extraPayload })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('24h') // Tokens expire in 24 hours
@@ -275,7 +279,7 @@ export async function GET(request, context) {
       const validation = validateInstallParams(agentId, agentSecret, interval);
       if (validation) return json({ error: validation.error }, validation.status);
 
-      if (!validateUuid(agentId) || !validateUuid(agentSecret)) {
+      if (!uuidValidate(agentId) || !uuidValidate(agentSecret)) {
         return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
       }
 
@@ -354,7 +358,7 @@ export async function GET(request, context) {
       const validation = validateInstallParams(agentId, agentSecret, interval);
       if (validation) return json({ error: validation.error }, validation.status);
 
-      if (!validateUuid(agentId) || !validateUuid(agentSecret)) {
+      if (!uuidValidate(agentId) || !uuidValidate(agentSecret)) {
         return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
       }
 
@@ -436,7 +440,7 @@ export async function GET(request, context) {
       const validation = validateInstallParams(agentId, agentSecret, interval);
       if (validation) return json({ error: validation.error }, validation.status);
 
-      if (!validateUuid(agentId) || !validateUuid(agentSecret)) {
+      if (!uuidValidate(agentId) || !uuidValidate(agentSecret)) {
         return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
       }
 
@@ -531,11 +535,29 @@ export async function GET(request, context) {
       if (!user) return json({ error: 'Unauthorized' }, 401);
       const { searchParams } = new URL(request.url);
       const fleet_id = searchParams.get('fleet_id');
-      let query = supabaseAdmin.from('agents').select('*').eq('user_id', user.id);
+
+      // Pagination
+      const page = parseInt(searchParams.get('page') || '1');
+      const limit = parseInt(searchParams.get('limit') || '50');
+      const offset = (page - 1) * limit;
+
+      let query = supabaseAdmin
+        .from('agents')
+        .select('*', { count: 'exact' })
+        .eq('user_id', user.id);
       if (fleet_id) query = query.eq('fleet_id', fleet_id);
-      const { data: agents, error } = await query.order('created_at', { ascending: false });
+
+      const {
+        data: agents,
+        error,
+        count,
+      } = await query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+
       if (error) throw error;
-      return json({ agents: agents.map(decryptAgent) });
+
+      // Optimize: Process decryption in batches to prevent event loop blocking
+      const decryptedAgents = await processInBatches(agents, 50, decryptAgent);
+      return json({ agents: decryptedAgents });
     }
 
     const agentMatch = path.match(/^\/agents\/([^/]+)$/);
@@ -550,7 +572,7 @@ export async function GET(request, context) {
         .maybeSingle();
       if (error) throw error;
       if (!agent) return json({ error: 'Agent not found' }, 404);
-      return json({ agent: decryptAgent(agent) });
+      return json({ agent: await decryptAgent(agent) });
     }
 
     const metricsMatch = path.match(/^\/agents\/([^/]+)\/metrics$/);
@@ -617,33 +639,15 @@ export async function GET(request, context) {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
 
-      const [agentsRes, fleetsRes, alertsRes] = await Promise.all([
-        supabaseAdmin.from('agents').select('*').eq('user_id', user.id),
-        supabaseAdmin.from('fleets').select('*').eq('user_id', user.id),
-        supabaseAdmin
-          .from('alerts')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .eq('resolved', false),
-      ]);
+      const { data: stats, error } = await supabaseAdmin.rpc('get_dashboard_stats', {
+        p_user_id: user.id,
+      });
 
-      const agents = agentsRes.data || [];
-      const fleets = fleetsRes.data || [];
-      const unresolvedAlerts = alertsRes.count || 0;
+      if (error) {
+        console.error('Failed to get dashboard stats:', error);
+        return json({ error: 'Failed to fetch statistics' }, 500);
+      }
 
-      const stats = {
-        total_agents: agents.length,
-        total_fleets: fleets.length,
-        healthy: agents.filter((a) => a.status === 'healthy').length,
-        idle: agents.filter((a) => a.status === 'idle').length,
-        error: agents.filter((a) => a.status === 'error').length,
-        offline: agents.filter((a) => a.status === 'offline').length,
-        total_cost: parseFloat(
-          agents.reduce((sum, a) => sum + (a.metrics_json?.cost_usd || 0), 0).toFixed(2)
-        ),
-        total_tasks: agents.reduce((sum, a) => sum + (a.metrics_json?.tasks_completed || 0), 0),
-        unresolved_alerts: unresolvedAlerts,
-      };
       return json({ stats });
     }
 
@@ -1014,12 +1018,17 @@ export async function POST(request, context) {
         }
       }
 
-      const token = await createAgentToken(agent.id, agent.fleet_id);
-      const policyProfile = agent.policy_profile || DEFAULT_POLICY_PROFILE;
-      let policy = getPolicy(policyProfile);
-
       // Tier-based heartbeat clamping
       const tier = await getTier(agent.user_id);
+
+      const policyProfile = agent.policy_profile || DEFAULT_POLICY_PROFILE;
+      const token = await createAgentToken(agent.id, agent.fleet_id, {
+        user_id: agent.user_id,
+        policy_profile: policyProfile,
+        tier,
+      });
+
+      let policy = getPolicy(policyProfile);
       if (tier === 'free' && policy.heartbeat_interval < 300) {
         policy.heartbeat_interval = 300; // Force 5m for FREE
       } else if (tier === 'pro' && policy.heartbeat_interval < 60) {
@@ -1045,21 +1054,33 @@ export async function POST(request, context) {
         return json({ error: 'Invalid or expired session' }, 401);
       }
 
-      const { data: agent, error: fetchError } = await supabaseAdmin
-        .from('agents')
-        .select('*')
-        .eq('id', body.agent_id)
-        .maybeSingle();
+      let agent = null;
+      let userId = payload.user_id;
+      let tier = payload.tier;
+      let policyProfile = payload.policy_profile;
 
-      if (fetchError) throw fetchError;
-      if (!agent) return json({ error: 'Agent not found' }, 404);
+      // Legacy token fallback: Fetch agent to get metadata
+      if (!userId) {
+        const { data, error } = await supabaseAdmin
+          .from('agents')
+          .select('*')
+          .eq('id', body.agent_id)
+          .maybeSingle();
 
-      // Route-specific heartbeat limit - passing agent's owner ID for tier check
+        if (error) throw error;
+        if (!data) return json({ error: 'Agent not found' }, 404);
+        agent = data;
+        userId = agent.user_id;
+        policyProfile = agent.policy_profile;
+      }
+
+      // Route-specific heartbeat limit
       const heartbeatLimit = await checkRateLimit(
         request,
         payload.agent_id,
         'heartbeat',
-        agent.user_id
+        userId,
+        tier
       );
       if (!heartbeatLimit.allowed) return heartbeatLimit.response;
 
@@ -1068,10 +1089,29 @@ export async function POST(request, context) {
         last_heartbeat: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
-      let tasksCount = agent.metrics_json?.tasks_completed || 0;
-      let errorsCount = agent.metrics_json?.errors_count || 0;
 
-      if (body.metrics) {
+      // Only fetch agent if metrics are present and we haven't fetched it yet
+      if (body.metrics && !agent) {
+        const { data, error } = await supabaseAdmin
+          .from('agents')
+          .select('*')
+          .eq('id', body.agent_id)
+          .maybeSingle();
+
+        if (error) throw error;
+        if (!data) return json({ error: 'Agent not found' }, 404);
+        agent = data;
+      }
+
+      let tasksCount = 0;
+      let errorsCount = 0;
+
+      if (agent && agent.metrics_json) {
+        tasksCount = agent.metrics_json.tasks_completed || 0;
+        errorsCount = agent.metrics_json.errors_count || 0;
+      }
+
+      if (body.metrics && agent) {
         // Calculate uptime based on agent creation time (not machine uptime)
         const createdAt = new Date(agent.created_at);
         const now = new Date();
@@ -1102,14 +1142,14 @@ export async function POST(request, context) {
       if (error) throw error;
 
       // Include updated policy in heartbeat response
-      const policy = getPolicy(agent.policy_profile);
+      const policy = getPolicy(policyProfile || DEFAULT_POLICY_PROFILE);
 
       // Insert historical metrics for charts
       if (body.metrics) {
         try {
           const { error: metricsError } = await supabaseAdmin.from('agent_metrics').insert({
-            agent_id: agent.id,
-            user_id: agent.user_id,
+            agent_id: body.agent_id, // Use ID from body/token
+            user_id: userId, // Use userId from token/agent
             cpu_usage: body.metrics.cpu_usage || 0,
             memory_usage: body.metrics.memory_usage || 0,
             latency_ms: body.metrics.latency_ms || 0,
@@ -1127,9 +1167,16 @@ export async function POST(request, context) {
 
       // Trigger smart alerts
       if (body.metrics) {
-        processSmartAlerts(body.agent_id, update.status, body.metrics).catch((e) =>
-          console.error('Alert processing error:', e)
-        );
+        const activeConfigs =
+          agent.alert_configs?.filter((c) => c.channel && c.channel.active) || [];
+
+        processSmartAlerts(
+          body.agent_id,
+          update.status,
+          body.metrics,
+          activeConfigs,
+          agent.name
+        ).catch((e) => console.error('Alert processing error:', e));
       }
 
       return json({
@@ -1704,7 +1751,7 @@ export async function PUT(request, context) {
 
       if (error) throw error;
       if (!agent) return json({ error: 'Agent not found' }, 404);
-      return json({ agent: decryptAgent(agent) });
+      return json({ agent: await decryptAgent(agent) });
     }
 
     const fleetMatch = path.match(/^\/fleets\/([^/]+)$/);
