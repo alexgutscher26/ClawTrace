@@ -6,6 +6,7 @@ const path = require('path');
 const https = require('https');
 const http = require('http');
 const { exec } = require('child_process');
+const { performance } = require('perf_hooks');
 
 // ============ CLI ARGUMENT PARSER ============
 function parseArgs(argv) {
@@ -55,7 +56,7 @@ async function measureLatency(urlStr) {
   return new Promise((resolve) => {
     try {
       const url = new URL(urlStr);
-      const start = Date.now();
+      const start = performance.now();
       const client = url.protocol === 'https:' ? https : http;
 
       const options = {
@@ -68,7 +69,7 @@ async function measureLatency(urlStr) {
 
       const req = client.request(options, (res) => {
         res.resume(); // consume any data
-        resolve(Date.now() - start);
+        resolve(Math.round(performance.now() - start));
       });
 
       req.on('error', () => resolve(0));
@@ -243,30 +244,6 @@ function printStatus(metrics) {
 }
 
 // ============ COMMANDS ============
-
-function redactConfig(config) {
-  if (typeof config !== 'object' || config === null) {
-    return config;
-  }
-
-  if (Array.isArray(config)) {
-    return config.map(redactConfig);
-  }
-
-  const redacted = { ...config };
-  const sensitivePatterns = /key|secret|password|token|credential|auth|private/i;
-
-  for (const key in redacted) {
-    if (Object.prototype.hasOwnProperty.call(redacted, key)) {
-      if (sensitivePatterns.test(key)) {
-        redacted[key] = '[REDACTED]';
-      } else if (typeof redacted[key] === 'object') {
-        redacted[key] = redactConfig(redacted[key]);
-      }
-    }
-  }
-  return redacted;
-}
 
 /**
  * Monitors the agent's status and sends heartbeat signals to the specified SaaS URL.

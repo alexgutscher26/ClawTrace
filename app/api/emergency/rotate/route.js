@@ -7,6 +7,15 @@ const supabaseAdmin = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+/**
+ * Handles the POST request to rotate agent models.
+ *
+ * This function extracts the `fromModel`, `toModel`, and `fleetId` from the request body. It first attempts to rotate the models using a remote procedure call (RPC) to `rotate_agent_models`. If the RPC fails, it falls back to a basic update of the `model` column in the `agents` table. The function returns a JSON response indicating success or failure, along with relevant messages.
+ *
+ * @param request - The incoming request object containing the JSON body with parameters.
+ * @returns A JSON response indicating the success of the operation and the number of agents updated or an error message.
+ * @throws Error If an error occurs during the RPC call or the fallback update.
+ */
 export async function POST(request) {
     try {
         const { fromModel, toModel, fleetId } = await request.json();
