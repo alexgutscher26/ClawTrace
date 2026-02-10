@@ -34,6 +34,15 @@ import { RecentAlerts } from '@/components/dashboard/RecentAlerts';
  *
  * @returns {JSX.Element} The rendered dashboard view.
  */
+import EmergencyModelSwitcher from '@/components/EmergencyModelSwitcher';
+
+/**
+ * Renders the dashboard view for managing AI agents within a fleet.
+ *
+ * This component handles the state and lifecycle of the dashboard, including fetching data from the API, managing agent and alert states, and providing real-time updates via subscriptions. It also includes functionality for adding, deleting, and resolving agents and alerts, as well as handling user navigation and session management.
+ *
+ * @returns {JSX.Element} The rendered dashboard view.
+ */
 export default function DashboardView() {
   const { session, api, masterPassphrase, branding } = useFleet();
   const router = useRouter();
