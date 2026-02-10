@@ -4,9 +4,14 @@ const POSTHOG_API_HOST = 'https://us.i.posthog.com';
 const POSTHOG_ASSETS_HOST = 'https://us-assets.i.posthog.com';
 
 /**
- * Helper to determine allowed origin based on environment configuration.
- * @param {Request} request
- * @returns {string|null} The allowed origin or null.
+ * Determines the allowed origin based on the environment configuration and the request's origin.
+ *
+ * This function checks the CORS_ORIGINS environment variable to determine which origins are allowed.
+ * If CORS_ORIGINS is not set, it defaults to allowing all origins. If the request's origin is not
+ * present or not included in the allowed origins, it returns null. The function handles both
+ * unrestricted and restricted CORS configurations.
+ *
+ * @param {Request} request - The request object containing headers to extract the origin.
  */
 function getAllowedOrigin(request) {
   // If CORS_ORIGINS is not set, default to * (for backward compatibility).
