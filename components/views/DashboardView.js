@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { supabase } from '@/lib/supabase';
 import posthog from 'posthog-js';
 import { toast } from 'sonner';
 import {
@@ -71,16 +72,70 @@ export default function DashboardView() {
         setTier(p.toLowerCase());
         if (res.limits) setLimits(res.limits[p.toLowerCase()] || res.limits.free);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [api]);
 
   useEffect(() => {
     if (tier === 'enterprise' || tier === 'pro') {
       api('/api/custom-policies')
         .then((res) => setCustomPolicies(res.policies || []))
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [api, tier]);
+
+  // Realtime subscription
+  useEffect(() => {
+    if (!selectedFleet) return;
+
+    const channel = supabase
+      .channel('dashboard-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'agents',
+          filter: `fleet_id=eq.${selectedFleet}`,
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setAgents((prev) => [...prev, payload.new]);
+            setStats((prev) => ({
+              ...prev,
+              total_agents: (prev?.total_agents || 0) + 1,
+            }));
+          } else if (payload.eventType === 'UPDATE') {
+            setAgents((prev) =>
+              prev.map((agent) => (agent.id === payload.new.id ? payload.new : agent))
+            );
+            // Pulse effect can be handled via CSS/state if needed, but the status update handles the visual
+          } else if (payload.eventType === 'DELETE') {
+            setAgents((prev) => prev.filter((agent) => agent.id !== payload.old.id));
+            setStats((prev) => ({
+              ...prev,
+              total_agents: Math.max(0, (prev?.total_agents || 0) - 1),
+            }));
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'alerts',
+        },
+        (payload) => {
+          setAlerts((prev) => [payload.new, ...prev]);
+          toast.message('New Alert', { description: `${payload.new.type}: ${payload.new.message}` });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedFleet]);
 
   useEffect(() => {
     if (loading) loadData();
@@ -222,10 +277,13 @@ export default function DashboardView() {
             <p className="text-muted-foreground text-sm">Monitor and manage your AI agent fleet</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={loadData}>
-              <RefreshCw className="mr-1 h-4 w-4" />
-              Refresh
-            </Button>
+            <Badge variant="outline" className="border-emerald-500/50 text-emerald-400 animate-pulse bg-emerald-500/10 gap-1.5 py-1">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              LIVE
+            </Badge>
             <Button
               size="sm"
               className="bg-emerald-600 hover:bg-emerald-700"

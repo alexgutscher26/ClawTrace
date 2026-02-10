@@ -9,6 +9,7 @@ export const metadata = {
     'Scale your AI agents from 1 to 100 with centralized fleet management, real-time monitoring, and policy enforcement.',
 };
 
+import { Suspense } from 'react';
 import { FleetProvider } from '@/context/FleetContext';
 import { AnalyticsProvider } from '@/context/AnalyticsProvider';
 import { Toaster } from 'sonner';
@@ -19,12 +20,17 @@ import { Toaster } from 'sonner';
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
-      <body className={`bg-background min-h-screen antialiased ${font.className}`} suppressHydrationWarning>
+      <body
+        className={`bg-background min-h-screen antialiased ${font.className}`}
+        suppressHydrationWarning
+      >
         <FleetProvider>
-          <AnalyticsProvider>
-            <Toaster richColors position="top-right" theme="dark" />
-            {children}
-          </AnalyticsProvider>
+          <Suspense fallback={null}>
+            <AnalyticsProvider>
+              <Toaster richColors position="top-right" theme="dark" />
+              {children}
+            </AnalyticsProvider>
+          </Suspense>
         </FleetProvider>
       </body>
     </html>
