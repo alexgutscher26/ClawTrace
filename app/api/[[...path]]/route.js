@@ -1,11 +1,28 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4, validate as validateUuid } from 'uuid';
 import { SignJWT, jwtVerify } from 'jose';
 import { encrypt, decrypt } from '@/lib/encryption';
-import { getPolicy } from '@/lib/policies';
+import {
+  getPolicy,
+  DEFAULT_POLICY_PROFILE,
+  POLICY_DEV,
+  POLICY_OPS,
+  POLICY_EXEC,
+} from '@/lib/policies';
 import { processSmartAlerts } from '@/lib/alerts';
+import { promises as fs } from 'fs';
+import path from 'path';
+
+async function getScript(filename, replacements) {
+  const filePath = path.join(process.cwd(), 'lib/scripts', filename);
+  let content = await fs.readFile(filePath, 'utf8');
+  for (const [key, value] of Object.entries(replacements)) {
+    content = content.replaceAll(`{{${key}}}`, value);
+  }
+  return content;
+}
 
 const decryptAgent = (a) => {
   if (!a) return a;
@@ -22,27 +39,13 @@ const decryptAgent = (a) => {
   return decrypted;
 };
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.SUPABASE_SERVICE_ROLE_KEY || 'default-secret-for-development-only'
-);
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error('SUPABASE_SERVICE_ROLE_KEY is required');
+}
 
-const RATE_LIMIT_CONFIG = {
-  free: {
-    global: { capacity: 60, refillRate: 1 }, // 60 req / min
-    handshake: { capacity: 5, refillRate: 5 / 600 }, // 5 req / 10 min
-    heartbeat: { capacity: 3, refillRate: 1 / 300 }, // 1 req / 5 min
-  },
-  pro: {
-    global: { capacity: 600, refillRate: 10 }, // 600 req / min
-    handshake: { capacity: 50, refillRate: 50 / 600 }, // 50 req / 10 min
-    heartbeat: { capacity: 20, refillRate: 1 / 15 }, // 1 req / 15s
-  },
-  enterprise: {
-    global: { capacity: 5000, refillRate: 100 }, // 5000 req / min
-    handshake: { capacity: 500, refillRate: 1 }, // 60 req / min
-    heartbeat: { capacity: 200, refillRate: 2 }, // 2 req / s
-  },
-};
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 /**
  * Retrieves the subscription tier for a given user.
@@ -211,10 +214,21 @@ export async function GET(request, context) {
         return json({ error: 'Missing agent_id or agent_secret parameter' }, 400);
       }
 
+      if (!validateUuid(agentId) || !validateUuid(agentSecret)) {
+        return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
+      }
+
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
         request.headers.get('origin') ||
         'http://localhost:3000';
+
+      try {
+        new URL(baseUrl);
+        if (baseUrl.includes('"') || baseUrl.includes("'")) throw new Error('Invalid characters');
+      } catch {
+        return json({ error: 'Invalid base URL' }, 400);
+      }
 
       // Determine user tier for heartbeat interval
       let interval = searchParams.get('interval');
@@ -234,12 +248,15 @@ export async function GET(request, context) {
             .eq('id', agentId)
             .single();
 
-          const profile = agentFull?.policy_profile || 'dev';
+          const profile = agentFull?.policy_profile || DEFAULT_POLICY_PROFILE;
           let policyInterval = tier === 'free' ? 300 : 60;
 
-          if (profile === 'ops') policyInterval = 60;
-          else if (profile === 'exec') policyInterval = 600;
-          else if (!['dev', 'ops', 'exec'].includes(profile) && tier === 'enterprise') {
+          if (profile === POLICY_OPS) policyInterval = 60;
+          else if (profile === POLICY_EXEC) policyInterval = 600;
+          else if (
+            ![POLICY_DEV, POLICY_OPS, POLICY_EXEC].includes(profile) &&
+            tier === 'enterprise'
+          ) {
             const { data: cp } = await supabaseAdmin
               .from('custom_policies')
               .select('heartbeat_interval')
@@ -254,172 +271,13 @@ export async function GET(request, context) {
         }
       }
 
-      const script = `#!/bin/bash
-# OpenClaw Fleet Monitor - Heartbeat Agent (Linux & macOS)
-# Auto-generated for agent: ${agentId}
-# Usage: curl -sL "${baseUrl}/api/install-agent?agent_id=${agentId}&agent_secret=${agentSecret}" | bash
+      const script = await getScript('install-agent.sh', {
+        AGENT_ID: agentId,
+        BASE_URL: baseUrl,
+        AGENT_SECRET: agentSecret,
+        INTERVAL: interval,
+      });
 
-SAAS_URL="${baseUrl}"
-AGENT_ID="${agentId}"
-AGENT_SECRET="${agentSecret}"
-INTERVAL=${interval}
-SESSION_TOKEN=""
-GATEWAY_URL=""
-
-echo ""
-echo "  OpenClaw Fleet Monitor"
-echo "  ─────────────────────────────"
-echo "  Agent:    $AGENT_ID"
-echo "  SaaS:     $SAAS_URL"
-echo "  Interval: \${INTERVAL}s"
-echo "  OS:       $(uname -s) $(uname -m)"
-echo ""
-
-perform_handshake() {
-  echo "[$(date +%H:%M:%S)] Performing handshake..."
-  TIMESTAMP=$(date +%s)
-  # Generate HMAC-SHA256 signature using openssl (typical on Linux/macOS)
-  SIGNATURE=$(echo -n "\${AGENT_ID}\${TIMESTAMP}" | openssl dgst -sha256 -hmac "\$AGENT_SECRET" | cut -d' ' -f2)
-  
-  RESPONSE=$(curl -s -X POST "\${SAAS_URL}/api/agents/handshake" \\
-    -H "Content-Type: application/json" \\
-    -d "{\\"agent_id\\":\\"$AGENT_ID\\",\\"timestamp\\":\\"$TIMESTAMP\\",\\"signature\\":\\"$SIGNATURE\\"}")
-  
-  # Extract token and gateway_url using simple grep/cut
-  SESSION_TOKEN=$(echo "$RESPONSE" | grep -o '"token":"[^"]*' | cut -d'"' -f4)
-  GATEWAY_URL=$(echo "$RESPONSE" | grep -o '"gateway_url":"[^"]*' | cut -d'"' -f4)
-  
-  if [ -n "$SESSION_TOKEN" ]; then
-    echo "[$(date +%H:%M:%S)] Handshake successful"
-    if [ -n "$GATEWAY_URL" ]; then echo -e "   \\033[0;36mProbing active: $GATEWAY_URL\\033[0m"; fi
-    return 0
-  else
-    echo "[$(date +%H:%M:%S)] Handshake failed: $RESPONSE"
-    return 1
-  fi
-}
-
-get_cpu() {
-  if [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOS: use ps to get total CPU
-    ps -A -o %cpu | awk '{s+=$1} END {printf "%.0f", s/4}' 2>/dev/null || echo "0"
-  elif [ -f /proc/stat ]; then
-    # Linux: calculate from /proc/stat
-    read -r cpu user nice system idle rest < /proc/stat
-    total1=$((user + nice + system + idle))
-    idle1=$idle
-    sleep 1
-    read -r cpu user nice system idle rest < /proc/stat
-    total2=$((user + nice + system + idle))
-    idle2=$idle
-    if [ $((total2 - total1)) -gt 0 ]; then
-      echo $(( (100 * ((total2 - total1) - (idle2 - idle1))) / (total2 - total1) ))
-    else
-      echo "0"
-    fi
-  else
-    echo "0"
-  fi
-}
-
-get_mem() {
-  if [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOS: use vm_stat and sysctl
-    PAGES_ACTIVE=$(vm_stat 2>/dev/null | awk '/Pages active/ {gsub(/\\./, "", $3); print $3}')
-    PAGES_WIRED=$(vm_stat 2>/dev/null | awk '/Pages wired/ {gsub(/\\./, "", $4); print $4}')
-    PAGES_FREE=$(vm_stat 2>/dev/null | awk '/Pages free/ {gsub(/\\./, "", $3); print $3}')
-    PAGES_SPECULATIVE=$(vm_stat 2>/dev/null | awk '/Pages speculative/ {gsub(/\\./, "", $3); print $3}')
-    TOTAL=$((PAGES_ACTIVE + PAGES_WIRED + PAGES_FREE + PAGES_SPECULATIVE))
-    if [ "$TOTAL" -gt 0 ] 2>/dev/null; then
-      echo $(( (PAGES_ACTIVE + PAGES_WIRED) * 100 / TOTAL ))
-    else
-      echo "0"
-    fi
-  elif command -v free &> /dev/null; then
-    free 2>/dev/null | awk '/Mem/ {printf "%.0f", $3/$2 * 100}' || echo "0"
-  else
-    echo "0"
-  fi
-}
-
-get_uptime_hours() {
-  if [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOS: use sysctl kern.boottime
-    BOOT=$(sysctl -n kern.boottime 2>/dev/null | awk -F'[= ,]' '{print $4}')
-    NOW=$(date +%s)
-    if [ -n "$BOOT" ] && [ "$BOOT" -gt 0 ] 2>/dev/null; then
-      echo $(( (NOW - BOOT) / 3600 ))
-    else
-      echo "0"
-    fi
-  elif [ -f /proc/uptime ]; then
-    awk '{printf "%.0f", $1/3600}' /proc/uptime 2>/dev/null || echo "0"
-  else
-    echo "0"
-  fi
-}
-
-  if [ -z "$SESSION_TOKEN" ]; then
-    perform_handshake || return 1
-  fi
-
-  STATUS="healthy"
-  LATENCY=0
-  if [ -n "$GATEWAY_URL" ]; then
-    START=$(date +%s%3N)
-    if curl -s -f -I -m 5 "$GATEWAY_URL" > /dev/null; then
-      END=$(date +%s%3N)
-      LATENCY=$((END - START))
-    else
-      STATUS="error"
-    fi
-  fi
-
-  CPU=$(get_cpu)
-  MEM=$(get_mem)
-  UPTIME_H=$(get_uptime_hours)
-
-  # Ensure numeric values
-  CPU=\${CPU:-0}
-  MEM=\${MEM:-0}
-  UPTIME_H=\${UPTIME_H:-0}
-
-  # Update URL to use /api/heartbeat with token
-  RESPONSE=$(curl -s -w "\\n%{http_code}" -X POST "\${SAAS_URL}/api/heartbeat" \\
-    -H "Content-Type: application/json" \\
-    -H "Authorization: Bearer $SESSION_TOKEN" \\
-    -d "{\\"agent_id\\":\\"$AGENT_ID\\",\\"status\\":\\"$STATUS\\",\\"metrics\\":{\\"cpu_usage\\":$CPU,\\"memory_usage\\":$MEM,\\"uptime_hours\\":$UPTIME_H,\\"latency_ms\\":$LATENCY}}")
-
-  HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-  BODY=$(echo "$RESPONSE" | head -1)
-
-  if [ "$HTTP_CODE" = "200" ]; then
-    # Use green for healthy, red for error
-    COLOR="\\033[0;32m"
-    if [ "$STATUS" = "error" ]; then
-      COLOR="\\033[0;31m"
-      echo -e "\\033[0;31m[$(date +%H:%M:%S)] WARNING: Gateway probe failed ($GATEWAY_URL)\\033[0m"
-    fi
-    echo -e "\${COLOR}[$(date +%H:%M:%S)] Heartbeat sent (\${STATUS^^})  CPU: \${CPU}%  MEM: \${MEM}%  Latency: \${LATENCY}ms\\033[0m"
-  elif [ "$HTTP_CODE" = "401" ]; then
-    echo "[$(date +%H:%M:%S)] Session expired, retrying..."
-    SESSION_TOKEN=""
-    send_heartbeat
-  else
-    echo "[$(date +%H:%M:%S)] Failed ($HTTP_CODE): $BODY"
-  fi
-}
-
-echo "Initializing agent session..."
-perform_handshake || exit 1
-echo "Starting heartbeat loop (Ctrl+C to stop)..."
-echo ""
-
-while true; do
-  send_heartbeat
-  sleep $INTERVAL
-done
-`;
       return new NextResponse(script, {
         status: 200,
         headers: { 'Content-Type': 'text/plain; charset=utf-8' },
@@ -436,10 +294,21 @@ done
         return json({ error: 'Missing agent_id or agent_secret parameter' }, 400);
       }
 
+      if (!validateUuid(agentId) || !validateUuid(agentSecret)) {
+        return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
+      }
+
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
         request.headers.get('origin') ||
         'http://localhost:3000';
+
+      try {
+        new URL(baseUrl);
+        if (baseUrl.includes('"') || baseUrl.includes("'")) throw new Error('Invalid characters');
+      } catch {
+        return json({ error: 'Invalid base URL' }, 400);
+      }
 
       // Determine user tier for heartbeat interval
       let interval = searchParams.get('interval');
@@ -459,12 +328,15 @@ done
             .eq('id', agentId)
             .single();
 
-          const profile = agentFull?.policy_profile || 'dev';
+          const profile = agentFull?.policy_profile || DEFAULT_POLICY_PROFILE;
           let policyInterval = tier === 'free' ? 300 : 60;
 
-          if (profile === 'ops') policyInterval = 60;
-          else if (profile === 'exec') policyInterval = 600;
-          else if (!['dev', 'ops', 'exec'].includes(profile) && tier === 'enterprise') {
+          if (profile === POLICY_OPS) policyInterval = 60;
+          else if (profile === POLICY_EXEC) policyInterval = 600;
+          else if (
+            ![POLICY_DEV, POLICY_OPS, POLICY_EXEC].includes(profile) &&
+            tier === 'enterprise'
+          ) {
             const { data: cp } = await supabaseAdmin
               .from('custom_policies')
               .select('heartbeat_interval')
@@ -479,150 +351,12 @@ done
         }
       }
 
-      const psScript = [
-        '# OpenClaw Fleet Monitor - PowerShell Heartbeat Agent',
-        '# Agent: ' + agentId,
-        '# Run: powershell -ExecutionPolicy Bypass -File openclaw-monitor.ps1',
-        '',
-        '$SaasUrl = "' + baseUrl + '"',
-        '$AgentId = "' + agentId + '"',
-        '$AgentSecret = "' + agentSecret + '"',
-        '$Interval = ' + interval,
-        '$SessionToken = $null',
-        '$GatewayUrl = $null',
-        '',
-        'Write-Host ""',
-        'Write-Host "  OpenClaw Fleet Monitor" -ForegroundColor Green',
-        'Write-Host "  --------------------------------"',
-        'Write-Host "  Agent:    $AgentId"',
-        'Write-Host "  SaaS:     $SaasUrl"',
-        'Write-Host "  Interval: $($Interval)s"',
-        'Write-Host "  Gateway:  $(if ($GatewayUrl) { $GatewayUrl } else { "N/A (Probing Disabled)" })"',
-        'Write-Host ""',
-        '',
-        'function Perform-Handshake {',
-        '    Write-Host "[$(Get-Date -Format "HH:mm:ss")] Performing handshake..."',
-        '    $timestamp = [int]([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())',
-        '    $hmac = New-Object System.Security.Cryptography.HMACSHA256',
-        '    $hmac.Key = [System.Text.Encoding]::UTF8.GetBytes($AgentSecret)',
-        '    $sigBytes = $hmac.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($AgentId + $timestamp))',
-        '    $signature = [System.BitConverter]::ToString($sigBytes).Replace("-","").ToLower()',
-        '',
-        '    $body = @{ agent_id = $AgentId; timestamp = "$timestamp"; signature = $signature } | ConvertTo-Json',
-        '    try {',
-        '        $res = Invoke-RestMethod -Uri "$SaasUrl/api/agents/handshake" -Method POST -Body $body -ContentType "application/json"',
-        '        if ($res.token) {',
-        '            $script:SessionToken = $res.token',
-        '            $script:GatewayUrl = $res.gateway_url',
-        '            Write-Host "[$(Get-Date -Format "HH:mm:ss")] Handshake successful" -ForegroundColor Green',
-        '            if ($GatewayUrl) { Write-Host "   Probing active: $GatewayUrl" -ForegroundColor Cyan }',
-        '            return $true',
-        '        }',
-        '    } catch {',
-        '        Write-Host "[$(Get-Date -Format "HH:mm:ss")] Handshake failed: $($_.Exception.Message)" -ForegroundColor Red',
-        '    }',
-        '    return $false',
-        '}',
-        '',
-        'function Send-Heartbeat {',
-        '    if (-not $SessionToken) {',
-        '        if (-not (Perform-Handshake)) { return }',
-        '    }',
-        '    ',
-        '    $status = "healthy"',
-        '    $latency = 0',
-        '    if ($GatewayUrl) {',
-        '        try {',
-        '            $start = Get-Date',
-        '            $resp = Invoke-WebRequest -Uri $GatewayUrl -Method GET -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop',
-        '            $latency = [math]::Round(((Get-Date) - $start).TotalMilliseconds)',
-        '        } catch {',
-        '            $latency = [math]::Round(((Get-Date) - $start).TotalMilliseconds)',
-        '            if ($_.Exception.Response) {',
-        '                $status = "healthy" # HTTP Error (4xx/5xx) means service IS reachable',
-        '            } else {',
-        '                $status = "error" # Network Error means service is DOWN',
-        '                $latency = 0',
-        '            }',
-        '        }',
-        '    }',
-        '',
-        '    $cpuVal = 0',
-        '    try {',
-        '        $cpuVal = [math]::Round((Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average)',
-        '    } catch { $cpuVal = 0 }',
-        '',
-        '    $memVal = 0',
-        '    try {',
-        '        $osInfo = Get-CimInstance Win32_OperatingSystem',
-        '        $memVal = [math]::Round(($osInfo.TotalVisibleMemorySize - $osInfo.FreePhysicalMemory) / $osInfo.TotalVisibleMemorySize * 100)',
-        '    } catch { $memVal = 0 }',
-        '',
-        '    $uptimeVal = 0',
-        '    try {',
-        '        $osInfo = Get-CimInstance Win32_OperatingSystem',
-        '        $uptimeVal = [math]::Round((New-TimeSpan -Start $osInfo.LastBootUpTime -End (Get-Date)).TotalHours)',
-        '    } catch { $uptimeVal = 0 }',
-        '',
-        '    # Get machine ID (hostname)',
-        '    $machineId = $env:COMPUTERNAME',
-        '',
-        '    # Guess location from timezone',
-        '    $location = "unknown"',
-        '    try {',
-        '        $tz = [System.TimeZoneInfo]::Local.Id',
-        '        if ($tz -match "Pacific") { $location = "us-west" }',
-        '        elseif ($tz -match "Mountain") { $location = "us-mountain" }',
-        '        elseif ($tz -match "Central") { $location = "us-central" }',
-        '        elseif ($tz -match "Eastern") { $location = "us-east" }',
-        '        elseif ($tz -match "GMT|UTC") { $location = "eu-west" }',
-        '        elseif ($tz -match "Europe") { $location = "eu-central" }',
-        '        elseif ($tz -match "Asia") { $location = "ap-southeast" }',
-        '    } catch { }',
-        '',
-        '    $body = @{',
-        '        agent_id   = $AgentId',
-        '        status     = $status',
-        '        machine_id = $machineId',
-        '        location   = $location',
-        '        metrics    = @{',
-        '            cpu_usage    = [int]$cpuVal',
-        '            memory_usage = [int]$memVal',
-        '            uptime_hours = [int]$uptimeVal',
-        '            latency_ms   = [int]$latency',
-        '        }',
-        '    } | ConvertTo-Json -Depth 3',
-        '',
-        '    try {',
-        '        $headers = @{ Authorization = "Bearer $SessionToken" }',
-        '        $null = Invoke-RestMethod -Uri "$SaasUrl/api/heartbeat" -Method POST -ContentType "application/json" -Body $body -Headers $headers',
-        '        $time = Get-Date -Format "HH:mm:ss"',
-        '        $statusColor = if ($status -eq "healthy") { "Green" } else { "Red" }',
-        '        if ($status -eq "error") {',
-        '            Write-Host "[$time] WARNING: Gateway probe failed ($GatewayUrl)" -ForegroundColor Red',
-        '        }',
-        '        Write-Host "[$time] Heartbeat sent ($($status.ToUpper()))  CPU: $($cpuVal)%  MEM: $($memVal)%  Latency: $($latency)ms" -ForegroundColor $statusColor',
-        '    } catch {',
-        '        $time = Get-Date -Format "HH:mm:ss"',
-        '        if ($_.Exception.Response.StatusCode -eq 401) {',
-        '            Write-Host "[$time] Session expired, retrying..." -ForegroundColor Yellow',
-        '            $script:SessionToken = $null',
-        '            Send-Heartbeat',
-        '        } else {',
-        '            Write-Host "[$time] FAIL: $($_.Exception.Message)" -ForegroundColor Red',
-        '        }',
-        '    }',
-        '}',
-        '',
-        'if (Perform-Handshake) {',
-        '    Write-Host "Starting heartbeat loop (Ctrl+C to stop)..." -ForegroundColor Yellow',
-        '    Write-Host ""',
-        '    while ($true) {',
-        '        Send-Heartbeat',
-        '        Start-Sleep -Seconds $Interval',
-        '    }',
-        '}',
-      ].join('\n');
+      const psScript = await getScript('install-agent.ps1', {
+        AGENT_ID: agentId,
+        BASE_URL: baseUrl,
+        AGENT_SECRET: agentSecret,
+        INTERVAL: interval,
+      });
 
       return new NextResponse(psScript, {
         status: 200,
@@ -643,10 +377,21 @@ done
         return json({ error: 'Missing agent_id or agent_secret parameter' }, 400);
       }
 
+      if (!validateUuid(agentId) || !validateUuid(agentSecret)) {
+        return json({ error: 'Invalid agent_id or agent_secret format' }, 400);
+      }
+
       const baseUrl =
         process.env.NEXT_PUBLIC_BASE_URL ||
         request.headers.get('origin') ||
         'http://localhost:3000';
+
+      try {
+        new URL(baseUrl);
+        if (baseUrl.includes('"') || baseUrl.includes("'")) throw new Error('Invalid characters');
+      } catch {
+        return json({ error: 'Invalid base URL' }, 400);
+      }
 
       // Determine user tier for heartbeat interval
       let interval = searchParams.get('interval');
@@ -666,12 +411,15 @@ done
             .eq('id', agentId)
             .single();
 
-          const profile = agentFull?.policy_profile || 'dev';
+          const profile = agentFull?.policy_profile || DEFAULT_POLICY_PROFILE;
           let policyInterval = tier === 'free' ? 300 : 60;
 
-          if (profile === 'ops') policyInterval = 60;
-          else if (profile === 'exec') policyInterval = 600;
-          else if (!['dev', 'ops', 'exec'].includes(profile) && tier === 'enterprise') {
+          if (profile === POLICY_OPS) policyInterval = 60;
+          else if (profile === POLICY_EXEC) policyInterval = 600;
+          else if (
+            ![POLICY_DEV, POLICY_OPS, POLICY_EXEC].includes(profile) &&
+            tier === 'enterprise'
+          ) {
             const { data: cp } = await supabaseAdmin
               .from('custom_policies')
               .select('heartbeat_interval')
@@ -686,139 +434,12 @@ done
         }
       }
 
-      const pyLines = [
-        '#!/usr/bin/env python3',
-        '"""OpenClaw Fleet Monitor - Cross-platform Heartbeat Agent"""',
-        '# Agent: ' + agentId,
-        '# Run: python3 openclaw-monitor.py',
-        '',
-        'import json, time, urllib.request, platform, os, hmac, hashlib',
-        '',
-        'SAAS_URL = "' + baseUrl + '"',
-        'AGENT_ID = "' + agentId + '"',
-        'AGENT_SECRET = "' + agentSecret + '"',
-        'INTERVAL = ' + interval + '\nSESSION_TOKEN = None\nGATEWAY_URL = None\n',
-        '',
-        'def perform_handshake():',
-        '    global SESSION_TOKEN, GATEWAY_URL',
-        '    timestamp = str(int(time.time()))',
-        '    signature = hmac.new(AGENT_SECRET.encode(), (AGENT_ID + timestamp).encode(), hashlib.sha256).hexdigest()',
-        '    payload = {"agent_id": AGENT_ID, "timestamp": timestamp, "signature": signature}',
-        '    data = json.dumps(payload).encode()',
-        '    req = urllib.request.Request(f"{SAAS_URL}/api/agents/handshake", data=data, headers={"Content-Type": "application/json"}, method="POST")',
-        '    try:',
-        '        with urllib.request.urlopen(req, timeout=10) as resp:\n            res = json.loads(resp.read().decode())\n            SESSION_TOKEN = res.get("token")\n            GATEWAY_URL = res.get("gateway_url")\n            print(f"[{time.strftime(\'%H:%M:%S\')}] Handshake successful")\n            if GATEWAY_URL: print(f"   \\033[96mProbing active: {GATEWAY_URL}\\033[0m")\n            return True',
-        '    except Exception as e:',
-        '        print(f"[{time.strftime(\'%H:%M:%S\')}] Handshake failed: {e}")',
-        '        return False',
-        '',
-        'def get_cpu():',
-        '    try:',
-        '        if platform.system() == "Linux":',
-        '            with open("/proc/stat") as f:',
-        '                a = [int(x) for x in f.readline().split()[1:]]',
-        '            time.sleep(1)',
-        '            with open("/proc/stat") as f:',
-        '                b = [int(x) for x in f.readline().split()[1:]]',
-        '            d = [b[i]-a[i] for i in range(len(a))]',
-        '            return int(100*(sum(d)-d[3])/max(sum(d),1))',
-        '        elif platform.system() == "Darwin":',
-        '            import subprocess',
-        '            r = subprocess.run(["ps", "-A", "-o", "%cpu"], capture_output=True, text=True)',
-        '            return min(100, int(sum(float(x) for x in r.stdout.strip().split("\\n")[1:] if x.strip()) / (os.cpu_count() or 4)))',
-        '        elif platform.system() == "Windows":',
-        '            import subprocess',
-        '            r = subprocess.run(["wmic", "cpu", "get", "loadpercentage"], capture_output=True, text=True)',
-        '            for line in r.stdout.strip().split("\\n"):',
-        '                line = line.strip()',
-        '                if line.isdigit(): return int(line)',
-        '    except: pass',
-        '    return 0',
-        '',
-        'def get_mem():',
-        '    try:',
-        '        if platform.system() == "Linux":',
-        '            with open("/proc/meminfo") as f:',
-        '                lines = {l.split(":")[0]: int(l.split(":")[1].strip().split()[0]) for l in f if ":" in l}',
-        '            return int((lines["MemTotal"]-lines["MemAvailable"])/lines["MemTotal"]*100)',
-        '        elif platform.system() == "Darwin":',
-        '            import subprocess',
-        '            r = subprocess.run(["vm_stat"], capture_output=True, text=True)',
-        '            d = {}',
-        '            for line in r.stdout.split("\\n"):',
-        '                if ":" in line:',
-        '                    k,v = line.split(":",1)',
-        '                    d[k.strip()] = int(v.strip().rstrip("."))',
-        '            active = d.get("Pages active",0)+d.get("Pages wired down",0)',
-        '            total = active+d.get("Pages free",0)+d.get("Pages speculative",0)',
-        '            return int(active/max(total,1)*100)',
-        '        elif platform.system() == "Windows":',
-        '            import subprocess',
-        '            r = subprocess.run(["wmic", "os", "get", "FreePhysicalMemory,TotalVisibleMemorySize", "/value"], capture_output=True, text=True)',
-        '            vals = {}',
-        '            for line in r.stdout.strip().split("\\n"):',
-        '                if "=" in line:',
-        '                    k,v = line.strip().split("=")',
-        '                    vals[k] = int(v)',
-        '            if vals: return int((vals["TotalVisibleMemorySize"]-vals["FreePhysicalMemory"])/vals["TotalVisibleMemorySize"]*100)',
-        '    except: pass',
-        '    return 0',
-        '',
-        'def get_uptime():',
-        '    try:',
-        '        if platform.system() == "Linux":',
-        '            with open("/proc/uptime") as f: return int(float(f.read().split()[0])/3600)',
-        '        elif platform.system() == "Darwin":',
-        '            import subprocess',
-        '            r = subprocess.run(["sysctl", "-n", "kern.boottime"], capture_output=True, text=True)',
-        '            import re; m = re.search(r"sec = (\\d+)", r.stdout)',
-        '            if m: return int((time.time()-int(m.group(1)))/3600)',
-        '        elif platform.system() == "Windows":',
-        '            return int(time.monotonic()/3600)',
-        '    except: pass',
-        '    return 0',
-        '',
-        'def send_heartbeat():',
-        '    global SESSION_TOKEN',
-        '    if not SESSION_TOKEN:\n        if not perform_handshake(): return\n\n    status = "healthy"\n    latency = 0\n    if GATEWAY_URL:\n        try:\n            start = time.time()\n            urllib.request.urlopen(GATEWAY_URL, timeout=5)\n            latency = int((time.time() - start) * 1000)\n        except:\n            status = "error"\n\n    cpu, mem, uptime = get_cpu(), get_mem(), get_uptime()\n    data = json.dumps({"agent_id": AGENT_ID, "status": status, "metrics": {"cpu_usage": cpu, "memory_usage": mem, "uptime_hours": uptime, "latency_ms": latency}}).encode()\n',
-        '    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {SESSION_TOKEN}"}',
-        '    req = urllib.request.Request(f"{SAAS_URL}/api/heartbeat", data=data, headers=headers, method="POST")',
-        '    try:',
-        '        with urllib.request.urlopen(req, timeout=10) as resp:',
-        '            t = time.strftime("%H:%M:%S")',
-        '            st_upper = status.upper()',
-        '            if status == "error":',
-        '                print(f"[{t}] \\033[91mWARNING: Gateway probe failed ({GATEWAY_URL})\\033[0m")',
-        '                print(f"[{t}] \\033[91mHeartbeat sent ({st_upper})  CPU: {cpu}%  MEM: {mem}%  Latency: {latency}ms\\033[0m")',
-        '            else:',
-        '                print(f"[{t}] \\033[92mHeartbeat sent ({st_upper})  CPU: {cpu}%  MEM: {mem}%  Latency: {latency}ms\\033[0m")',
-        '    except urllib.error.HTTPError as e:',
-        '        if e.code == 401:',
-        '            print(f"[{time.strftime(\'%H:%M:%S\')}] Session expired, retrying...")',
-        '            SESSION_TOKEN = None',
-        '            send_heartbeat()',
-        '        else: print(f"[{time.strftime(\'%H:%M:%S\')}] FAIL: {e}")',
-        '    except Exception as e:',
-        '        print(f"[{time.strftime(\'%H:%M:%S\')}] FAIL: {e}")',
-        '',
-        'if __name__ == "__main__":',
-        '    print()',
-        '    print("  OpenClaw Fleet Monitor")',
-        '    print("  --------------------------------")',
-        '    print(f"  Agent:    {AGENT_ID}")',
-        '    print(f"  SaaS:     {SAAS_URL}")',
-        '    print(f"  Interval: {INTERVAL}s")',
-        '    print(f"  OS:       {platform.system()} {platform.machine()}")',
-        '    print()',
-        '    if perform_handshake():',
-        '        print("Starting heartbeat loop (Ctrl+C to stop)...")',
-        '        print()',
-        '        while True:',
-        '            send_heartbeat()',
-        '            time.sleep(INTERVAL)',
-        '    else:',
-        '        print("Fatal: Initial handshake failed. Exiting.")',
-      ].join('\n');
+      const pyLines = await getScript('install-agent.py', {
+        AGENT_ID: agentId,
+        BASE_URL: baseUrl,
+        AGENT_SECRET: agentSecret,
+        INTERVAL: interval,
+      });
 
       return new NextResponse(pyLines, {
         status: 200,
@@ -1093,8 +714,9 @@ done
  * Handles POST requests for various endpoints related to fleets, agents, alerts, billing, and team management.
  *
  * The function processes the request based on the path, performing actions such as creating fleets and agents,
- * managing agent heartbeats, handling billing through Lemon Squeezy, and managing team invitations.
- * It includes rate limiting, user authentication, and error handling for various operations.
+ * managing agent heartbeats, handling billing through Lemon Squeezy, and managing team invitations. It includes
+ * rate limiting, user authentication, and error handling for various operations, ensuring that each action adheres
+ * to user permissions and subscription tiers.
  *
  * @param request - The incoming request object containing headers and body data.
  * @param context - The context object providing parameters and other relevant data.
@@ -1184,11 +806,11 @@ export async function POST(request, context) {
 
       const body = await request.json();
       const plainSecret = uuidv4();
-      const policyProfile = body.policy_profile || 'dev';
+      const policyProfile = body.policy_profile || DEFAULT_POLICY_PROFILE;
       let policy = getPolicy(policyProfile);
 
       // Check for custom policy if enterprise user
-      if (!['dev', 'ops', 'exec'].includes(policyProfile)) {
+      if (![POLICY_DEV, POLICY_OPS, POLICY_EXEC].includes(policyProfile)) {
         const { data: customPolicy } = await supabaseAdmin
           .from('custom_policies')
           .select('*')
@@ -1216,7 +838,11 @@ export async function POST(request, context) {
             skills: policy.skills,
             model: body.model || 'claude-sonnet-4',
             data_scope:
-              policyProfile === 'dev' ? 'full' : policyProfile === 'ops' ? 'system' : 'read-only',
+              policyProfile === POLICY_DEV
+                ? 'full'
+                : policyProfile === POLICY_OPS
+                  ? 'system'
+                  : 'read-only',
           }
         ),
         metrics_json: {
@@ -1246,7 +872,7 @@ export async function POST(request, context) {
             ...agent,
             agent_secret: plainSecret,
             config_json: body.config_json || {
-              profile: 'dev',
+              profile: DEFAULT_POLICY_PROFILE,
               skills: ['code', 'search'],
               model: 'claude-sonnet-4',
               data_scope: 'full',
@@ -1279,11 +905,6 @@ export async function POST(request, context) {
 
     if (path === '/agents/handshake') {
       const body = await request.json();
-      console.log('[HANDSHAKE] Request received:', {
-        agent_id: body.agent_id,
-        has_signature: !!body.signature,
-        timestamp: body.timestamp,
-      });
 
       // Get agent's owner for tier-based handshake limit
       const { data: agent, error } = await supabaseAdmin
@@ -1301,29 +922,16 @@ export async function POST(request, context) {
         return json({ error: 'Agent not found' }, 404);
       }
 
-      console.log('[HANDSHAKE] Agent found:', { id: agent.id, has_secret: !!agent.agent_secret });
-
       // Route-specific handshake limit
       const handshakeLimit = await checkRateLimit(request, agent.id, 'handshake', agent.user_id);
       if (!handshakeLimit.allowed) return handshakeLimit.response;
 
       const decryptedSecret = decrypt(agent.agent_secret);
-      console.log('[HANDSHAKE] Decryption result:', {
-        encrypted_length: agent.agent_secret?.length,
-        decrypted_length: decryptedSecret?.length,
-        decrypted_preview: decryptedSecret?.substring(0, 8) + '...',
-      });
 
       if (body.signature) {
         // Hardened Handshake: HMAC-SHA256(agent_id + timestamp, secret)
         const timestamp = parseInt(body.timestamp);
         const now = Math.floor(Date.now() / 1000);
-
-        console.log('[HANDSHAKE] Signature validation:', {
-          timestamp,
-          now,
-          diff: Math.abs(now - timestamp),
-        });
 
         // Anti-replay: 5 minute window
         if (isNaN(timestamp) || Math.abs(now - timestamp) > 300) {
@@ -1336,28 +944,20 @@ export async function POST(request, context) {
           .update(agent.id + body.timestamp)
           .digest('hex');
 
-        console.log('[HANDSHAKE] Signature comparison:', {
-          expected: expectedSignature.substring(0, 16) + '...',
-          received: body.signature.substring(0, 16) + '...',
-          match: expectedSignature === body.signature,
-        });
-
         if (expectedSignature !== body.signature) {
           console.error('[HANDSHAKE] Signature mismatch');
           return json({ error: 'Invalid signature' }, 401);
         }
       } else {
         // Legacy Handshake: Plaintext secret (Optional fallback)
-        console.log('[HANDSHAKE] Using legacy plaintext validation');
         if (!decryptedSecret || decryptedSecret !== body.agent_secret) {
           console.error('[HANDSHAKE] Legacy secret validation failed');
           return json({ error: 'Invalid agent secret' }, 401);
         }
       }
 
-      console.log('[HANDSHAKE] Success! Generating token...');
       const token = await createAgentToken(agent.id, agent.fleet_id);
-      const policyProfile = agent.policy_profile || 'dev';
+      const policyProfile = agent.policy_profile || DEFAULT_POLICY_PROFILE;
       let policy = getPolicy(policyProfile);
 
       // Tier-based heartbeat clamping
@@ -1420,28 +1020,6 @@ export async function POST(request, context) {
         const uptimeHours = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60));
 
         // Calculate cost based on model pricing (cost per task)
-        const MODEL_PRICING = {
-          'claude-opus-4.5': 0.0338,
-          'claude-sonnet-4': 0.009,
-          'claude-3': 0.009,
-          'claude-haiku': 0.0015,
-          'gpt-4o': 0.009,
-          'gpt-4o-mini': 0.0004,
-          'gpt-4': 0.018,
-          'gpt-3.5-turbo': 0.001,
-          'gemini-3-pro': 0.0056,
-          'gemini-2-flash': 0.0015,
-          'grok-4.1-mini': 0.0004,
-          'grok-2': 0.003,
-          'llama-3.3-70b': 0.0003,
-          'llama-3': 0.0003,
-          'qwen-2.5-72b': 0.0003,
-          'mistral-large': 0.002,
-          'mistral-medium': 0.001,
-          'deepseek-v3': 0.0002,
-          'gpt-4-turbo': 0.012,
-        };
-
         const costPerTask = MODEL_PRICING[agent.model] || 0.01;
         tasksCount += 1;
         errorsCount = body.status === 'error' ? errorsCount + 1 : errorsCount;
@@ -1542,7 +1120,7 @@ export async function POST(request, context) {
       const demoAgents = [
         {
           name: 'alpha-coder',
-          policy_profile: 'dev',
+          policy_profile: POLICY_DEV,
           gateway_url: 'http://192.168.1.100:8080',
           status: 'healthy',
           model: 'gpt-4',
@@ -1558,7 +1136,7 @@ export async function POST(request, context) {
             memory_usage: 58,
           },
           config_json: {
-            profile: 'dev',
+            profile: POLICY_DEV,
             skills: ['code', 'search', 'deploy'],
             model: 'gpt-4',
             data_scope: 'full',
@@ -1567,7 +1145,7 @@ export async function POST(request, context) {
         },
         {
           name: 'beta-researcher',
-          policy_profile: 'ops',
+          policy_profile: POLICY_OPS,
           gateway_url: 'http://10.0.1.50:8080',
           status: 'healthy',
           model: 'claude-3',
@@ -1583,7 +1161,7 @@ export async function POST(request, context) {
             memory_usage: 45,
           },
           config_json: {
-            profile: 'ops',
+            profile: POLICY_OPS,
             skills: ['search', 'analyze', 'report'],
             model: 'claude-3',
             data_scope: 'read-only',
@@ -1592,7 +1170,7 @@ export async function POST(request, context) {
         },
         {
           name: 'gamma-deployer',
-          policy_profile: 'ops',
+          policy_profile: POLICY_OPS,
           gateway_url: 'http://172.16.0.10:8080',
           status: 'idle',
           model: 'gpt-4',
@@ -1608,7 +1186,7 @@ export async function POST(request, context) {
             memory_usage: 30,
           },
           config_json: {
-            profile: 'ops',
+            profile: POLICY_OPS,
             skills: ['deploy', 'monitor', 'rollback'],
             model: 'gpt-4',
             data_scope: 'full',
@@ -1617,7 +1195,7 @@ export async function POST(request, context) {
         },
         {
           name: 'delta-monitor',
-          policy_profile: 'exec',
+          policy_profile: POLICY_EXEC,
           gateway_url: 'http://192.168.2.25:8080',
           status: 'error',
           model: 'gpt-3.5-turbo',
@@ -1633,7 +1211,7 @@ export async function POST(request, context) {
             memory_usage: 92,
           },
           config_json: {
-            profile: 'exec',
+            profile: POLICY_EXEC,
             skills: ['monitor', 'alert'],
             model: 'gpt-3.5-turbo',
             data_scope: 'summary-only',
@@ -1642,7 +1220,7 @@ export async function POST(request, context) {
         },
         {
           name: 'epsilon-analyst',
-          policy_profile: 'dev',
+          policy_profile: POLICY_DEV,
           gateway_url: 'http://10.0.2.100:8080',
           status: 'offline',
           model: 'gpt-4',
@@ -1658,7 +1236,7 @@ export async function POST(request, context) {
             memory_usage: 0,
           },
           config_json: {
-            profile: 'dev',
+            profile: POLICY_DEV,
             skills: ['analyze', 'report', 'visualize'],
             model: 'gpt-4',
             data_scope: 'full',
