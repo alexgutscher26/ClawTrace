@@ -8,6 +8,7 @@
     "dev:webpack": "next dev --hostname 0.0.0.0 --port 3000",
     "build": "next build",
     "start": "next start",
+    "start:gateway": "bun gateway/server.js",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
