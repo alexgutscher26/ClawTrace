@@ -2,19 +2,37 @@ name: Cron Jobs
 
 on:
   schedule:
-    # Runs every 5 minutes
-    - cron: '*/5 * * * *'
+    - cron: '*/5 * * * *' # Every 5 minutes
+    - cron: '0 0 * * *'   # Nightly cleanup at midnight
   workflow_dispatch: # Allows manual triggering
 
 jobs:
   check-stale:
+    if: github.event.schedule == '*/5 * * * *' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Call check-stale endpoint
-        env:
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          PRODUCTION_URL: ${{ secrets.PRODUCTION_URL }}
         run: |
-          curl -X GET "$PRODUCTION_URL/api/cron/check-stale" \
-            -H "Authorization: Bearer $CRON_SECRET" \
+          curl -X GET "${{ secrets.PRODUCTION_URL }}/api/cron/check-stale" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --fail
+
+  scaling:
+    if: github.event.schedule == '*/5 * * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run scaling engine
+        run: |
+          curl -X POST "${{ secrets.PRODUCTION_URL }}/api/cron/scale" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --fail
+
+  cleanup:
+    if: github.event.schedule == '0 0 * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Nightly heartbeats cleanup
+        run: |
+          curl -X GET "${{ secrets.PRODUCTION_URL }}/api/cron/cleanup-heartbeats" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             --fail
