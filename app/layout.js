@@ -38,11 +38,7 @@ export const metadata = {
       'Monitor and manage 1,000+ AI agents with sub-millisecond telemetry. The high-performance command center for autonomous silicon fleets.',
     creator: '@snackforcode',
   },
-  icons: {
-    icon: '/favicon.ico',
-    shortcut: '/favicon-16x16.png',
-    apple: '/apple-touch-icon.png',
-  },
+
   robots: {
     index: true,
     follow: true,

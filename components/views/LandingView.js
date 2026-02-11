@@ -41,7 +41,7 @@ export default function LandingView() {
           <div className="mx-auto mb-16 max-w-4xl text-center">
             <div className="animate-in fade-in slide-in-from-bottom-4 mb-8 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 font-mono text-[10px] tracking-widest uppercase duration-500">
               <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
-              v1.4.1 Release Live
+              v1.6.0 Release Live
             </div>
 
             <h1 className="animate-in fade-in slide-in-from-bottom-6 fill-mode-both mb-8 bg-linear-to-b from-white to-white/50 bg-clip-text text-5xl leading-[0.9] font-black tracking-tighter text-transparent duration-700 md:text-8xl">
