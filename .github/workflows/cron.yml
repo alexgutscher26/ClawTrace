@@ -11,7 +11,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Call check-stale endpoint
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          PRODUCTION_URL: ${{ secrets.PRODUCTION_URL }}
         run: |
-          curl -X GET ${{ secrets.PRODUCTION_URL }}/api/cron/check-stale \
-          -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-          --fail
+          curl -X GET "$PRODUCTION_URL/api/cron/check-stale" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            --fail
