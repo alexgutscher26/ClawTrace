@@ -1523,6 +1523,45 @@ export async function POST(request, context) {
       }
     }
 
+    // ============ LEMON SQUEEZY PORTAL ============
+    if (path === '/billing/portal') {
+      const user = await getUser(request);
+      if (!user) return json({ error: 'Unauthorized' }, 401);
+
+      const { data: sub } = await supabaseAdmin
+        .from('subscriptions')
+        .select('lemon_customer_id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!sub || !sub.lemon_customer_id) {
+        return json({ error: 'No active subscription found' }, 404);
+      }
+
+      const LEMON_KEY = process.env.LEMON_SQUEEZY_API_KEY;
+      try {
+        const res = await fetch(`https://api.lemonsqueezy.com/v1/customers/${sub.lemon_customer_id}`, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${LEMON_KEY}`,
+            Accept: 'application/vnd.api+json',
+            'Content-Type': 'application/vnd.api+json',
+          },
+        });
+        const data = await res.json();
+        const portalUrl = data?.data?.attributes?.urls?.customer_portal;
+
+        if (!portalUrl) {
+          console.error('Lemon Squeezy Portal Error:', JSON.stringify(data));
+          throw new Error('Could not retrieve portal URL');
+        }
+        return json({ portal_url: portalUrl });
+      } catch (err) {
+        console.error('Lemon Squeezy Portal Error:', err);
+        return json({ error: 'Failed to generate portal URL' }, 500);
+      }
+    }
+
     // ============ LEMON SQUEEZY WEBHOOK ============
     if (path === '/billing/webhook' || path === '/webhooks/lemonsqueezy') {
       const crypto = await import('node:crypto');

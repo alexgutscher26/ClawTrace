@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import posthog from 'posthog-js';
 import { toast } from 'sonner';
-import { MessageSquare, Terminal, Lock, Trash2, Pencil } from 'lucide-react';
+import { MessageSquare, Terminal, Lock, Trash2, Pencil, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -53,6 +53,23 @@ export default function SettingsView() {
   const [branding, setBranding] = useState(initialBranding || { domain: '', name: '' });
   const [savingBranding, setSavingBranding] = useState(false);
   const [editingChannelId, setEditingChannelId] = useState(null);
+  const [billingLoading, setBillingLoading] = useState(false);
+
+  const handleManageSubscription = async () => {
+    setBillingLoading(true);
+    try {
+      const res = await api('/api/billing/portal', { method: 'POST' });
+      if (res.portal_url) {
+        window.location.href = res.portal_url;
+      } else {
+        toast.error('Could not load billing portal');
+      }
+    } catch (err) {
+      toast.error(err.message || 'Failed to open billing portal');
+    } finally {
+      setBillingLoading(false);
+    }
+  };
 
   const handleDeleteChannel = (id) => {
     toast('Delete this alert channel?', {
@@ -306,6 +323,12 @@ export default function SettingsView() {
               className="rounded-none border-b-2 border-transparent px-0 pb-4 text-xs font-black tracking-widest text-zinc-500 uppercase transition-colors data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:text-white"
             >
               White-Labeling
+            </TabsTrigger>
+            <TabsTrigger
+              value="billing"
+              className="rounded-none border-b-2 border-transparent px-0 pb-4 text-xs font-black tracking-widest text-zinc-500 uppercase transition-colors data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:text-white"
+            >
+              Subscription
             </TabsTrigger>
           </TabsList>
 
@@ -742,8 +765,86 @@ export default function SettingsView() {
               />
             )}
           </TabsContent>
+
+          <TabsContent
+            value="billing"
+            className="animate-in fade-in slide-in-from-bottom-2 duration-500"
+          >
+            <Card className="rounded-none border-white bg-black p-10 shadow-none">
+              <div className="mb-10">
+                <h3 className="mb-2 text-xl font-bold tracking-tighter uppercase italic">
+                  SUBSCRIPTION PROTOCOL
+                </h3>
+                <p className="text-[10px] font-light tracking-[0.2em] text-zinc-500 uppercase">
+                  Manage plan status and payment methods
+                </p>
+              </div>
+
+              <div className="flex items-center gap-6 border border-white/10 bg-white/5 p-8">
+                <div className="flex h-16 w-16 items-center justify-center border border-white/10 bg-black">
+                  <CreditCard className="h-8 w-8 text-white" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-3">
+                    <h4 className="text-lg font-black tracking-tight text-white uppercase italic">
+                      {tier} LICENSE
+                    </h4>
+                    <span className="border border-white/20 bg-white/5 px-2 py-0.5 text-[8px] font-bold tracking-widest text-emerald-400 uppercase">
+                      ACTIVE
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[10px] tracking-widest text-zinc-500 uppercase">
+                    {tier === 'enterprise'
+                      ? 'Unlimited agents & full white-labeling active'
+                      : tier === 'pro'
+                        ? 'Advanced monitoring & unlimited agents active'
+                        : 'Basic single-agent license'}
+                  </p>
+                </div>
+                {tier === 'free' ? (
+                  <Button
+                    onClick={() => navigate('/pricing')}
+                    className="h-12 rounded-none bg-white px-8 text-xs font-black tracking-widest text-black uppercase hover:bg-zinc-200"
+                  >
+                    UPGRADE LICENSE
+                  </Button>
+                ) : (
+                  <Button
+                    disabled={billingLoading}
+                    onClick={handleManageSubscription}
+                    className="h-12 rounded-none bg-white px-8 text-xs font-black tracking-widest text-black uppercase hover:bg-zinc-200"
+                  >
+                    {billingLoading ? 'CONNECTING...' : 'MANAGE BILLING'}
+                  </Button>
+                )}
+              </div>
+
+              {tier !== 'free' && (
+                <div className="mt-8 grid grid-cols-2 gap-4">
+                  <div className="border border-white/10 p-6">
+                    <h5 className="mb-2 text-[10px] font-black tracking-widest text-zinc-500 uppercase">
+                      NEXT INVOICE
+                    </h5>
+                    <p className="font-mono text-xl text-white">--</p>
+                    <p className="mt-1 text-[8px] text-zinc-600 uppercase">
+                      Managed via generic payment processor
+                    </p>
+                  </div>
+                  <div className="border border-white/10 p-6">
+                    <h5 className="mb-2 text-[10px] font-black tracking-widest text-zinc-500 uppercase">
+                      PAYMENT METHOD
+                    </h5>
+                    <p className="font-mono text-xl text-white">•••• •••• •••• ••••</p>
+                    <p className="mt-1 text-[8px] text-zinc-600 uppercase">
+                      Secure via Lemon Squeezy
+                    </p>
+                  </div>
+                </div>
+              )}
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
-    </div>
+    </div >
   );
 }
