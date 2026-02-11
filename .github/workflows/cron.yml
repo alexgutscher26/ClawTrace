@@ -1,0 +1,17 @@
+name: Cron Jobs
+
+on:
+  schedule:
+    # Runs every 5 minutes
+    - cron: '*/5 * * * *'
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  check-stale:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call check-stale endpoint
+        run: |
+          curl -X GET ${{ secrets.PRODUCTION_URL }}/api/cron/check-stale \
+          -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+          --fail
