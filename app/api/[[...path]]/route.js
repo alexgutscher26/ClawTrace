@@ -425,7 +425,7 @@ export async function GET(request, context) {
         status: 200,
         headers: {
           'Content-Type': 'text/plain; charset=utf-8',
-          'Content-Disposition': 'attachment; filename="clawfleet-agent.ps1"',
+          'Content-Disposition': 'attachment; filename="clawtrace-agent.ps1"',
         },
       });
     }
@@ -499,7 +499,7 @@ export async function GET(request, context) {
         status: 200,
         headers: {
           'Content-Type': 'text/plain; charset=utf-8',
-          'Content-Disposition': 'attachment; filename="clawfleet-agent.py"',
+          'Content-Disposition': 'attachment; filename="clawtrace-agent.py"',
         },
       });
     }
@@ -755,6 +755,21 @@ export async function GET(request, context) {
         .eq('user_id', user.id)
         .maybeSingle();
       return json({ branding: branding || { domain: '', name: '' } });
+    }
+
+    // ============ PUBLIC BRANDING (DOMAIN RESOLUTION) ============
+    if (path === '/branding/public') {
+      const { searchParams } = new URL(request.url);
+      const domain = searchParams.get('domain');
+      if (!domain) return json({ error: 'Domain required' }, 400);
+
+      const { data: branding } = await supabaseAdmin
+        .from('enterprise_branding')
+        .select('name, domain') // Public fields only
+        .eq('domain', domain)
+        .maybeSingle();
+
+      return json({ branding: branding || null });
     }
 
     return json({ error: 'Not found' }, 404);

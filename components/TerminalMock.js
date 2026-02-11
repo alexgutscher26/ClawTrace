@@ -13,7 +13,7 @@ export default function TerminalMock() {
       content: (
         <>
           <span className="text-emerald-500">user@fleet:~$</span> curl -sL
-          https://clawfleet.sh/install | bash
+          https://clawtrace.dev/install | bash
         </>
       ),
       delay: 500,
@@ -21,7 +21,7 @@ export default function TerminalMock() {
     {
       type: 'line',
       content: (
-        <span className="font-mono text-zinc-500">[INFO] Downloading ClawFleet Agent v2.0...</span>
+        <span className="font-mono text-zinc-500">[INFO] Downloading ClawTrace Agent v2.0...</span>
       ),
       delay: 1000,
     },

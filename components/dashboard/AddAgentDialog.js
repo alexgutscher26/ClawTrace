@@ -50,7 +50,7 @@ export function AddAgentDialog({
         <DialogHeader>
           <DialogTitle>Register New Agent</DialogTitle>
           <DialogDescription>
-            Add a ClawFleet agent to your fleet. Paste the gateway URL.
+            Add a ClawTrace agent to your fleet. Paste the gateway URL.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleAddAgent} className="space-y-4">

@@ -1,15 +1,15 @@
 #!/bin/bash
-# ClawFleet Agent - Heartbeat Agent (Linux & macOS)
+# ClawTrace Agent - Heartbeat Agent (Linux & macOS)
 # Auto-generated for agent: {{AGENT_ID}}
 # Usage: curl -sL "{{BASE_URL}}/api/install-agent?agent_id={{AGENT_ID}}&agent_secret={{AGENT_SECRET}}" | bash
 
 SAAS_URL="{{BASE_URL}}"
 AGENT_ID="{{AGENT_ID}}"
 AGENT_SECRET="{{AGENT_SECRET}}"
-: "${AGENT_SECRET:=$CLAWFLEET_AGENT_SECRET}"
+: "${AGENT_SECRET:=$CLAWTRACE_AGENT_SECRET}"
 
 if [ -z "$AGENT_SECRET" ]; then
-  echo "Error: AGENT_SECRET is not set. Please set CLAWFLEET_AGENT_SECRET environment variable."
+  echo "Error: AGENT_SECRET is not set. Please set CLAWTRACE_AGENT_SECRET environment variable."
   exit 1
 fi
 
@@ -18,7 +18,7 @@ SESSION_TOKEN=""
 GATEWAY_URL=""
 
 echo ""
-echo "  ClawFleet Agent"
+echo "  ClawTrace Agent"
 echo "  ─────────────────────────────"
 echo "  Agent:    $AGENT_ID"
 echo "  SaaS:     $SAAS_URL"

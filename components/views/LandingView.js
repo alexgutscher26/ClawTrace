@@ -50,14 +50,14 @@ export default function LandingView() {
             </h1>
 
             <p className="animate-in fade-in slide-in-from-bottom-8 fill-mode-both mx-auto mb-10 max-w-2xl text-lg leading-relaxed font-light text-zinc-400 delay-100 duration-700 md:text-xl">
-              Stop polling. Start listening. ClawFleet delivers 0.1ms telemetry across your agent
+              Stop polling. Start listening. ClawTrace delivers 0.1ms telemetry across your agent
               swarms. Zero-knowledge security, remote execution, and policy guardrails as standard.
             </p>
 
             <div className="animate-in fade-in slide-in-from-bottom-8 fill-mode-both flex flex-col items-center justify-center gap-4 delay-200 duration-700 sm:flex-row">
               <Link href={session ? '/dashboard' : '/register'}>
                 <Button className="h-12 w-full rounded-none bg-emerald-500 px-8 text-xs font-bold tracking-widest text-black uppercase transition-all hover:bg-emerald-400 sm:w-auto">
-                  {session ? 'Enter Console' : 'Initialize Fleet'}{' '}
+                  {session ? 'Enter Console' : 'Initialize ClawTrace'}{' '}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
@@ -112,7 +112,7 @@ export default function LandingView() {
                 WINNER
               </div>
               <span className="font-mono text-[10px] font-bold tracking-widest text-emerald-500 uppercase">
-                ClawFleet
+                ClawTrace
               </span>
               <div className="text-5xl font-black text-emerald-400">0.2ms</div>
               <p className="text-sm font-light text-zinc-300">
@@ -280,11 +280,11 @@ export default function LandingView() {
           <div className="mb-6 flex items-center gap-2 opacity-50 grayscale transition-all hover:grayscale-0">
             <Zap className="h-4 w-4 fill-white text-white" />
             <span className="font-mono font-bold tracking-tighter text-white">
-              FLEET<span className="text-zinc-500">//</span>OS
+              ClawTrace<span className="text-zinc-500">//</span>OS
             </span>
           </div>
           <p className="font-mono text-[10px] tracking-widest text-zinc-600 uppercase">
-            © 2026 ClawFleet Systems Inc. • MIT License
+            © 2026 ClawTrace Systems Inc. • MIT License
           </p>
         </div>
       </footer>

@@ -28,19 +28,19 @@ export default function SetupInstructions({ agentId, agentSecret }) {
   };
 
   // Windows commands
-  const psOneLiner = `irm "${origin}/api/install-agent-ps?agent_id=${agentId}" -Headers @{'x-agent-secret'='${agentSecret}'} -OutFile clawfleet-agent.ps1; powershell -ExecutionPolicy Bypass -File clawfleet-agent.ps1`;
+  const psOneLiner = `irm "${origin}/api/install-agent-ps?agent_id=${agentId}" -Headers @{'x-agent-secret'='${agentSecret}'} -OutFile clawtrace-agent.ps1; powershell -ExecutionPolicy Bypass -File clawtrace-agent.ps1`;
   const psSingle = `Invoke-RestMethod -Uri "${origin}/api/heartbeat" -Method POST -ContentType "application/json" -Body '{"agent_id":"${agentId}","status":"healthy","metrics":{"cpu_usage":50,"memory_usage":60}}'`;
 
   // macOS / Linux commands
   const bashOneLiner = `curl -sL -H "x-agent-secret: ${agentSecret}" "${origin}/api/install-agent?agent_id=${agentId}" | bash`;
   const bashSingle = `curl -X POST ${origin}/api/heartbeat \\\n  -H "Content-Type: application/json" \\\n  -d '{"agent_id":"${agentId}","status":"healthy","metrics":{"cpu_usage":50,"memory_usage":60}}'`;
-  const bashDaemon = `curl -sL -H "x-agent-secret: ${agentSecret}" "${origin}/api/install-agent?agent_id=${agentId}" > clawfleet-agent.sh\nchmod +x clawfleet-agent.sh\nnohup ./clawfleet-agent.sh > /var/log/clawfleet-heartbeat.log 2>&1 &`;
+  const bashDaemon = `curl -sL -H "x-agent-secret: ${agentSecret}" "${origin}/api/install-agent?agent_id=${agentId}" > clawtrace-agent.sh\nchmod +x clawtrace-agent.sh\nnohup ./clawtrace-agent.sh > /var/log/clawtrace-heartbeat.log 2>&1 &`;
 
   // Python cross-platform
   const pyOneLiner =
     platform === 'windows'
-      ? `irm "${origin}/api/install-agent-py?agent_id=${agentId}" -Headers @{'x-agent-secret'='${agentSecret}'} -OutFile clawfleet-agent.py; python clawfleet-agent.py`
-      : `curl -sL -H "x-agent-secret: ${agentSecret}" "${origin}/api/install-agent-py?agent_id=${agentId}" -o clawfleet-agent.py && python3 clawfleet-agent.py`;
+      ? `irm "${origin}/api/install-agent-py?agent_id=${agentId}" -Headers @{'x-agent-secret'='${agentSecret}'} -OutFile clawtrace-agent.py; python clawtrace-agent.py`
+      : `curl -sL -H "x-agent-secret: ${agentSecret}" "${origin}/api/install-agent-py?agent_id=${agentId}" -o clawtrace-agent.py && python3 clawtrace-agent.py`;
 
   return (
     <div className="space-y-5">

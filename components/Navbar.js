@@ -44,7 +44,7 @@ export default function Navbar({ session, branding, transparent = false }) {
               </span>
             ) : (
               <span className="font-mono text-lg font-bold tracking-tighter text-white">
-                ClawFleet<span className="text-zinc-500">//</span>OS
+                ClawTrace<span className="text-zinc-500">//</span>OS
               </span>
             )}
           </Link>

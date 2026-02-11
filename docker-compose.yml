@@ -1,8 +1,8 @@
 version: '3.8'
 
 services:
-  clawfleet-dashboard:
-    container_name: clawfleet-dashboard
+  clawtrace-dashboard:
+    container_name: clawtrace-dashboard
     build:
       context: .
       dockerfile: Dockerfile
@@ -31,8 +31,8 @@ services:
     # Networks
     # Ensure this container can reach your Supabase instance.
     networks:
-      - clawfleet-network
+      - clawtrace-network
 
 networks:
-  clawfleet-network:
+  clawtrace-network:
     driver: bridge

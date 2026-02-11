@@ -1,9 +1,9 @@
 {
-  "name": "clawfleet-monitor",
+  "name": "clawtrace-monitor",
   "version": "1.0.2",
-  "description": "CLI heartbeat agent and configuration manager for ClawFleet Monitor",
+  "description": "CLI heartbeat agent and configuration manager for ClawTrace Monitor",
   "bin": {
-    "clawfleet": "./index.js"
+    "clawtrace": "./index.js"
   },
   "main": "index.js",
   "files": [
@@ -11,7 +11,7 @@
     "README.md"
   ],
   "keywords": [
-    "clawfleet",
+    "clawtrace",
     "fleet",
     "ai-agent",
     "monitoring",

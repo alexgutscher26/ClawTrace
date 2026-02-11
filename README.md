@@ -1,8 +1,8 @@
-# ⚡ ClawFleet Orchestrator
+# ⚡ ClawTrace Orchestrator
 
 > **Orchestrate your silicon fleet with sub-millisecond precision.**
 
-ClawFleet is a high-performance, secure, and scalable command center designed for managing autonomous AI agent swarms with sub-millisecond precision. It bridges the gap between human operators and distributed agent collectives, providing real-time telemetry, remote execution, and deep policy enforcement in a single, beautiful interface.
+ClawTrace is a high-performance, secure, and scalable command center designed for managing autonomous AI agent swarms with sub-millisecond precision. It bridges the gap between human operators and distributed agent collectives, providing real-time telemetry, remote execution, and deep policy enforcement in a single, beautiful interface.
 
 ---
 
@@ -12,7 +12,7 @@ ClawFleet is a high-performance, secure, and scalable command center designed fo
 - **🔐 Zero-Knowledge Security**: End-to-End Encryption (E2EE) powered by AES-256-GCM. Agent configurations and secrets are encrypted in the browser and never leave the edge in plain text.
 - **📡 Remote Execution**: Instantly dispatch shell commands or scripts to any individual agent or entire fleets. Stream `stdout`/`stderr` back to the console in real-time.
 - **🔌 Plugin Architecture**: Seamlessly extend agent capabilities with custom Python/JS scripts for specialized metric collection.
-- **🔍 Auto-Discovery**: Zero-config pairing via local network scanning to find ClawFleet gateways instantly.
+- **🔍 Auto-Discovery**: Zero-config pairing via local network scanning to find ClawTrace gateways instantly.
 - **🛡️ Policy Engine**: Define granular "Guardrails" and profiles (Dev, Ops, Exec) to control agent capabilities, resource usage, and network access.
 - **📦 Single Binary / Edge First**: Agents are lightweight daemons that run on Linux, macOS, and Windows. No complex dependencies, just pure performance.
 - **🎨 Premium UX**: A brutalist, grid-based interface with glassmorphism aesthetics, designed for focus and operational clarity.
@@ -83,4 +83,4 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ---
 
-Built with ⚡ by the **ClawFleet** team.
+Built with ⚡ by the **ClawTrace** team.

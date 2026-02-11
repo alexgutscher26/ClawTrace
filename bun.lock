@@ -41,7 +41,7 @@
         "@tanstack/react-table": "^8.21.3",
         "axios": "^1.13.4",
         "class-variance-authority": "^0.7.1",
-        "clawfleet-monitor": "^1.0.2",
+        "clawtrace-monitor": "^1.0.2",
         "clsx": "^2.1.1",
         "cmdk": "^1.1.1",
         "date-fns": "^4.1.0",
@@ -514,7 +514,7 @@
 
     "class-variance-authority": ["class-variance-authority@0.7.1", "", { "dependencies": { "clsx": "^2.1.1" } }, "sha512-Ka+9Trutv7G8M6WT6SeiRWz792K5qEqIGEGzXKhAE6xOWAY6pPH8U+9IY3oCMv6kqTmLsv7Xh/2w2RigkePMsg=="],
 
-    "clawfleet-monitor": ["clawfleet-monitor@1.0.2", "", { "bin": { "clawfleet": "index.js" } }, "sha512-tMGMJo9QAcUfp6j5kNyEVX15OxCPn9ZdtrFyakvtd7CwmeqqQuzqh8gQfotn5NFg3dV4sA64hJBkabBPnAsfeQ=="],
+    "clawtrace-monitor": ["clawtrace-monitor@1.0.2", "", { "bin": { "clawtrace": "index.js" } }, "sha512-NUONt+Y9or/CpZYNSFb+ZMnYM3B+MQBLsMPq9Y0gpVSt0Oc6o5OmwM4lZFL3FyTfKtCVhl1UVar22L7LlvAHNg=="],
 
     "client-only": ["client-only@0.0.1", "", {}, "sha512-IV3Ou0jSMzZrd3pZ48nLkT9DA7Ag1pnPzaiQhpW7c3RbcqqzvzzVu+L8gfqMp/8IM2MQtSiqaCxrrcfu8I8rMA=="],
 

@@ -6,10 +6,10 @@ import { WebLinksAddon } from 'xterm-addon-web-links';
 import 'xterm/css/xterm.css';
 
 /**
- * ClawFleet Terminal Component
+ * ClawTrace Terminal Component
  * Provides a secure, browser-based SSH interface for debugging agents.
  */
-export default function ClawFleetTerminal({ agentId, onClose }) {
+export default function ClawTraceTerminal({ agentId, onClose }) {
   const wrapperRef = useRef(null); // Reference for the wrapper div
   const xtermRef = useRef(null);
   const fitAddonRef = useRef(null);
@@ -66,7 +66,7 @@ export default function ClawFleetTerminal({ agentId, onClose }) {
         console.warn('Simulation reset failed', e);
       }
 
-      term.write('\x1b[1;32m⚡ ClawFleet Secure Shell v2.0\x1b[0m\r\n');
+      term.write('\x1b[1;32m⚡ ClawTrace Secure Shell v2.0\x1b[0m\r\n');
       term.write(`Connecting to agent: \x1b[1;34m${agentId}\x1b[0m...\r\n`);
 
       const t1 = setTimeout(() => {
@@ -75,7 +75,7 @@ export default function ClawFleetTerminal({ agentId, onClose }) {
         const t2 = setTimeout(() => {
           if (term._disposed) return;
           term.write('\x1b[1;32m✔ Connection established.\x1b[0m\r\n');
-          term.write('Welcome to ClawFleet Agent Runtime.\r\n');
+          term.write('Welcome to ClawTrace Agent Runtime.\r\n');
           term.write('\r\n$ ');
         }, 800);
         timeoutsRef.current.push(t2);

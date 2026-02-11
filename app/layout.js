@@ -5,8 +5,8 @@ const font = Plus_Jakarta_Sans({ subsets: ['latin'] });
 
 export const metadata = {
   title: {
-    default: 'ClawFleet Orchestrator',
-    template: '%s | ClawFleet Orchestrator',
+    default: 'ClawTrace Orchestrator',
+    template: '%s | ClawTrace Orchestrator',
   },
   description:
     'Monitor and manage 1,000+ AI agents with sub-millisecond telemetry. The high-performance command center for autonomous silicon fleets.',
@@ -20,20 +20,20 @@ export const metadata = {
     'agent swarms',
     'policy guardrails',
   ],
-  authors: [{ name: 'ClawFleet Team' }],
-  creator: 'ClawFleet',
+  authors: [{ name: 'ClawTrace Team' }],
+  creator: 'ClawTrace',
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://clawfleet.sh',
-    title: 'ClawFleet | Sub-ms Agent Orchestration',
+    url: 'https://clawtrace.dev',
+    title: 'ClawTrace | Sub-ms Agent Orchestration',
     description:
       'Monitor and manage 1,000+ AI agents with sub-millisecond telemetry. The high-performance command center for autonomous silicon fleets.',
-    siteName: 'ClawFleet',
+    siteName: 'ClawTrace',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'ClawFleet | Sub-ms Agent Orchestration',
+    title: 'ClawTrace | Sub-ms Agent Orchestration',
     description:
       'Monitor and manage 1,000+ AI agents with sub-millisecond telemetry. The high-performance command center for autonomous silicon fleets.',
     creator: '@snackforcode',

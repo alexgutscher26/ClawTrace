@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""ClawFleet Agent - Cross-platform Heartbeat Agent"""
+"""ClawTrace Agent - Cross-platform Heartbeat Agent"""
 # Agent: {{AGENT_ID}}
-# Run: python3 clawfleet-agent.py
+# Run: python3 clawtrace-agent.py
 
 import json, time, urllib.request, platform, os, hmac, hashlib
 
@@ -10,10 +10,10 @@ AGENT_ID = "{{AGENT_ID}}"
 AGENT_SECRET = "{{AGENT_SECRET}}"
 
 if not AGENT_SECRET:
-    AGENT_SECRET = os.environ.get("CLAWFLEET_AGENT_SECRET", "")
+    AGENT_SECRET = os.environ.get("CLAWTRACE_AGENT_SECRET", "")
 
 if not AGENT_SECRET:
-    print("Error: AGENT_SECRET is not set. Please set CLAWFLEET_AGENT_SECRET environment variable.")
+    print("Error: AGENT_SECRET is not set. Please set CLAWTRACE_AGENT_SECRET environment variable.")
     exit(1)
 
 INTERVAL = {{INTERVAL}}
@@ -165,7 +165,7 @@ def send_heartbeat():
 
 if __name__ == "__main__":
     print()
-    print("  ClawFleet Agent")
+    print("  ClawTrace Agent")
     print("  --------------------------------")
     print(f"  Agent:    {AGENT_ID}")
     print(f"  SaaS:     {SAAS_URL}")

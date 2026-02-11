@@ -62,7 +62,7 @@ export default function PricingView() {
     if (!session) return router.push('/register');
     if (plan === 'FREE') return router.push('/dashboard');
     if (plan === 'ENTERPRISE') {
-      window.location.href = 'mailto:sales@clawfleet.sh?subject=Enterprise Fleet Inquiry';
+      window.location.href = 'mailto:sales@clawtrace.dev?subject=Enterprise Fleet Inquiry';
       return;
     }
 

@@ -1,4 +1,4 @@
-# ⚡ ClawFleet Marketing Toolkit
+# ⚡ ClawTrace Marketing Toolkit
 
 This toolkit is designed to convert performance-obsessed developers into paid users by emphasizing the **Sub-Millisecond** nature of the platform.
 
@@ -6,7 +6,7 @@ This toolkit is designed to convert performance-obsessed developers into paid us
 
 ## 🎯 The "Performance-First" Angle
 
-**The Narrative:** Current AI orchestrators are legacy systems built on HTTP polling. They are slow, laggy, and expensive. ClawFleet is a binary-first, WebSocket-powered command center that reacts at silicon speeds (0.2ms).
+**The Narrative:** Current AI orchestrators are legacy systems built on HTTP polling. They are slow, laggy, and expensive. ClawTrace is a binary-first, WebSocket-powered command center that reacts at silicon speeds (0.2ms).
 
 ---
 
@@ -17,18 +17,18 @@ This toolkit is designed to convert performance-obsessed developers into paid us
 > Stop polling your agents like it’s 2012.
 >
 > Most orchestrators: 2.5s latency (HTTP waterfalls) 🐌
-> ClawFleet: 0.1ms heartbeat (Binary WebSockets) ⚡
+> ClawTrace: 0.1ms heartbeat (Binary WebSockets) ⚡
 >
 > Real-time isn't fast enough. You need Sub-Millisecond.
 >
 > Get the silicon fleet console:
-> https://clawfleet.com
+> https://clawtrace.dev
 
 ### Post 2: Performance vs Cost
 
 > Why pay $100/mo for a slow agent dashboard?
 >
-> ClawFleet Pro gives you:
+> ClawTrace Pro gives you:
 > ✅ Unlimited Nodes
 > ✅ Custom Policy Guardrails
 > ✅ 30-Day Sub-ms metrics history
@@ -40,17 +40,17 @@ This toolkit is designed to convert performance-obsessed developers into paid us
 
 ## 💬 Hacker News / Reddit Pitch
 
-**Title:** Show HN: ClawFleet – Sub-millisecond orchestration for AI agent swarms
+**Title:** Show HN: ClawTrace – Sub-millisecond orchestration for AI agent swarms
 
 **Pitch:**
-Most AI orchestrators today are essentially CRUD apps with long-polling. We built ClawFleet to handle the scale of autonomous swarms where every millisecond of coordination counts.
+Most AI orchestrators today are essentially CRUD apps with long-polling. We built ClawTrace to handle the scale of autonomous swarms where every millisecond of coordination counts.
 
 - **Latency:** 0.1ms - 0.5ms heartbeat floor.
 - **Security:** Zero-knowledge. AES-256-GCM encryption in the browser. We never see your secrets.
 - **Scale:** Lightweight agents run as single binaries on edge compute.
 - **Control:** Granular internal policies to stop rogue agents from burning your bank account.
 
-Check out the brutalist dashboard demo: https://fleet.clawfleet.ai
+Check out the brutalist dashboard demo: https://fleet.clawtrace.dev
 
 ---
 
@@ -58,7 +58,7 @@ Check out the brutalist dashboard demo: https://fleet.clawfleet.ai
 
 1.  **Metric-Driven Screenshots:** Share clips of the "0.2ms Latency" pulse on the dashboard. Devs love raw numbers.
 2.  **Hacking Policy Enforcement:** Create a blog post: "How to stop an autonomous agent from spending $500 in 5 minutes with Policy Guardrails."
-3.  **Comparison Articles:** "ClawFleet vs. LangSmith vs. Helicone". Pivot the conversation from "Analytics" (passive) to "Orchestration" (active).
+3.  **Comparison Articles:** "ClawTrace vs. LangSmith vs. Helicone". Pivot the conversation from "Analytics" (passive) to "Orchestration" (active).
 
 ---
 

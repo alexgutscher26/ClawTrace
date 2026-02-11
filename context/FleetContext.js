@@ -51,12 +51,31 @@ export function FleetProvider({ children }) {
               .then((bRes) => {
                 if (bRes.branding) setBranding(bRes.branding);
               })
-              .catch(() => {});
+              .catch(() => { });
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     } else {
-      setBranding({ name: '', domain: '', logo_url: '' });
+      // Check for custom domain branding (public)
+      const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+      const isMainDomain = typeof window !== 'undefined' && window.location.hostname.endsWith('clawtrace.dev');
+
+      if (!isLocal && !isMainDomain && typeof window !== 'undefined') {
+        const domain = window.location.hostname;
+        // Fetch public branding
+        fetch(`/api/branding/public?domain=${domain}`)
+          .then(res => res.json())
+          .then(res => {
+            if (res.branding) {
+              setBranding(res.branding);
+            } else {
+              setBranding({ name: '', domain: '', logo_url: '' });
+            }
+          })
+          .catch(() => setBranding({ name: '', domain: '', logo_url: '' }));
+      } else {
+        setBranding({ name: '', domain: '', logo_url: '' });
+      }
     }
   }, [session, api]);
 

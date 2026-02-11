@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""ClawFleet Agent - Cross-platform Heartbeat Agent"""
-# Run: python3 clawfleet-agent.py
+"""ClawTrace Agent - Cross-platform Heartbeat Agent"""
+# Run: python3 clawtrace-agent.py
 
 import json, time, urllib.request, platform, os, hmac, hashlib, sys
 
-SAAS_URL = os.environ.get("CLAWFLEET_SAAS_URL", "http://localhost:3000")
-AGENT_ID = os.environ.get("CLAWFLEET_AGENT_ID")
-AGENT_SECRET = os.environ.get("CLAWFLEET_AGENT_SECRET")
-INTERVAL = int(os.environ.get("CLAWFLEET_INTERVAL", "300"))
+SAAS_URL = os.environ.get("CLAWTRACE_SAAS_URL", "http://localhost:3000")
+AGENT_ID = os.environ.get("CLAWTRACE_AGENT_ID")
+AGENT_SECRET = os.environ.get("CLAWTRACE_AGENT_SECRET")
+INTERVAL = int(os.environ.get("CLAWTRACE_INTERVAL", "300"))
 SESSION_TOKEN = None
 GATEWAY_URL = None
 _last_cpu_stats = None
@@ -176,15 +176,15 @@ def send_heartbeat():
 if __name__ == "__main__":
     if not AGENT_ID or not AGENT_SECRET:
         print("Error: Agent ID and Agent Secret are required.")
-        print("Set CLAWFLEET_AGENT_ID and CLAWFLEET_AGENT_SECRET environment variables.")
+        print("Set CLAWTRACE_AGENT_ID and CLAWTRACE_AGENT_SECRET environment variables.")
         sys.exit(1)
 
     print()
-    print("  ClawFleet Agent")
+    print("  ClawTrace Agent")
     print("  --------------------------------")
 
     if not AGENT_ID or not AGENT_SECRET:
-        print("  \033[91mError: CLAWFLEET_AGENT_ID and CLAWFLEET_AGENT_SECRET must be set.\033[0m")
+        print("  \033[91mError: CLAWTRACE_AGENT_ID and CLAWTRACE_AGENT_SECRET must be set.\033[0m")
         print("  Please set these environment variables and run the agent again.")
         print()
         exit(1)

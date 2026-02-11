@@ -1,16 +1,16 @@
-# ClawFleet Agent - PowerShell Heartbeat Agent
+# ClawTrace Agent - PowerShell Heartbeat Agent
 # Agent: e2a4b8bb-5016-4fd4-a60f-a1749648f325
-# Run: powershell -ExecutionPolicy Bypass -File clawfleet-agent.ps1
+# Run: powershell -ExecutionPolicy Bypass -File clawtrace-agent.ps1
 
 $SaasUrl = "http://localhost:3000"
 $AgentId = "e2a4b8bb-5016-4fd4-a60f-a1749648f325"
 $AgentSecret = "b7ccabf1-b4a3-473c-8ce3-7b63b65b76b5"
 
 if ([string]::IsNullOrEmpty($AgentSecret)) {
-    $AgentSecret = $env:CLAWFLEET_AGENT_SECRET
+    $AgentSecret = $env:CLAWTRACE_AGENT_SECRET
 }
 if ([string]::IsNullOrEmpty($AgentSecret)) {
-    Write-Host "Error: AGENT_SECRET is not set. Please set CLAWFLEET_AGENT_SECRET environment variable." -ForegroundColor Red
+    Write-Host "Error: AGENT_SECRET is not set. Please set CLAWTRACE_AGENT_SECRET environment variable." -ForegroundColor Red
     exit 1
 }
 
@@ -19,7 +19,7 @@ $SessionToken = $null
 $GatewayUrl = $null
 
 Write-Host ""
-Write-Host "  ClawFleet Agent" -ForegroundColor Green
+Write-Host "  ClawTrace Agent" -ForegroundColor Green
 Write-Host "  --------------------------------"
 Write-Host "  Agent:    $AgentId"
 Write-Host "  SaaS:     $SaasUrl"

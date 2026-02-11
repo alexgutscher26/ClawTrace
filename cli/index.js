@@ -204,7 +204,7 @@ function log(msg) {
 
 function printBanner() {
   console.log(`
-${COLORS.green}${COLORS.bold}  ⚡ ClawFleet Monitor${COLORS.reset}`);
+${COLORS.green}${COLORS.bold}  ⚡ ClawTrace Monitor${COLORS.reset}`);
   console.log(`${COLORS.dim}  ─────────────────────────────${COLORS.reset}`);
 }
 
@@ -256,15 +256,15 @@ async function monitorCommand(args) {
   if (!saasUrl || !agentId || !agentSecret) {
     console.error(`${COLORS.red}Error: --saas-url, --agent-id, and --agent-secret are required${COLORS.reset}`);
     console.log(`\nUsage:`);
-    console.log(`  clawfleet monitor --saas-url=https://your-app.com --agent-id=<UUID> --agent-secret=<SECRET>`);
+    console.log(`  clawtrace monitor --saas-url=https://your-app.com --agent-id=<UUID> --agent-secret=<SECRET>`);
     console.log(`\nOptions:`);
-    console.log(`  --saas-url     Your Fleet SaaS URL (required)`);
+    console.log(`  --saas-url     Your ClawTrace SaaS URL (required)`);
     console.log(`  --agent-id     Agent UUID from your dashboard (required)`);
     console.log(`  --agent-secret Agent Secret from your dashboard (required)`);
     console.log(`  --interval     Heartbeat interval in seconds (default: 300)`);
     console.log(`  --status       Agent status: healthy, idle, error (default: healthy)`);
     console.log();
-    console.log(`  ${COLORS.dim}Tip: Run 'clawfleet discover' to find your gateway URL${COLORS.reset}`);
+    console.log(`  ${COLORS.dim}Tip: Run 'clawtrace discover' to find your gateway URL${COLORS.reset}`);
     process.exit(1);
   }
 
@@ -350,9 +350,9 @@ async function configPushCommand(args) {
   if (!saasUrl || !agentId) {
     console.error(`${COLORS.red}Error: --saas-url and --agent-id are required${COLORS.reset}`);
     console.log(`\nUsage:`);
-    console.log(`  clawfleet config push --agent-id=<UUID> --saas-url=<URL> --agent-secret=<SECRET> [options]`);
+    console.log(`  clawtrace config push --agent-id=<UUID> --saas-url=<URL> --agent-secret=<SECRET> [options]`);
     console.log(`\nExample:`);
-    console.log(`  clawfleet config push --agent-id=... --model=claude-sonnet-4 --skills=code,search`);
+    console.log(`  clawtrace config push --agent-id=... --model=claude-sonnet-4 --skills=code,search`);
     process.exit(1);
   }
 
@@ -389,7 +389,7 @@ async function configCommand(args) {
   const subcommand = args._subcommand || args.subcommand;
   if (subcommand === 'push') await configPushCommand(args);
   else {
-    console.log(`Usage: clawfleet config push ...`);
+    console.log(`Usage: clawtrace config push ...`);
     process.exit(1);
   }
 }
@@ -416,7 +416,7 @@ async function checkGateway(ip, port) {
 
 async function discoverCommand(args) {
   printBanner();
-  log(`${COLORS.green}Scanning local network for ClawFleet gateways...${COLORS.reset}`);
+  log(`${COLORS.green}Scanning local network for ClawTrace gateways...${COLORS.reset}`);
   const nets = os.networkInterfaces();
   const subnets = [];
   for (const name of Object.keys(nets)) {
@@ -451,7 +451,10 @@ const helpCommand = () => {
     help              Show this help
   
   ${COLORS.bold}Usage:${COLORS.reset}
-    clawfleet monitor --saas-url=<URL> --agent-id=<ID> --agent-secret=<SECRET>
+    clawtrace monitor --saas-url=<URL> --agent-id=<ID> --agent-secret=<SECRET>
+    
+  ${COLORS.bold}Or with Bun:${COLORS.reset}
+    bun x clawtrace monitor ...
   `);
 };
 

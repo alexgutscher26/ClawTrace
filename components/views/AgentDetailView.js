@@ -37,7 +37,7 @@ import { STATUS_CONFIG, timeAgo } from '@/lib/view-utils';
 import { getPolicy } from '@/lib/policies';
 import { encryptE2EE } from '@/lib/client-crypto';
 import dynamic from 'next/dynamic';
-const ClawFleetTerminal = dynamic(() => import('@/components/views/TerminalView'), {
+const ClawTraceTerminal = dynamic(() => import('@/components/views/TerminalView'), {
   ssr: false,
   loading: () => (
     <div className="flex h-64 w-full items-center justify-center bg-zinc-950 font-mono text-zinc-500">
@@ -236,7 +236,7 @@ export default function AgentDetailView() {
                 <div className="flex items-center gap-2">
                   <Terminal className="h-4 w-4 text-emerald-500" />
                   <span className="font-mono text-xs font-bold text-white">
-                    ClawFleet Secure Shell
+                    ClawTrace Secure Shell
                   </span>
                   <Badge
                     variant="outline"
@@ -255,7 +255,7 @@ export default function AgentDetailView() {
                 </Button>
               </div>
               <div className="flex-1 overflow-hidden p-0">
-                <ClawFleetTerminal agentId={agentId} onClose={() => setTerminalOpen(false)} />
+                <ClawTraceTerminal agentId={agentId} onClose={() => setTerminalOpen(false)} />
               </div>
             </div>
           </div>
@@ -450,7 +450,7 @@ export default function AgentDetailView() {
                     Connect This Agent
                   </CardTitle>
                   <CardDescription>
-                    Run one of these commands on the machine where your ClawFleet agent is running.
+                    Run one of these commands on the machine where your ClawTrace agent is running.
                     Pick your OS below.
                   </CardDescription>
                 </CardHeader>
@@ -536,7 +536,7 @@ export default function AgentDetailView() {
                           const profile = c.profile || agent.policy_profile || 'dev';
                           const model = c.model || agent.model || 'claude-sonnet-4';
                           const scope = c.data_scope || (profile === 'dev' ? 'full' : 'restricted');
-                          const cmd = `clawfleet config push --agent-id=${agent.id} --saas-url=${window.location.origin} --agent-secret=${agent.agent_secret} --model=${model} --skills=${skills} --profile=${profile} --data-scope=${scope}`;
+                          const cmd = `clawtrace config push --agent-id=${agent.id} --saas-url=${window.location.origin} --agent-secret=${agent.agent_secret} --model=${model} --skills=${skills} --profile=${profile} --data-scope=${scope}`;
                           navigator.clipboard.writeText(cmd);
                           toast.success('Command copied');
                         } catch {
@@ -556,9 +556,9 @@ export default function AgentDetailView() {
                         const profile = c.profile || agent.policy_profile || 'dev';
                         const model = c.model || agent.model || 'claude-sonnet-4';
                         const scope = c.data_scope || (profile === 'dev' ? 'full' : 'restricted');
-                        return `clawfleet config push --agent-id=${agent.id} --saas-url=${typeof window !== 'undefined' ? window.location.origin : ''} --agent-secret=${agent.agent_secret} --model=${model} --skills=${skills} --profile=${profile} --data-scope=${scope}`;
+                        return `clawtrace config push --agent-id=${agent.id} --saas-url=${typeof window !== 'undefined' ? window.location.origin : ''} --agent-secret=${agent.agent_secret} --model=${model} --skills=${skills} --profile=${profile} --data-scope=${scope}`;
                       } catch (e) {
-                        return `clawfleet config push --agent-id=${agent.id} --config-file=./config.json (Fix JSON to see full command)`;
+                        return `clawtrace config push --agent-id=${agent.id} --config-file=./config.json (Fix JSON to see full command)`;
                       }
                     })()}
                   </code>

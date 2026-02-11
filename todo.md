@@ -1,6 +1,6 @@
-# ⚡ ClawFleet Orchestrator - Universal Roadmap
+# ⚡ ClawTrace Orchestrator - Universal Roadmap
 
-This document serves as the master source of truth for the development, stabilization, and scaling of the ClawFleet platform.
+This document serves as the master source of truth for the development, stabilization, and scaling of the ClawTrace platform.
 
 ---
 
@@ -48,10 +48,10 @@ _Refining the experience for developers and fleet managers._
 
 ### ⌨️ CLI / Monitor Improvements
 
-- [x] **ClawFleet CLI v2.0**:
-  - [x] **Auto-Discovery**: CLI should optionally scan local network for ClawFleet gateways to simplify pairing.
+- [x] **ClawTrace CLI v2.0**:
+  - [x] **Auto-Discovery**: CLI should optionally scan local network for ClawTrace gateways to simplify pairing.
   - [x] **Plugin System**: Allow users to write custom Python/JS scripts to monitor specific app metrics (e.g., "Queue Length" or "Database Connections").
-  - [x] **Service Mode**: Add `clawfleet-monitor install-service` to automatically set up systemd (Linux) or Launchctl (macOS) persistence.
+  - [x] **Service Mode**: Add `clawtrace-monitor install-service` to automatically set up systemd (Linux) or Launchctl (macOS) persistence.
 - [x] **Metric Accuracy**:
   - [x] Move from "Simulated Latency" to real ICP/Round-trip pings to the agent's actual gateway URL.
   - [x] Capture "Memory Pressure" and "Disk I/O" metrics.
@@ -91,7 +91,7 @@ _Adding the "SaaS" value-add that justifies the Pro/Enterprise tiers._
 
 _Visionary ideas for 2026 and beyond._
 
-- [x] **ClawFleet Terminal**: A secure, browser-based shell that allows developers to `ssh` into an agent directly from the dashboard for debugging.
+- [x] **ClawTrace Terminal**: A secure, browser-based shell that allows developers to `ssh` into an agent directly from the dashboard for debugging.
 - [x] **Predictive Scaling**: Automatically spin up more agent instances when wait-times/latency exceed 500ms across a fleet.
 - [x] **Model Switcher**: A "Kill Switch" to instantly rotate all agents to an emergency backup model (e.g., rotate from GPT-4 to Claude 3 if OpenAI has an outage).
 

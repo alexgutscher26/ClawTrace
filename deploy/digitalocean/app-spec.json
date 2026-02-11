@@ -1,10 +1,10 @@
 [
   {
-    "slug": "clawfleet-agent",
-    "name": "ClawFleet Agent",
-    "description": "Deploy a high-performance ClawFleet Agent node automatically connected to your Fleet.",
-    "documentation": "https://clawfleet.com/docs/deployment",
-    "image": "clawfleet/agent:latest",
+    "slug": "clawtrace-agent",
+    "name": "ClawTrace Agent",
+    "description": "Deploy a high-performance ClawTrace Agent node automatically connected to your Fleet.",
+    "documentation": "https://clawtrace.dev/docs/deployment",
+    "image": "clawtrace/agent:latest",
     "category": "ai",
     "stack": {
       "extends": {
@@ -15,8 +15,8 @@
     "env": [
       {
         "key": "FLEET_KEY",
-        "label": "ClawFleet API Key",
-        "description": "Your API Key from the ClawFleet Dashboard",
+        "label": "ClawTrace API Key",
+        "description": "Your API Key from the ClawTrace Dashboard",
         "required": true
       },
       {

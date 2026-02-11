@@ -712,6 +712,19 @@ export default function SettingsView() {
                       className="h-14 rounded-none border-white/20 bg-zinc-900 font-mono transition-colors focus:border-white"
                       placeholder="fleet.cyberdyne.io"
                     />
+                    {branding.domain && (
+                      <div className="mt-4 border border-white/10 bg-white/5 p-4 text-xs">
+                        <p className="mb-2 font-black text-zinc-400 uppercase">DNS CONFIGURATION REQUIRED</p>
+                        <div className="grid grid-cols-[100px_1fr] gap-2 font-mono text-[10px]">
+                          <span className="text-zinc-500">TYPE</span>
+                          <span className="text-white">CNAME</span>
+                          <span className="text-zinc-500">HOST</span>
+                          <span className="text-white">{branding.domain}</span>
+                          <span className="text-zinc-500">VALUE</span>
+                          <span className="text-emerald-400">cname.clawtrace.dev</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <Button
                     disabled={savingBranding}
