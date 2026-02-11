@@ -264,7 +264,7 @@ export default function LandingView() {
             Ready to command?
           </h2>
           <p className="mx-auto mb-10 max-w-xl font-mono text-sm text-zinc-500">
-            Join 2,000+ developers building the next generation of autonomous infrastructure.
+            Join developers building the next generation of autonomous infrastructure.
           </p>
           <Link href="/register">
             <Button className="h-14 rounded-none bg-white px-10 text-sm font-bold tracking-widest text-black uppercase hover:bg-zinc-200">
