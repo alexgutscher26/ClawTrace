@@ -55,6 +55,14 @@ export default function SettingsView() {
   const [editingChannelId, setEditingChannelId] = useState(null);
   const [billingLoading, setBillingLoading] = useState(false);
 
+  /**
+   * Handles the management of a subscription by redirecting to the billing portal.
+   *
+   * This function sets a loading state, makes an API call to retrieve the billing portal URL,
+   * and redirects the user to that URL if it exists. If the URL is not present or an error occurs,
+   * it displays an error message. The loading state is reset in the finally block to ensure
+   * it reflects the completion of the operation.
+   */
   const handleManageSubscription = async () => {
     setBillingLoading(true);
     try {
