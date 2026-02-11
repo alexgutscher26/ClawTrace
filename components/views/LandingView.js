@@ -18,6 +18,9 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 import { useFleet } from '@/context/FleetContext';
 
+/**
+ * Renders the landing view of the application.
+ */
 export default function LandingView() {
   const { session, branding } = useFleet();
   const [scrolled, setScrolled] = useState(false);
