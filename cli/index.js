@@ -202,6 +202,9 @@ function log(msg) {
   console.log(`${COLORS.dim}[${time}]${COLORS.reset} ${msg}`);
 }
 
+/**
+ * Prints a banner for ClawTrace Monitor to the console.
+ */
 function printBanner() {
   console.log(`
 ${COLORS.green}${COLORS.bold}  ⚡ ClawTrace Monitor${COLORS.reset}`);
@@ -338,6 +341,23 @@ async function statusCommand(args) {
   console.log();
 }
 
+/**
+ * Push the configuration for a specified agent to the SaaS platform.
+ *
+ * This function validates the required parameters, reads the configuration from a file or JSON string,
+ * and authenticates with the SaaS platform using a handshake. If successful, it sends a PUT request
+ * to update the agent's configuration. Error handling is included for both the handshake and the
+ * configuration push process.
+ *
+ * @param args - An object containing the parameters for the configuration push, including:
+ *   - saas_url: The URL of the SaaS platform.
+ *   - agent_id: The unique identifier for the agent.
+ *   - agent_secret: The secret key for the agent.
+ *   - config: The configuration in JSON format.
+ *   - config_file: The path to a configuration file.
+ *   - model: The model to be used.
+ *   - skills: A comma-separated list of skills.
+ */
 async function configPushCommand(args) {
   const saasUrl = args.saas_url;
   const agentId = args.agent_id;
@@ -385,6 +405,9 @@ async function configPushCommand(args) {
   }
 }
 
+/**
+ * Handles the configuration command based on the provided subcommand.
+ */
 async function configCommand(args) {
   const subcommand = args._subcommand || args.subcommand;
   if (subcommand === 'push') await configPushCommand(args);
@@ -414,6 +437,13 @@ async function checkGateway(ip, port) {
   });
 }
 
+/**
+ * Discover ClawTrace gateways on the local network.
+ *
+ * This function scans the local network interfaces to identify IPv4 addresses, constructs subnets, and checks for active gateways on specified ports. It utilizes asynchronous calls to check each potential gateway and logs the results. If gateways are found, their addresses are printed; otherwise, a message indicating no gateways were found is logged.
+ *
+ * @param args - The arguments passed to the function, which may influence its behavior.
+ */
 async function discoverCommand(args) {
   printBanner();
   log(`${COLORS.green}Scanning local network for ClawTrace gateways...${COLORS.reset}`);
@@ -440,6 +470,9 @@ function installServiceCommand(args) {
   log('Service installation persistence coming soon to this version.');
 }
 
+/**
+ * Displays the help information and available commands.
+ */
 const helpCommand = () => {
   printBanner();
   console.log(`
