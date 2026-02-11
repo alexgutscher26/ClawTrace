@@ -64,6 +64,9 @@ export default function Navbar({ session, branding, transparent = false }) {
             <Link href="/pricing" className="transition-colors hover:text-white">
               PRICING
             </Link>
+            <Link href="/blog" className="transition-colors hover:text-white">
+              BLOG
+            </Link>
             <Link href="/docs" className="transition-colors hover:text-white">
               DOCS
             </Link>
@@ -130,6 +133,13 @@ export default function Navbar({ session, branding, transparent = false }) {
             className="block w-full border-b border-white/10 p-4 text-left font-mono text-xs text-white uppercase hover:bg-white/10"
           >
             PRICING
+          </Link>
+          <Link
+            href="/blog"
+            onClick={() => setOpen(false)}
+            className="block w-full border-b border-white/10 p-4 text-left font-mono text-xs text-white uppercase hover:bg-white/10"
+          >
+            BLOG
           </Link>
           {session ? (
             <>

@@ -157,7 +157,7 @@ export default function LandingView() {
         </div>
       </section>
 
-       {/* CTA Section */}
+      {/* CTA Section */}
       <section className="relative overflow-hidden border-t border-white/5 py-32">
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(45deg,rgba(0,0,0,0)_40%,rgba(255,255,255,0.03)_100%)]" />
         <div className="relative z-10 container mx-auto px-6 text-center">
@@ -184,7 +184,13 @@ export default function LandingView() {
               ClawTrace<span className="text-zinc-500">//</span>OS
             </span>
           </div>
-          <p className="font-mono text-[10px] tracking-widest text-zinc-600 uppercase">
+          <div className="mt-8 flex gap-8 font-mono text-[10px] tracking-widest text-zinc-600 uppercase">
+            <Link href="/pricing" className="hover:text-white transition-colors">PRICING</Link>
+            <Link href="/blog" className="hover:text-white transition-colors">BLOG</Link>
+            <Link href="/docs" className="hover:text-white transition-colors">DOCS</Link>
+            <button onClick={() => window.open('https://github.com/alexgutscher26/fleet', '_blank')} className="hover:text-white transition-colors uppercase">GITHUB</button>
+          </div>
+          <p className="mt-8 font-mono text-[10px] tracking-widest text-zinc-600 uppercase">
             © 2026 ClawTrace Systems Inc. • MIT License
           </p>
         </div>
