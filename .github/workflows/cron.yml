@@ -9,6 +9,7 @@ on:
 jobs:
   check-stale:
     if: github.event.schedule == '*/5 * * * *' || github.event_name == 'workflow_dispatch'
+    environment: CRON_SECRET
     runs-on: ubuntu-latest
     steps:
       - name: Call check-stale endpoint
@@ -19,6 +20,7 @@ jobs:
 
   scaling:
     if: github.event.schedule == '*/5 * * * *' || github.event_name == 'workflow_dispatch'
+    environment: CRON_SECRET
     runs-on: ubuntu-latest
     steps:
       - name: Run scaling engine
@@ -29,6 +31,7 @@ jobs:
 
   cleanup:
     if: github.event.schedule == '0 0 * * *' || github.event_name == 'workflow_dispatch'
+    environment: CRON_SECRET
     runs-on: ubuntu-latest
     steps:
       - name: Nightly heartbeats cleanup
