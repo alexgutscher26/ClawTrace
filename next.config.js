@@ -39,7 +39,7 @@ const nextConfig = {
   async rewrites() {
     return [
       {
-        source: '/_supabase/:path*',
+        source: '/supabase-proxy/:path*',
         destination: 'https://endhhptyjolxidjlhpay.supabase.co/:path*',
       },
       {
