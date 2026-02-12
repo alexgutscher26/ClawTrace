@@ -15,7 +15,10 @@ export async function POST(req, { params }) {
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
         const targetUrl = `${supabaseUrl}/${path}${queryString ? '?' + queryString : ''}`;
 
-        console.log(`[SupabaseProxy] Forwarding ${req.method} to: ${targetUrl}`);
+        console.log(`[SupabaseProxy] Starting ${req.method} to: ${targetUrl}`);
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
         const body = await req.text();
         const headers = new Headers(req.headers);
@@ -29,12 +32,23 @@ export async function POST(req, { params }) {
         // Ensure the API key is present
         headers.set('apikey', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
-        const res = await fetch(targetUrl, {
-            method: req.method,
-            headers,
-            body: body || undefined,
-            cache: 'no-store',
-        });
+        console.time(`proxy-${path}`);
+        let res;
+        try {
+            res = await fetch(targetUrl, {
+                method: req.method,
+                headers,
+                body: body || undefined,
+                cache: 'no-store',
+                signal: controller.signal,
+            });
+        } catch (fetchError) {
+            console.error(`[SupabaseProxy] Fetch Failed:`, fetchError.name === 'AbortError' ? 'TIMEOUT' : fetchError.message);
+            throw fetchError;
+        } finally {
+            clearTimeout(timeoutId);
+            console.timeEnd(`proxy-${path}`);
+        }
 
         const data = await res.text();
 
@@ -42,7 +56,7 @@ export async function POST(req, { params }) {
             console.error(`[SupabaseProxy] Remote Error: ${res.status} ${res.statusText}`);
             // Log a snippet of the response if it's HTML (likely the 522 page)
             if (data.includes('<!DOCTYPE')) {
-                console.error(`[SupabaseProxy] Received HTML instead of JSON. Check if Supabase project is paused.`);
+                console.error(`[SupabaseProxy] Received HTML instead of JSON. Project might be paused or Cloudflare is blocking the IP.`);
             }
         }
 
@@ -55,7 +69,11 @@ export async function POST(req, { params }) {
         });
     } catch (error) {
         console.error('[SupabaseProxy] Internal Proxy Error:', error);
-        return NextResponse.json({ error: 'Proxy Error', details: error.message }, { status: 500 });
+        return NextResponse.json({
+            error: 'Proxy Error',
+            details: error.message,
+            type: error.name === 'AbortError' ? 'timeout' : 'error'
+        }, { status: error.name === 'AbortError' ? 504 : 500 });
     }
 }
 
