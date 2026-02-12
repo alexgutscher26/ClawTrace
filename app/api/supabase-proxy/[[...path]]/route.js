@@ -69,12 +69,18 @@ export async function POST(req, { params }) {
 }
 
 // Map all standard methods
+/**
+ * Handles GET requests by delegating to the POST handler.
+ */
 export async function GET(req, context) { return POST(req, context); }
 export async function PUT(req, context) { return POST(req, context); }
 export async function DELETE(req, context) { return POST(req, context); }
 export async function PATCH(req, context) { return POST(req, context); }
 
 // Handle preflight OPTIONS
+/**
+ * Handles the OPTIONS HTTP method and returns CORS headers.
+ */
 export async function OPTIONS() {
     return new NextResponse(null, {
         status: 204,
