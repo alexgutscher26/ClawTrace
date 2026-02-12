@@ -39,10 +39,6 @@ const nextConfig = {
   async rewrites() {
     return [
       {
-        source: '/supabase-proxy/:path*',
-        destination: 'https://endhhptyjolxidjlhpay.supabase.co/:path*',
-      },
-      {
         source: '/api/ph/static/:path*',
         destination: 'https://us-assets.i.posthog.com/static/:path*',
       },
