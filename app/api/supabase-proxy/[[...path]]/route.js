@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server';
 
 /**
- * Generic Supabase Proxy
- * Handles Auth, REST, and Realtime by forwarding requests from the browser
- * with "clean" headers to bypass Cloudflare/CORS/522 issues.
+ * Generic Supabase Proxy that handles Auth, REST, and Realtime requests.
+ *
+ * This function forwards requests from the browser to the Supabase API, managing headers to avoid connectivity issues and implementing a timeout for the fetch operation. It constructs the target URL based on the request parameters and query string, and processes the response, logging errors and returning appropriate responses based on the success or failure of the fetch operation.
+ *
+ * @param req - The incoming request object.
+ * @param params - An object containing route parameters.
+ * @returns A NextResponse object containing the response data from the Supabase API.
+ * @throws Error If the fetch operation fails or if there is an internal proxy error.
  */
 export async function POST(req, { params }) {
     try {
