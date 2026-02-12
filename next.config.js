@@ -22,6 +22,14 @@ const nextConfig = {
     maxInactiveAge: 10000,
     pagesBufferLength: 2,
   },
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '2mb',
+    },
+    turbo: {
+      root: '.',
+    },
+  },
   async headers() {
     return [
       {

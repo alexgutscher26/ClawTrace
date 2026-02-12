@@ -14,20 +14,16 @@ export async function POST(req, { params }) {
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
         const targetUrl = `${supabaseUrl}/${path}${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
 
-        console.log(`[SupabaseProxy] ${req.method} -> ${path}`);
-
-        // Vercel Hobby limit is 10s. We set timeout to 8s to catch it early.
+        // Vercel Hobby limit is 10s. We set timeout to 8s.
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 8000);
 
         const body = await req.text();
 
-        // Create clean headers for the destination
         const forwardHeaders = new Headers();
         forwardHeaders.set('apikey', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
         forwardHeaders.set('Content-Type', req.headers.get('Content-Type') || 'application/json');
 
-        // Pass through Authorization if it exists (for logged in requests)
         const auth = req.headers.get('authorization');
         if (auth) forwardHeaders.set('authorization', auth);
 
@@ -43,8 +39,11 @@ export async function POST(req, { params }) {
         } catch (fetchError) {
             clearTimeout(timeoutId);
             if (fetchError.name === 'AbortError') {
-                console.error(`[SupabaseProxy] TIMEOUT at 8s for ${path}`);
-                return NextResponse.json({ error: 'Supabase Timeout', detail: 'The request took too long to respond.' }, { status: 504 });
+                return NextResponse.json({
+                    error: 'System Overloaded',
+                    message: 'Our database is currently processing high traffic. Please try again in 5 minutes.',
+                    status: 'unhealthy'
+                }, { status: 504 });
             }
             throw fetchError;
         } finally {
@@ -53,7 +52,15 @@ export async function POST(req, { params }) {
 
         const data = await res.text();
         const duration = Date.now() - start;
-        console.log(`[SupabaseProxy] ${res.status} from ${path} (${duration}ms)`);
+
+        // If Supabase returns a 5xx, it's definitively unhealthy
+        if (res.status >= 500) {
+            return NextResponse.json({
+                error: 'Database Maintenance',
+                message: 'Supabase is currently undergoing maintenance. We are working to restore service.',
+                status: 'unhealthy'
+            }, { status: 503 });
+        }
 
         return new NextResponse(data, {
             status: res.status,
@@ -63,18 +70,15 @@ export async function POST(req, { params }) {
             },
         });
     } catch (error) {
-        console.error('[SupabaseProxy] Critical Error:', error.message);
-        return NextResponse.json({ error: 'Proxy implementation error', detail: error.message }, { status: 500 });
+        return NextResponse.json({ error: 'Proxy Error', detail: error.message }, { status: 500 });
     }
 }
 
-// Map all standard methods
 export async function GET(req, context) { return POST(req, context); }
 export async function PUT(req, context) { return POST(req, context); }
 export async function DELETE(req, context) { return POST(req, context); }
 export async function PATCH(req, context) { return POST(req, context); }
 
-// Handle preflight OPTIONS
 export async function OPTIONS() {
     return new NextResponse(null, {
         status: 204,
