@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
 
 /**
- * Vercel-Optimized Supabase Proxy
- * Bypasses CORS and 522/504 issues by using a server-side "clean" fetch.
+ * Vercel-Optimized Supabase Proxy.
+ *
+ * This function handles POST requests by constructing a target URL for Supabase, setting up headers, and forwarding the request. It manages timeouts to prevent long waits and handles errors gracefully, returning appropriate responses based on the status of the Supabase service. If the request fails due to an abort or a server error, it provides meaningful error messages to the client.
+ *
+ * @param req - The incoming request object.
+ * @param params - An object containing route parameters.
+ * @returns A NextResponse object containing the response from the Supabase service or an error message.
  */
 export async function POST(req, { params }) {
     const start = Date.now();
@@ -75,10 +80,16 @@ export async function POST(req, { params }) {
 }
 
 export async function GET(req, context) { return POST(req, context); }
+/**
+ * Handles PUT requests by delegating to the POST function.
+ */
 export async function PUT(req, context) { return POST(req, context); }
 export async function DELETE(req, context) { return POST(req, context); }
 export async function PATCH(req, context) { return POST(req, context); }
 
+/**
+ * Handles the OPTIONS HTTP method and returns a 204 response with CORS headers.
+ */
 export async function OPTIONS() {
     return new NextResponse(null, {
         status: 204,
