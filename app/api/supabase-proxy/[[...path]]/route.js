@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server';
 
 /**
- * Generic Supabase Proxy
- * Handles Auth, REST, and Realtime by forwarding requests from the browser
- * with "clean" headers to bypass Cloudflare/CORS/522 issues.
+ * Generic Supabase Proxy that handles Auth, REST, and Realtime requests.
+ *
+ * This function forwards requests from the browser to the Supabase API, ensuring that headers are cleaned to avoid connectivity issues. It constructs the target URL based on the incoming request and parameters, retrieves the request body, and sends the request to Supabase. It also handles errors and logs relevant information for debugging.
+ *
+ * @param req - The incoming request object.
+ * @param params - An object containing route parameters.
+ * @returns A NextResponse object containing the response from the Supabase API.
+ * @throws Error If an internal proxy error occurs.
  */
 export async function POST(req, { params }) {
     try {
@@ -59,9 +64,18 @@ export async function POST(req, { params }) {
     }
 }
 
+/**
+ * Handles GET requests by delegating to the POST function.
+ */
 export async function GET(req, context) { return POST(req, context); }
+/**
+ * Handles the PUT request by delegating to the POST function.
+ */
 export async function PUT(req, context) { return POST(req, context); }
 export async function DELETE(req, context) { return POST(req, context); }
+/**
+ * Handles a PATCH request by delegating to the POST function.
+ */
 export async function PATCH(req, context) { return POST(req, context); }
 export async function OPTIONS() {
     return new NextResponse(null, {
