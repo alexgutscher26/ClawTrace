@@ -79,7 +79,7 @@ export function FleetProvider({ children }) {
     }
   }, [session, api]);
 
-  const value = {
+  const value = React.useMemo(() => ({
     session,
     loading,
     masterPassphrase,
@@ -87,7 +87,7 @@ export function FleetProvider({ children }) {
     branding,
     setBranding,
     api,
-  };
+  }), [session, loading, masterPassphrase, setMasterPassphrase, branding, setBranding, api]);
 
   return <FleetContext.Provider value={value}>{children}</FleetContext.Provider>;
 }

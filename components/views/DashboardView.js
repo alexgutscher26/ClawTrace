@@ -40,7 +40,7 @@ import { RecentAlerts } from '@/components/dashboard/RecentAlerts';
 export default function DashboardView() {
   const { session, api, masterPassphrase, branding } = useFleet();
   const router = useRouter();
-  const navigate = (path) => router.push(path);
+  const navigate = useCallback((path) => router.push(path), [router]);
   const [selectedFleet, setSelectedFleet] = useState(null);
   const [tier, setTier] = useState('free');
   const [limits, setLimits] = useState({ max_agents: 1, alerts: false, teams: false });
@@ -71,14 +71,14 @@ export default function DashboardView() {
         setTier(p.toLowerCase());
         if (res.limits) setLimits(res.limits[p.toLowerCase()] || res.limits.free);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [api]);
 
   useEffect(() => {
     if (tier === 'enterprise' || tier === 'pro') {
       api('/api/custom-policies')
         .then((res) => setCustomPolicies(res.policies || []))
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [api, tier]);
 

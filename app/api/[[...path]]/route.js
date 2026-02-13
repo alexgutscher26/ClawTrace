@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { unstable_cache } from 'next/cache';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
+import { tursoAdapter } from '@/lib/turso-adapter';
+import { turso } from '@/lib/turso';
 import { v4 as uuidv4, validate as uuidValidate } from 'uuid';
 import { SignJWT, jwtVerify } from 'jose';
 import { encrypt, decrypt, decryptAsync } from '@/lib/encryption';
@@ -102,13 +104,27 @@ const JWT_SECRET = new TextEncoder().encode(process.env.SUPABASE_SERVICE_ROLE_KE
 const getTier = unstable_cache(
   async (userId) => {
     if (!userId) return 'free';
-    const { data } = await supabaseAdmin
-      .from('subscriptions')
-      .select('plan')
-      .eq('user_id', userId)
-      .neq('status', 'cancelled')
-      .maybeSingle();
-    return (data?.plan || 'free').toLowerCase();
+    try {
+      // 1. Try Turso
+      const res = await turso.execute({
+        sql: "SELECT plan FROM subscriptions WHERE user_id = ? AND status != 'cancelled' LIMIT 1",
+        args: [userId]
+      });
+      if (res.rows.length > 0) return res.rows[0].plan.toLowerCase();
+
+      // 2. Fallback to Supabase
+      const { data } = await supabaseAdmin
+        .from('subscriptions')
+        .select('plan')
+        .eq('user_id', userId)
+        .neq('status', 'cancelled')
+        .maybeSingle();
+
+      return (data?.plan || 'free').toLowerCase();
+    } catch (e) {
+      console.warn('[getTier] Turso/Supabase error:', e.message);
+      return 'free';
+    }
   },
   ['user-tier'],
   { tags: ['user-tier'], revalidate: 60 }
@@ -163,40 +179,87 @@ async function checkRateLimit(
   userId = null,
   cachedTier = null
 ) {
-  const tier = cachedTier || (await getTier(userId));
+  const tier = (cachedTier || (await getTier(userId)) || 'free').toLowerCase();
   const tierConfig = RATE_LIMIT_CONFIG[tier] || RATE_LIMIT_CONFIG.free;
   const config = tierConfig[type] || RATE_LIMIT_CONFIG.free[type];
 
-  // Optimize: Use atomic DB transaction via RPC to handle concurrency
-  // This replaces the previous read-modify-write pattern which was prone to race conditions
-  const { data, error } = await supabaseAdmin.rpc('check_rate_limit', {
-    p_identifier: identifier,
-    p_path: type,
-    p_capacity: config.capacity,
-    p_refill_rate: config.refillRate,
-  });
-
-  if (error) {
-    console.error('Rate limit RPC error:', error);
-    // Fail open on DB error to prevent blocking service
+  if (!config) {
+    console.error('[Rate Limit] Missing config for type:', type);
     return { allowed: true };
   }
 
-  if (!data.allowed) {
-    return {
-      allowed: false,
-      response: json(
-        {
-          error: 'Too many requests',
-          type,
-          retry_after: Math.ceil(data.retry_after),
-        },
-        429
-      ),
-    };
-  }
+  try {
+    const key = `${identifier}:${type}`;
+    const now = new Date().toISOString();
 
-  return { allowed: true };
+    // Simplified Turso logic:
+    const res = await turso.execute({
+      sql: 'SELECT tokens, last_refill FROM api_rate_limits WHERE key = ?',
+      args: [key]
+    });
+
+    let tokens;
+    let lastRefill;
+
+    if (res.rows.length === 0) {
+      tokens = Number(config.capacity) - 1;
+      lastRefill = now;
+
+      if (!isFinite(tokens)) return { allowed: true };
+
+      await turso.execute({
+        sql: 'INSERT INTO api_rate_limits (key, tokens, last_refill) VALUES (?, ?, ?)',
+        args: [key, tokens, lastRefill]
+      });
+    } else {
+      const row = res.rows[0];
+      let lastRefillDate = new Date(row.last_refill);
+
+      // Sanitize: If DB has invalid date, reset to now
+      if (isNaN(lastRefillDate.getTime())) {
+        lastRefillDate = new Date();
+      }
+
+      const secondsPassed = Math.max(0, (new Date().getTime() - lastRefillDate.getTime()) / 1000);
+      const refillRate = Number(config.refillRate || 0);
+      const currentTokens = Math.min(
+        Number(config.capacity),
+        Number(row.tokens || 0) + (secondsPassed * refillRate)
+      );
+
+      if (!isFinite(currentTokens)) return { allowed: true };
+
+      if (currentTokens < 1) {
+        return {
+          allowed: false,
+          response: json(
+            {
+              error: 'Too many requests',
+              type,
+              retry_after: Math.ceil((1 - currentTokens) / (refillRate || 0.1)),
+            },
+            429
+          ),
+        };
+      }
+
+      tokens = currentTokens - 1;
+      lastRefill = now;
+
+      if (!isFinite(tokens)) return { allowed: true };
+
+      await turso.execute({
+        sql: 'UPDATE api_rate_limits SET tokens = ?, last_refill = ? WHERE key = ?',
+        args: [tokens, lastRefill, key]
+      });
+    }
+
+    return { allowed: true };
+  } catch (e) {
+    console.error('[Rate Limit] Turso error:', e.message);
+    // Fail open 
+    return { allowed: true };
+  }
 }
 
 /**
@@ -513,12 +576,20 @@ export async function GET(request, context) {
     if (path === '/fleets') {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
-      const { data: fleets, error } = await supabaseAdmin
-        .from('fleets')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
+
+      // Try Turso first
+      let fleets = await tursoAdapter.getFleets(user.id).catch(() => []);
+
+      // If Turso is empty, fallback to Supabase (Legacy)
+      if (fleets.length === 0) {
+        const { data: legacyFleets, error } = await supabaseAdmin
+          .from('fleets')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+        if (!error && legacyFleets) fleets = legacyFleets;
+      }
+
       return json({ fleets });
     }
 
@@ -533,19 +604,28 @@ export async function GET(request, context) {
       const limit = parseInt(searchParams.get('limit') || '50');
       const offset = (page - 1) * limit;
 
-      let query = supabaseAdmin
-        .from('agents')
-        .select('*', { count: 'exact' })
-        .eq('user_id', user.id);
-      if (fleet_id) query = query.eq('fleet_id', fleet_id);
+      // Try Turso first (New records)
+      let agents = await tursoAdapter.getAgents(user.id, limit, offset).catch(() => []);
 
-      const {
-        data: agents,
-        error,
-        count,
-      } = await query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+      // If Turso is empty, fallback to Supabase (Legacy)
+      if (agents.length === 0) {
 
-      if (error) throw error;
+        let query = supabaseAdmin
+          .from('agents')
+          .select('*', { count: 'exact' })
+          .eq('user_id', user.id);
+        if (fleet_id) query = query.eq('fleet_id', fleet_id);
+
+        const {
+          data: legacyAgents,
+          error,
+        } = await query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+
+        if (!error && legacyAgents) agents = legacyAgents;
+      } else if (fleet_id) {
+        // Filter Turso results by fleet if requested
+        agents = agents.filter(a => a.fleet_id === fleet_id);
+      }
 
       // Optimize: Process decryption in batches to prevent event loop blocking
       const decryptedAgents = await processInBatches(agents, 50, decryptAgent);
@@ -573,17 +653,23 @@ export async function GET(request, context) {
       if (!user) return json({ error: 'Unauthorized' }, 401);
 
       const agentId = metricsMatch[1];
-      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-      const { data: metrics, error } = await supabaseAdmin
-        .from('agent_metrics')
-        .select('created_at, latency_ms, errors_count, tasks_completed, cpu_usage, memory_usage')
-        .eq('agent_id', agentId)
-        .eq('user_id', user.id) // Ensure ownership
-        .gte('created_at', twentyFourHoursAgo)
-        .order('created_at', { ascending: true });
+      // Try Turso first (New high-frequency metrics)
+      let metrics = await tursoAdapter.getMetrics(agentId).catch(() => []);
 
-      if (error) throw error;
+      // Fallback to Supabase for old metrics
+      if (metrics.length === 0) {
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const { data: legacyMetrics, error } = await supabaseAdmin
+          .from('agent_metrics')
+          .select('created_at, latency_ms, errors_count, tasks_completed, cpu_usage, memory_usage')
+          .eq('agent_id', agentId)
+          .eq('user_id', user.id)
+          .gte('created_at', twentyFourHoursAgo)
+          .order('created_at', { ascending: true });
+        if (!error && legacyMetrics) metrics = legacyMetrics;
+      }
+
       return json({ metrics });
     }
 
@@ -617,13 +703,28 @@ export async function GET(request, context) {
     if (path === '/alerts') {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
-      const { data: alerts, error } = await supabaseAdmin
-        .from('alerts')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(50);
-      if (error) throw error;
+
+      // Try Turso
+      let alerts = [];
+      try {
+        const res = await turso.execute({
+          sql: 'SELECT * FROM alerts WHERE user_id = ? ORDER BY created_at DESC LIMIT 50',
+          args: [user.id]
+        });
+        alerts = res.rows;
+      } catch (e) { }
+
+      // Fallback
+      if (alerts.length === 0) {
+        const { data: legacyAlerts, error } = await supabaseAdmin
+          .from('alerts')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(50);
+        if (!error && legacyAlerts) alerts = legacyAlerts;
+      }
+
       return json({ alerts });
     }
 
@@ -631,13 +732,15 @@ export async function GET(request, context) {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
 
-      const { data: stats, error } = await supabaseAdmin.rpc('get_dashboard_stats', {
-        p_user_id: user.id,
-      });
+      // Try Turso stats
+      let stats = await tursoAdapter.getStats(user.id).catch(() => null);
 
-      if (error) {
-        console.error('Failed to get dashboard stats:', error);
-        return json({ error: 'Failed to fetch statistics' }, 500);
+      // Fallback
+      if (!stats || (stats.agents?.length === 0)) {
+        const { data: legacyStats, error } = await supabaseAdmin.rpc('get_dashboard_stats', {
+          p_user_id: user.id,
+        });
+        if (!error) stats = legacyStats;
       }
 
       return json({ stats });
@@ -656,10 +759,21 @@ export async function GET(request, context) {
         .eq('user_id', user.id)
         .neq('status', 'cancelled')
         .maybeSingle();
-      const { count: agentCount } = await supabaseAdmin
-        .from('agents')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
+      // Use Turso for agent count first
+      let agentCount = 0;
+      try {
+        const res = await turso.execute({
+          sql: 'SELECT count(*) as count FROM agents WHERE user_id = ?',
+          args: [user.id]
+        });
+        agentCount = res.rows[0].count;
+      } catch (e) {
+        const { count } = await supabaseAdmin
+          .from('agents')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id);
+        agentCount = count || 0;
+      }
 
       const plan = (sub?.plan || 'free').toLowerCase();
       const subscription = sub ? { ...sub, plan } : { plan: 'free', status: 'active' };
@@ -806,15 +920,25 @@ export async function POST(request, context) {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
       const body = await request.json();
+      const fleetId = uuidv4();
       const fleet = {
-        id: uuidv4(),
+        id: fleetId,
         user_id: user.id,
         name: body.name || 'My Fleet',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: new Date().toISOString()
       };
-      const { error } = await supabaseAdmin.from('fleets').insert(fleet);
-      if (error) throw error;
+
+      // 1. Write to Turso (Primary)
+      await turso.execute({
+        sql: 'INSERT INTO fleets (id, user_id, name, created_at) VALUES (?, ?, ?, ?)',
+        args: [fleet.id, fleet.user_id, fleet.name, fleet.created_at]
+      });
+
+      // 2. Best-effort write to Supabase (Background)
+      supabaseAdmin.from('fleets').insert(fleet).then(({ error }) => {
+        if (error) console.warn('[Supabase Sync] Fleet creation failed:', error.message);
+      });
+
       return json({ fleet }, 201);
     }
 
@@ -862,10 +986,12 @@ export async function POST(request, context) {
 
       const tier = await getTier(user.id);
       if (tier === 'free') {
-        const { count } = await supabaseAdmin
-          .from('agents')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id);
+        // Check Turso first for limits
+        const res = await turso.execute({
+          sql: 'SELECT count(*) as count FROM agents WHERE user_id = ?',
+          args: [user.id]
+        });
+        const count = res.rows[0].count;
         if (count >= 1) {
           return json(
             { error: 'FREE tier is limited to 1 agent node. Upgrade for unlimited scale.' },
@@ -879,78 +1005,63 @@ export async function POST(request, context) {
       const policyProfile = body.policy_profile || DEFAULT_POLICY_PROFILE;
       let policy = getPolicy(policyProfile);
 
-      // Check for custom policy if enterprise user
-      if (![POLICY_DEV, POLICY_OPS, POLICY_EXEC].includes(policyProfile)) {
-        const { data: customPolicy } = await supabaseAdmin
-          .from('custom_policies')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('name', policyProfile)
-          .eq('is_active', true)
-          .maybeSingle();
-
-        if (customPolicy) {
-          policy = getPolicy(policyProfile, customPolicy);
-        }
-      }
-
+      const agentId = uuidv4();
       const agent = {
-        id: uuidv4(),
+        id: agentId,
         fleet_id: body.fleet_id,
         user_id: user.id,
         name: body.name || 'New Agent',
         gateway_url: body.gateway_url || '',
         status: 'idle',
         last_heartbeat: null,
-        config_json: encrypt(
-          body.config_json || {
-            profile: policyProfile,
-            skills: policy.skills,
-            model: body.model || 'claude-sonnet-4',
-            data_scope:
-              policyProfile === POLICY_DEV
-                ? 'full'
-                : policyProfile === POLICY_OPS
-                  ? 'system'
-                  : 'read-only',
-          }
-        ),
-        metrics_json: {
+        config_json: JSON.stringify({
+          profile: policyProfile,
+          skills: policy.skills,
+          model: body.model || 'claude-sonnet-4',
+          data_scope: policyProfile === POLICY_DEV ? 'full' : (policyProfile === POLICY_OPS ? 'system' : 'read-only'),
+        }),
+        metrics_json: JSON.stringify({
           latency_ms: 0,
           tasks_completed: 0,
           errors_count: 0,
           uptime_hours: 0,
-          cost_usd: 0,
           cpu_usage: 0,
           memory_usage: 0,
-        },
+        }),
         machine_id: body.machine_id || '',
         location: body.location || '',
         model: body.model || 'claude-sonnet-4',
-        agent_secret: JSON.stringify(encrypt(plainSecret)), // Encrypt returns object, must stringify for DB
+        agent_secret: plainSecret, // Turso stores plaintext or simple encrypted string
         policy_profile: policyProfile,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
-      const { error } = await supabaseAdmin.from('agents').insert(agent);
-      if (error) throw error;
+
+      // 1. Write to Turso (Primary)
+      await turso.execute({
+        sql: `INSERT INTO agents (id, fleet_id, user_id, name, gateway_url, status, last_heartbeat, config_json, metrics_json, machine_id, location, model, agent_secret, policy_profile, created_at, updated_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [
+          agent.id, agent.fleet_id, agent.user_id, agent.name, agent.gateway_url,
+          agent.status, agent.last_heartbeat, agent.config_json, agent.metrics_json,
+          agent.machine_id, agent.location, agent.model, agent.agent_secret,
+          agent.policy_profile, agent.created_at, agent.updated_at
+        ]
+      });
+
+      // 2. Best-effort Supabase sync (Background)
+      const supabaseAgent = {
+        ...agent,
+        config_json: encrypt(JSON.parse(agent.config_json)),
+        agent_secret: JSON.stringify(encrypt(agent.agent_secret)),
+        metrics_json: JSON.parse(agent.metrics_json)
+      };
+      supabaseAdmin.from('agents').insert(supabaseAgent).then(({ error }) => {
+        if (error) console.warn('[Supabase Sync] Agent creation failed:', error.message);
+      });
 
       // Return plaintext to the UI
-      return json(
-        {
-          agent: {
-            ...agent,
-            agent_secret: plainSecret,
-            config_json: body.config_json || {
-              profile: DEFAULT_POLICY_PROFILE,
-              skills: ['code', 'search'],
-              model: 'claude-sonnet-4',
-              data_scope: 'full',
-            },
-          },
-        },
-        201
-      );
+      return json({ agent: { ...agent, agent_secret: plainSecret, config_json: JSON.parse(agent.config_json) } }, 201);
     }
 
     const restartMatch = path.match(/^\/agents\/([^/]+)\/restart$/);
@@ -1069,17 +1180,31 @@ export async function POST(request, context) {
 
       // Legacy token fallback: Fetch agent to get metadata
       if (!userId) {
-        const { data, error } = await supabaseAdmin
-          .from('agents')
-          .select('*')
-          .eq('id', body.agent_id)
-          .maybeSingle();
+        // Try Turso first
+        const tursoRes = await turso.execute({
+          sql: 'SELECT * FROM agents WHERE id = ? LIMIT 1',
+          args: [body.agent_id]
+        });
 
-        if (error) throw error;
-        if (!data) return json({ error: 'Agent not found' }, 404);
-        agent = data;
-        userId = agent.user_id;
-        policyProfile = agent.policy_profile;
+        if (tursoRes.rows.length > 0) {
+          agent = tursoRes.rows[0];
+          agent.metrics_json = agent.metrics_json ? JSON.parse(agent.metrics_json) : null;
+          userId = agent.user_id;
+          policyProfile = agent.policy_profile;
+        } else {
+          // Fallback to Supabase
+          const { data, error } = await supabaseAdmin
+            .from('agents')
+            .select('*')
+            .eq('id', body.agent_id)
+            .maybeSingle();
+
+          if (error) throw error;
+          if (!data) return json({ error: 'Agent not found' }, 404);
+          agent = data;
+          userId = agent.user_id;
+          policyProfile = agent.policy_profile;
+        }
       }
 
       // Route-specific heartbeat limit
@@ -1100,15 +1225,25 @@ export async function POST(request, context) {
 
       // Only fetch agent if metrics are present and we haven't fetched it yet
       if (body.metrics && !agent) {
-        const { data, error } = await supabaseAdmin
-          .from('agents')
-          .select('*')
-          .eq('id', body.agent_id)
-          .maybeSingle();
+        const tursoRes = await turso.execute({
+          sql: 'SELECT * FROM agents WHERE id = ? LIMIT 1',
+          args: [body.agent_id]
+        });
 
-        if (error) throw error;
-        if (!data) return json({ error: 'Agent not found' }, 404);
-        agent = data;
+        if (tursoRes.rows.length > 0) {
+          agent = tursoRes.rows[0];
+          agent.metrics_json = agent.metrics_json ? JSON.parse(agent.metrics_json) : null;
+        } else {
+          const { data, error } = await supabaseAdmin
+            .from('agents')
+            .select('*')
+            .eq('id', body.agent_id)
+            .maybeSingle();
+
+          if (error) throw error;
+          if (!data) return json({ error: 'Agent not found' }, 404);
+          agent = data;
+        }
       }
 
       let tasksCount = 0;
@@ -1148,37 +1283,81 @@ export async function POST(request, context) {
       if (body.model) update.model = body.model;
 
       // Optimize: Update agent and insert metrics in parallel
-      const updateAgentPromise = supabaseAdmin
-        .from('agents')
-        .update(update)
-        .eq('id', body.agent_id);
+      // 1. Update Turso (Primary)
+      const tursoUpdatePromise = (async () => {
+        try {
+          const sqlParts = ['status = ?', 'last_heartbeat = ?', 'updated_at = ?'];
+          const sqlArgs = [update.status, update.last_heartbeat, update.updated_at];
 
-      const insertMetricsPromise = body.metrics
-        ? (async () => {
-          try {
-            const { error: metricsError } = await supabaseAdmin.from('agent_metrics').insert({
-              agent_id: body.agent_id, // Use ID from body/token
-              user_id: userId, // Use userId from token/agent
-              cpu_usage: body.metrics.cpu_usage || 0,
-              memory_usage: body.metrics.memory_usage || 0,
-              latency_ms: body.metrics.latency_ms || 0,
-              uptime_hours: body.metrics.uptime_hours || 0,
-              tasks_completed: tasksCount,
-              errors_count: errorsCount,
-              cost_usd: tasksCount * costPerTask || 0,
-            });
-            if (metricsError) {
-              console.error('Failed to insert metrics:', metricsError);
-            }
-          } catch (e) {
-            console.error('Metrics insertion exception:', e);
+          if (update.metrics_json) {
+            sqlParts.push('metrics_json = ?');
+            sqlArgs.push(JSON.stringify(update.metrics_json));
           }
-        })()
-        : Promise.resolve();
+          if (update.machine_id) {
+            sqlParts.push('machine_id = ?');
+            sqlArgs.push(update.machine_id);
+          }
+          if (update.location) {
+            sqlParts.push('location = ?');
+            sqlArgs.push(update.location);
+          }
+          if (update.model) {
+            sqlParts.push('model = ?');
+            sqlArgs.push(update.model);
+          }
 
-      const [{ error }] = await Promise.all([updateAgentPromise, insertMetricsPromise]);
+          sqlArgs.push(body.agent_id);
+          await turso.execute({
+            sql: `UPDATE agents SET ${sqlParts.join(', ')} WHERE id = ?`,
+            args: sqlArgs
+          });
 
-      if (error) throw error;
+          if (body.metrics) {
+            await turso.execute({
+              sql: `INSERT INTO agent_metrics 
+                    (id, agent_id, user_id, cpu_usage, memory_usage, latency_ms, uptime_hours, tasks_completed, errors_count, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              args: [
+                crypto.randomUUID(),
+                body.agent_id,
+                userId,
+                body.metrics.cpu_usage || 0,
+                body.metrics.memory_usage || 0,
+                body.metrics.latency_ms || 0,
+                body.metrics.uptime_hours || 0,
+                tasksCount,
+                errorsCount,
+                update.last_heartbeat
+              ]
+            });
+          }
+        } catch (e) {
+          console.error('[Turso Heartbeat] Failed:', e.message);
+        }
+      })();
+
+      // 2. Best-effort Supabase sync (Background)
+      const supabaseSyncPromise = (async () => {
+        try {
+          // Throttle: Only sync if status changed OR it's been > 5 minutes
+          const shouldSync = !agent ||
+            agent.status !== update.status ||
+            (new Date() - new Date(agent.last_heartbeat)) > 5 * 60 * 1000;
+
+          if (shouldSync) {
+            // Sync agent metadata/status ONLY (Low frequency)
+            // DO NOT sync agent_metrics to Supabase to save on limits/performance
+            await supabaseAdmin
+              .from('agents')
+              .update(update)
+              .eq('id', body.agent_id);
+          }
+        } catch (e) {
+          console.warn('[Supabase Heartbeat Sync] Failed:', e.message);
+        }
+      })();
+
+      await Promise.all([tursoUpdatePromise, supabaseSyncPromise]);
 
       // Include updated policy in heartbeat response
       const policy = getPolicy(policyProfile || DEFAULT_POLICY_PROFILE);
@@ -1439,10 +1618,28 @@ export async function POST(request, context) {
       });
 
       try {
-        await supabaseAdmin.from('agent_metrics').delete().eq('user_id', user.id); // Clear old metrics
-        await supabaseAdmin.from('agent_metrics').insert(metricsDocs);
+        // Clear old metrics in Turso
+        await turso.execute({
+          sql: 'DELETE FROM agent_metrics WHERE user_id = ?',
+          args: [user.id]
+        });
+
+        // Batch insert into Turso
+        const statements = metricsDocs.map(m => ({
+          sql: `INSERT INTO agent_metrics 
+                (id, agent_id, user_id, cpu_usage, memory_usage, latency_ms, uptime_hours, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          args: [
+            crypto.randomUUID(), m.agent_id, m.user_id,
+            m.cpu_usage, m.memory_usage, m.latency_ms, m.uptime_hours, m.created_at
+          ]
+        }));
+        await turso.batch(statements, 'write');
+
+        // Optional: Keep Supabase agents/fleets for auth/backup but clear metrics
+        await supabaseAdmin.from('agent_metrics').delete().eq('user_id', user.id);
       } catch (e) {
-        console.error('Demo metrics seed error (table likely missing):', e);
+        console.error('Turso/Supabase seed error:', e.message);
       }
 
       return json({
@@ -1822,45 +2019,110 @@ export async function PUT(request, context) {
       if (!user && !isAgent) return json({ error: 'Unauthorized' }, 401);
 
       const body = await request.json();
-      const updateFields = { updated_at: new Date().toISOString() };
-      if (body.name !== undefined) updateFields.name = body.name;
-      if (body.gateway_url !== undefined) updateFields.gateway_url = body.gateway_url;
-      if (body.config_json !== undefined) updateFields.config_json = encrypt(body.config_json);
-      if (body.machine_id !== undefined) updateFields.machine_id = body.machine_id;
-      if (body.location !== undefined) updateFields.location = body.location;
-      if (body.model !== undefined) updateFields.model = body.model;
-      if (body.status !== undefined) updateFields.status = body.status;
-      if (body.policy_profile !== undefined) updateFields.policy_profile = body.policy_profile;
+      const now = new Date().toISOString();
+      const updateFields = { updated_at: now };
 
-      let query = supabaseAdmin.from('agents').update(updateFields).eq('id', agentId);
+      const sqlParts = ['updated_at = ?'];
+      const sqlArgs = [now];
 
-      // If user, ensure ownership
-      if (user) {
-        query = query.eq('user_id', user.id);
+      if (body.name !== undefined) {
+        updateFields.name = body.name;
+        sqlParts.push('name = ?');
+        sqlArgs.push(body.name);
+      }
+      if (body.gateway_url !== undefined) {
+        updateFields.gateway_url = body.gateway_url;
+        sqlParts.push('gateway_url = ?');
+        sqlArgs.push(body.gateway_url);
+      }
+      if (body.config_json !== undefined) {
+        const cfg = typeof body.config_json === 'string' ? JSON.parse(body.config_json) : body.config_json;
+        updateFields.config_json = encrypt(cfg);
+        sqlParts.push('config_json = ?');
+        sqlArgs.push(JSON.stringify(cfg));
+      }
+      if (body.machine_id !== undefined) {
+        updateFields.machine_id = body.machine_id;
+        sqlParts.push('machine_id = ?');
+        sqlArgs.push(body.machine_id);
+      }
+      if (body.location !== undefined) {
+        updateFields.location = body.location;
+        sqlParts.push('location = ?');
+        sqlArgs.push(body.location);
+      }
+      if (body.model !== undefined) {
+        updateFields.model = body.model;
+        sqlParts.push('model = ?');
+        sqlArgs.push(body.model);
+      }
+      if (body.status !== undefined) {
+        updateFields.status = body.status;
+        sqlParts.push('status = ?');
+        sqlArgs.push(body.status);
+      }
+      if (body.policy_profile !== undefined) {
+        updateFields.policy_profile = body.policy_profile;
+        sqlParts.push('policy_profile = ?');
+        sqlArgs.push(body.policy_profile);
       }
 
-      const { data: agent, error } = await query.select().single();
+      sqlArgs.push(agentId);
 
-      if (error) throw error;
+      // 1. Update Turso
+      const tursoRes = await turso.execute({
+        sql: `UPDATE agents SET ${sqlParts.join(', ')} WHERE id = ?`,
+        args: sqlArgs
+      });
+
+      // 2. Background Sync Supabase
+      let supabaseQuery = supabaseAdmin.from('agents').update(updateFields).eq('id', agentId);
+      if (user) supabaseQuery = supabaseQuery.eq('user_id', user.id);
+      supabaseQuery.then(({ error }) => {
+        if (error) console.warn('[Supabase Sync] Agent update failed:', error.message);
+      });
+
+      // Get updated agent from Turso to return
+      const updatedRes = await turso.execute({
+        sql: 'SELECT * FROM agents WHERE id = ?',
+        args: [agentId]
+      });
+      const agent = updatedRes.rows[0];
       if (!agent) return json({ error: 'Agent not found' }, 404);
-      return json({ agent: await decryptAgent(agent) });
+
+      return json({
+        agent: {
+          ...agent,
+          config_json: agent.config_json ? JSON.parse(agent.config_json) : null,
+          metrics_json: agent.metrics_json ? JSON.parse(agent.metrics_json) : null
+        }
+      });
     }
 
     const fleetMatch = path.match(/^\/fleets\/([^/]+)$/);
     if (fleetMatch) {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
+      const fleetId = fleetMatch[1];
       const body = await request.json();
-      const { data: fleet, error } = await supabaseAdmin
-        .from('fleets')
-        .update({ name: body.name, updated_at: new Date().toISOString() })
-        .eq('id', fleetMatch[1])
-        .eq('user_id', user.id)
-        .maybeSingle();
+      const now = new Date().toISOString();
 
-      if (error) throw error;
-      if (!fleet) return json({ error: 'Fleet not found' }, 404);
-      return json({ fleet });
+      // 1. Update Turso
+      await turso.execute({
+        sql: 'UPDATE fleets SET name = ? WHERE id = ? AND user_id = ?',
+        args: [body.name, fleetId, user.id]
+      });
+
+      // 2. Background Sync Supabase
+      supabaseAdmin.from('fleets')
+        .update({ name: body.name, updated_at: now })
+        .eq('id', fleetId)
+        .eq('user_id', user.id)
+        .then(({ error }) => {
+          if (error) console.warn('[Supabase Sync] Fleet update failed:', error.message);
+        });
+
+      return json({ fleet: { id: fleetId, name: body.name, user_id: user.id } });
     }
 
     const customPolicyMatch = path.match(/^\/custom-policies\/([^/]+)$/);

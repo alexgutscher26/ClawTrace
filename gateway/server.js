@@ -1,16 +1,11 @@
 import { serve } from 'bun';
-import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
+import { createClient as createTursoClient } from '@libsql/client';
 
-// Load env
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-    console.error('Missing Supabase credentials in gateway');
-}
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const turso = createTursoClient({
+    url: process.env.TURSO_DATABASE_URL || '',
+    authToken: process.env.TURSO_AUTH_TOKEN || '',
+});
 
 // In-memory cache for fast verification
 // Map<agentId, { secret, lastHandshake }>
@@ -20,19 +15,13 @@ const heartbeats = new Map();
 // Periodically refresh agent secrets (e.g. every 5 mins)
 async function refreshCache() {
     try {
-        const { data: agents, error } = await supabase.from('agents').select('id, agent_secret');
-        if (error) throw error;
-
-        for (const agent of agents) {
-            // Need to decrypt secret if it's encrypted in DB
-            // However, gateway might not have the decryption key easily or it's slow.
-            // For now, let's assume we can fetch them or we use a specialized gateway secret.
-            // In a real prod setup, this gateway would have access to the INTERNAL_ENCRYPTION_KEY.
-            agentCache.set(agent.id, agent.agent_secret);
+        const res = await turso.execute('SELECT id, user_id, agent_secret FROM agents');
+        for (const row of res.rows) {
+            agentCache.set(row.id, { secret: row.agent_secret, user_id: row.user_id });
         }
-        console.log(`[Gateway] Cached ${agentCache.size} agent secrets`);
+        console.log(`[Gateway] Cached ${agentCache.size} agent secrets and user mappings`);
     } catch (e) {
-        console.error('Cache refresh error:', e);
+        console.error('Cache refresh error (Turso):', e);
     }
 }
 
@@ -40,48 +29,58 @@ async function refreshCache() {
 refreshCache();
 setInterval(refreshCache, 300000);
 
-// DB Flush
+// DB Flush to Turso
 setInterval(async () => {
     if (heartbeats.size === 0) return;
-
-    const updates = [];
-    const metricsBatch = [];
 
     const currentBatch = new Map(heartbeats);
     heartbeats.clear();
 
+    const statements = [];
+    const now = new Date().toISOString();
+
     for (const [agentId, data] of currentBatch) {
-        updates.push({
-            id: agentId,
-            status: data.status,
-            last_heartbeat: data.last_heartbeat,
-            updated_at: new Date().toISOString(),
-            metrics_json: data.metrics // Store in metrics_json column
+        // 1. Update Agent Heartbeat
+        statements.push({
+            sql: 'UPDATE agents SET status = ?, last_heartbeat = ?, updated_at = ?, metrics_json = ? WHERE id = ?',
+            args: [
+                data.status,
+                data.last_heartbeat,
+                now,
+                JSON.stringify(data.metrics || {}),
+                agentId
+            ]
         });
 
+        // 2. Insert Metrics History
         if (data.metrics) {
-            metricsBatch.push({
-                agent_id: agentId,
-                cpu_usage: data.metrics.cpu_usage || 0,
-                memory_usage: data.metrics.memory_usage || 0,
-                latency_ms: data.metrics.latency_ms || 0,
-                uptime_hours: data.metrics.uptime_hours || 0,
-                created_at: data.last_heartbeat
+            const cached = agentCache.get(agentId);
+            statements.push({
+                sql: `INSERT INTO agent_metrics 
+                      (id, agent_id, user_id, cpu_usage, memory_usage, latency_ms, uptime_hours, created_at)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ? )`,
+                args: [
+                    crypto.randomUUID(),
+                    agentId,
+                    cached?.user_id || null,
+                    data.metrics.cpu_usage || 0,
+                    data.metrics.memory_usage || 0,
+                    data.metrics.latency_ms || 0,
+                    data.metrics.uptime_hours || 0,
+                    data.last_heartbeat
+                ]
             });
         }
     }
 
     try {
-        // Atomic push to Supabase
-        await supabase.from('agents').upsert(updates);
-        if (metricsBatch.length > 0) {
-            await supabase.from('agent_metrics').insert(metricsBatch);
-        }
-        console.log(`[Gateway] Synced ${updates.length} nodes to primary DB`);
+        // Atomic batch push to Turso
+        await turso.batch(statements, 'write');
+        console.log(`[Gateway] Synced ${statements.length} operations to Turso DB`);
     } catch (e) {
-        console.error('Flush error:', e);
+        console.error('Turso Flush error:', e);
     }
-}, 10000);
+}, 5000); // Flush faster to Turso, it can handle it
 
 const server = serve({
     port: 8080,

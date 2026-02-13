@@ -61,7 +61,7 @@ export default function AgentDetailView() {
   const router = useRouter();
   const params = useParams();
   const agentId = params.id;
-  const navigate = (path) => router.push(path);
+  const navigate = useCallback((path) => router.push(path), [router]);
   const [agent, setAgent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [restarting, setRestarting] = useState(false);

@@ -1,4 +1,4 @@
-// const { withPostHogConfig } = require('@posthog/nextjs-config');
+const path = require('path');
 
 const nextConfig = {
   output: 'standalone',
@@ -6,7 +6,18 @@ const nextConfig = {
     unoptimized: true,
   },
   serverExternalPackages: ['mongodb', 'posthog-node'],
-  turbopack: {},
+  experimental: {
+    turbopack: {
+      root: path.resolve(__dirname),
+      resolveAlias: {
+        'tailwindcss': path.resolve(__dirname, 'node_modules/tailwindcss'),
+        '@tailwindcss/postcss': path.resolve(__dirname, 'node_modules/@tailwindcss/postcss')
+      }
+    },
+    serverActions: {
+      bodySizeLimit: '2mb',
+    },
+  },
   webpack(config, { dev }) {
     if (dev) {
       // Reduce CPU/memory from file watching
@@ -25,9 +36,6 @@ const nextConfig = {
   experimental: {
     serverActions: {
       bodySizeLimit: '2mb',
-    },
-    turbo: {
-      root: '.',
     },
   },
   async headers() {

@@ -1,10 +1,10 @@
 # ClawTrace Agent - PowerShell Heartbeat Agent
-# Agent: f1a84837-36ef-4702-97b7-d80b4fc11218
+# Agent: e7c09a57-1f66-41aa-b975-56d9a1a17ac5
 # Run: powershell -ExecutionPolicy Bypass -File clawtrace-agent.ps1
 
-$SaasUrl = "https://clawtrace.dev"
-$AgentId = "f1a84837-36ef-4702-97b7-d80b4fc11218"
-$AgentSecret = "2946c0d9-7dc7-4924-ab99-232537b36064"
+$SaasUrl = "http://localhost:3000"
+$AgentId = "e7c09a57-1f66-41aa-b975-56d9a1a17ac5"
+$AgentSecret = "ae240a64-f74d-49e6-8a79-4e3a22c86569"
 
 if ([string]::IsNullOrEmpty($AgentSecret)) {
     $AgentSecret = $env:CLAWTRACE_AGENT_SECRET
