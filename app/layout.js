@@ -69,12 +69,8 @@ export default function RootLayout({ children }) {
         className={`bg-background min-h-screen antialiased ${font.className}`}
         suppressHydrationWarning
       >
-        <Script
-          data-domain="clawtrace.dev"
-          data-site-id="P-WGRVXRLDI0COPTS2SDHDG"
-          src="http://localhost:3000/js/pixel.min.js"
-          defer
-        />
+<script data-domain="clawtrace.dev"
+data-site-id="P-WGRVXRLDI0COPTS2SDHDG" src="http://localhost:3000/js/pixel.min.js" defer></script>
         <FleetProvider>
           <Suspense fallback={null}>
             <AnalyticsProvider>
