@@ -57,7 +57,6 @@ import { FleetProvider } from '@/context/FleetContext';
 import { AnalyticsProvider } from '@/context/AnalyticsProvider';
 import { Toaster } from 'sonner';
 import { CommandPalette } from '@/components/CommandPalette';
-import Script from 'next/script';
 
 /**
  * Renders the root layout of the application with children components.
@@ -69,12 +68,6 @@ export default function RootLayout({ children }) {
         className={`bg-background min-h-screen antialiased ${font.className}`}
         suppressHydrationWarning
       >
-        <Script
-          data-domain="clawtrace.dev"
-          data-site-id="P-WGRVXRLDI0COPTS2SDHDG"
-          src="/js/pixel.min.js"
-          defer
-        />
         <FleetProvider>
           <Suspense fallback={null}>
             <AnalyticsProvider>
