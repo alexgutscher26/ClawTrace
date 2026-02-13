@@ -71,7 +71,7 @@ export default function RootLayout({ children }) {
       >
         <Script
           data-domain="clawtrace.dev"
-          data-site-id="P-M5JMMDHPMJ1RHBAZHZS3W"
+          data-site-id="P-WGRVXRLDI0COPTS2SDHDG"
           src="http://localhost:3000/js/pixel.min.js"
           defer
         />
