@@ -33,7 +33,7 @@ import { RecentAlerts } from '@/components/dashboard/RecentAlerts';
 /**
  * Renders the dashboard view for managing AI agents within a fleet.
  *
- * This component handles the state and lifecycle of the dashboard, including fetching data from the API, managing agent and alert states, and providing real-time updates via subscriptions. It also includes functionality for adding, deleting, and resolving agents and alerts, as well as handling user navigation and session management.
+ * This component handles the state and lifecycle of the dashboard, including fetching data from the API, managing agent and alert states, and providing real-time updates via subscriptions. It also includes functionality for adding, deleting, and resolving agents and alerts, as well as handling user navigation and session management. The component utilizes various hooks to manage state and side effects, ensuring a responsive user experience.
  *
  * @returns {JSX.Element} The rendered dashboard view.
  */

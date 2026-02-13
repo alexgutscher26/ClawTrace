@@ -164,6 +164,7 @@ function validateInstallParams(agentId, agentSecret, interval) {
  * This function retrieves the current rate limit tier for the user and checks the number of available tokens.
  * It updates the token bucket based on the elapsed time since the last refill and either allows or denies the request
  * based on the token availability. If the request is denied, it provides a retry-after duration.
+ * The function interacts with a database to manage rate limits and handles potential errors gracefully.
  *
  * @param request - The incoming request object.
  * @param identifier - A unique identifier for the rate limit check.
@@ -1983,11 +1984,9 @@ export async function POST(request, context) {
 }
 
 /**
- * Handles the PUT request for updating agents, fleets, or custom policies.
+ * Handles the PUT request for updating agents, fleets, custom policies, or alert channels.
  *
- * This function first extracts the path from the request context and matches it against predefined routes for agents, fleets, and custom policies.
- * It checks user authentication and authorization, processes the request body for updates, and interacts with the Supabase database to perform the updates.
- * If the requested resource is not found or if there are any errors during the process, appropriate error responses are returned.
+ * This function extracts the path from the request context and matches it against predefined routes. It checks user authentication and authorization, processes the request body for updates, and interacts with the Turso and Supabase databases to perform the updates. If the requested resource is not found or if there are any errors during the process, appropriate error responses are returned.
  *
  * @param request - The incoming request object containing the data to be updated.
  * @param context - The context object containing parameters and other relevant data.

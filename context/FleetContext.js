@@ -6,6 +6,15 @@ import { toast } from 'sonner';
 
 const FleetContext = createContext();
 
+/**
+ * Provides the context for the fleet management application.
+ *
+ * This component manages the authentication session, loading state, and branding information. It utilizes the Supabase API to fetch the current session and branding details based on the user's subscription plan. The component also handles public branding for non-local domains. The context value includes session, loading state, master passphrase, branding, and the API function for making requests.
+ *
+ * @param {Object} props - The component props.
+ * @param {ReactNode} props.children - The child components to be rendered within the context provider.
+ * @returns {JSX.Element} The FleetContext provider wrapping the children.
+ */
 export function FleetProvider({ children }) {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
