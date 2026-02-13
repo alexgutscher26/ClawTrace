@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
 import { unstable_cache } from 'next/cache';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';

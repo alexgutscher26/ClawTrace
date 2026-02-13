@@ -6,14 +6,14 @@ const nextConfig = {
     unoptimized: true,
   },
   serverExternalPackages: ['mongodb', 'posthog-node'],
+  turbopack: {
+    root: path.resolve(__dirname),
+    resolveAlias: {
+      'tailwindcss': path.resolve(__dirname, 'node_modules/tailwindcss'),
+      '@tailwindcss/postcss': path.resolve(__dirname, 'node_modules/@tailwindcss/postcss')
+    }
+  },
   experimental: {
-    turbopack: {
-      root: path.resolve(__dirname),
-      resolveAlias: {
-        'tailwindcss': path.resolve(__dirname, 'node_modules/tailwindcss'),
-        '@tailwindcss/postcss': path.resolve(__dirname, 'node_modules/@tailwindcss/postcss')
-      }
-    },
     serverActions: {
       bodySizeLimit: '2mb',
     },
