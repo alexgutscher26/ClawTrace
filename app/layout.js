@@ -1,5 +1,6 @@
 import './globals.css';
 import { Plus_Jakarta_Sans } from 'next/font/google';
+import Script from 'next/script';
 
 const font = Plus_Jakarta_Sans({ subsets: ['latin'] });
 
@@ -68,6 +69,12 @@ export default function RootLayout({ children }) {
         className={`bg-background min-h-screen antialiased ${font.className}`}
         suppressHydrationWarning
       >
+        <Script
+          src="https://datafa.st/js/script.js"
+          data-website-id="dfid_rBrJOb1727R3cXNbg2dt0"
+          data-domain="clawtrace.dev"
+          strategy="afterInteractive"
+        />
         <FleetProvider>
           <Suspense fallback={null}>
             <AnalyticsProvider>
