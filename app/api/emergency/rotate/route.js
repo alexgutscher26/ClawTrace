@@ -5,8 +5,9 @@ import { turso } from '@/lib/turso';
  * Handles the POST request to rotate agent models.
  *
  * This function extracts the `fromModel`, `toModel`, and `fleetId` from the request body.
- * It updates the `model` column in the `agents` table in Turso.
- * The function returns a JSON response indicating success or failure, along with relevant messages.
+ * It updates the `model` column in the `agents` table in Turso based on the provided parameters.
+ * If the required parameters are missing, it returns a 400 error response.
+ * Upon successful execution, it returns a JSON response indicating the number of agents updated.
  *
  * @param request - The incoming request object containing the JSON body with parameters.
  * @returns A JSON response indicating the success of the operation and the number of agents updated or an error message.
