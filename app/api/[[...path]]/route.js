@@ -1863,7 +1863,7 @@ export async function POST(request, context) {
 
       try {
         const session = await stripe.checkout.sessions.create({
-          customer_email: user.email,
+          ...(user.email ? { customer_email: user.email } : {}),
           client_reference_id: user.id,
           line_items: [{ price: priceId, quantity: 1 }],
           mode: 'subscription',
@@ -1879,7 +1879,7 @@ export async function POST(request, context) {
         return json({ checkout_url: session.url, plan });
       } catch (err) {
         console.error('Stripe Checkout error:', err);
-        return json({ error: 'Payment service unavailable', details: err.message }, 500);
+        return json({ error: `Payment service unavailable: ${err.message}`, details: err.message }, 500);
       }
     }
 
