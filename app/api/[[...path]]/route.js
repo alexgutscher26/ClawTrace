@@ -334,9 +334,7 @@ export async function OPTIONS() {
 /**
  * Handle GET requests for various API endpoints and return appropriate responses.
  *
- * This function processes incoming requests by checking rate limits and serving different responses based on the request path.
- * It includes health checks, agent installation scripts, user authentication, and data retrieval from the database.
- * The function also manages session tokens and handles errors gracefully, ensuring proper responses for each endpoint.
+ * This function processes incoming requests by checking rate limits, serving different responses based on the request path, and managing user authentication. It includes health checks, agent installation scripts, and data retrieval from the database. The function also handles session tokens and errors gracefully, ensuring proper responses for each endpoint.
  *
  * @param request - The incoming request object.
  * @param context - The context object containing parameters and other relevant data.
@@ -2220,11 +2218,9 @@ export async function POST(request, context) {
 }
 
 /**
- * Handles the PUT request for updating agents, fleets, or custom policies.
+ * Handles the PUT request for updating agents, fleets, custom policies, or alert channels.
  *
- * This function first extracts the path from the request context and matches it against predefined routes for agents, fleets, and custom policies.
- * It checks user authentication and authorization, processes the request body for updates, and interacts with the Supabase database to perform the updates.
- * If the requested resource is not found or if there are any errors during the process, appropriate error responses are returned.
+ * This function extracts the path from the request context and matches it against predefined routes. It checks user authentication and authorization, processes the request body for updates, and interacts with the Supabase database to perform the updates. If the requested resource is not found or if there are any errors during the process, appropriate error responses are returned.
  *
  * @param request - The incoming request object containing the data to be updated.
  * @param context - The context object containing parameters and other relevant data.
@@ -2464,6 +2460,19 @@ export async function PUT(request, context) {
   }
 }
 
+/**
+ * Handles the deletion of agents, fleets, custom policies, or alert channels based on the request path.
+ *
+ * The function first extracts the path from the context parameters and matches it against various patterns to determine the resource to delete.
+ * It checks for user authorization and deletes associated alerts and resources accordingly.
+ * If the resource is not found, it returns an appropriate error message.
+ * Any errors during the process are caught and logged, returning a generic internal server error response.
+ *
+ * @param request - The incoming request object.
+ * @param context - The context object containing parameters for the request.
+ * @returns A JSON response indicating the result of the deletion operation.
+ * @throws Error If an internal server error occurs during the deletion process.
+ */
 export async function DELETE(request, context) {
   const params = await context.params;
   const path = getPath(params);
