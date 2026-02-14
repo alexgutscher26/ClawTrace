@@ -34,9 +34,7 @@ async function getUser(request) {
 /**
  * Handles the GET request to retrieve user-specific agent cost data and recommendations.
  *
- * This function first retrieves the user associated with the request. If the user is unauthorized, it returns a 401 response.
- * It then fetches all agents for the user from Turso, aggregates their costs by model, and generates savings recommendations based on
- * current pricing. The results include total costs, usage by model, and sorted recommendations for potential savings.
+ * This function retrieves the user associated with the request and checks for authorization. It fetches all agents for the user from Turso, aggregates their costs by model, and generates savings recommendations based on current pricing. The results include total costs, usage by model, and sorted recommendations for potential savings.
  *
  * @param request - The incoming request object containing user information.
  * @returns A JSON response containing total cost, usage by model, and savings recommendations.
