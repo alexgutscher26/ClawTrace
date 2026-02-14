@@ -1,25 +1,21 @@
 -- Turso (SQLite) Core Schema for Fleet Orchestrator
+-- Optimized for High-Speed Edge Operations & Agent Management
 
--- 1. PROFILES
-CREATE TABLE IF NOT EXISTS profiles (
-    id TEXT PRIMARY KEY, -- Matches auth.users(id) from Supabase
-    email TEXT,
-    full_name TEXT,
-    avatar_url TEXT,
-    updated_at TEXT,
-    created_at TEXT DEFAULT (datetime('now'))
-);
-
--- 2. FLEETS
+-- 1. FLEETS
 CREATE TABLE IF NOT EXISTS fleets (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
     name TEXT NOT NULL,
     description TEXT,
+    scaling_enabled INTEGER DEFAULT 0,
+    scale_up_threshold_ms INTEGER DEFAULT 500,
+    max_instances INTEGER DEFAULT 5,
+    scale_down_threshold_ms INTEGER DEFAULT 200,
+    min_instances INTEGER DEFAULT 1,
     created_at TEXT DEFAULT (datetime('now'))
 );
 
--- 3. AGENTS
+-- 2. AGENTS
 CREATE TABLE IF NOT EXISTS agents (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
@@ -41,38 +37,7 @@ CREATE TABLE IF NOT EXISTS agents (
     FOREIGN KEY (fleet_id) REFERENCES fleets (id) ON DELETE SET NULL
 );
 
--- 4. ALERTS
-CREATE TABLE IF NOT EXISTS alerts (
-    id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL,
-    agent_id TEXT,
-    agent_name TEXT,
-    type TEXT,
-    title TEXT,
-    message TEXT,
-    metadata TEXT, -- JSON string
-    resolved INTEGER DEFAULT 0, -- 0 for false, 1 for true
-    resolved_at TEXT,
-    created_at TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (agent_id) REFERENCES agents (id) ON DELETE SET NULL
-);
-
--- 5. SUBSCRIPTIONS
-CREATE TABLE IF NOT EXISTS subscriptions (
-    id TEXT PRIMARY KEY,
-    user_id TEXT UNIQUE NOT NULL,
-    plan TEXT NOT NULL,
-    status TEXT NOT NULL,
-    stripe_customer_id TEXT,
-    lemon_subscription_id TEXT,
-    lemon_customer_id TEXT,
-    variant_id TEXT,
-    current_period_end TEXT,
-    updated_at TEXT DEFAULT (datetime('now')),
-    created_at TEXT DEFAULT (datetime('now'))
-);
-
--- 6. AGENT_METRICS
+-- 3. AGENTS METRICS (High Volume)
 CREATE TABLE IF NOT EXISTS agent_metrics (
     id TEXT PRIMARY KEY,
     agent_id TEXT NOT NULL,
@@ -90,19 +55,36 @@ CREATE TABLE IF NOT EXISTS agent_metrics (
 CREATE INDEX IF NOT EXISTS idx_agent_metrics_agent_id_created_at ON agent_metrics (agent_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_agent_metrics_user_id ON agent_metrics (user_id);
 
--- 7. ALERT CHANNELS
+-- 4. ALERT CHANNELS (Notification Destinations)
 CREATE TABLE IF NOT EXISTS alert_channels (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
     name TEXT NOT NULL,
     type TEXT NOT NULL,
-    config TEXT NOT NULL DEFAULT '{}', -- JSON string
+    destination TEXT, -- Optional, for simple destinations
+    config TEXT, -- JSON string for complex config
     active INTEGER DEFAULT 1,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
 );
 
--- 8. ALERT CONFIGS
+-- 5. ALERTS (Operational Logs)
+CREATE TABLE IF NOT EXISTS alerts (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    agent_id TEXT,
+    agent_name TEXT,
+    type TEXT,
+    title TEXT,
+    message TEXT,
+    metadata TEXT, -- JSON string
+    resolved INTEGER DEFAULT 0, -- 0 for false, 1 for true
+    resolved_at TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (agent_id) REFERENCES agents (id) ON DELETE SET NULL
+);
+
+-- 6. ALERT CONFIGS (Operational Config)
 CREATE TABLE IF NOT EXISTS alert_configs (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
@@ -123,36 +105,40 @@ CREATE TABLE IF NOT EXISTS alert_configs (
     FOREIGN KEY (channel_id) REFERENCES alert_channels (id) ON DELETE CASCADE
 );
 
--- 9. CUSTOM POLICIES
+-- 7. CUSTOM POLICIES (Enterprise Security)
 CREATE TABLE IF NOT EXISTS custom_policies (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
     name TEXT NOT NULL,
-    label TEXT NOT NULL,
-    description TEXT NOT NULL,
-    color TEXT DEFAULT 'text-blue-400 border-blue-500/30',
-    bg TEXT DEFAULT 'bg-blue-500/10',
-    skills TEXT NOT NULL DEFAULT '[]', -- JSON string
-    tools TEXT NOT NULL DEFAULT '[]', -- JSON string
-    data_access TEXT NOT NULL DEFAULT 'restricted',
+    label TEXT,
+    description TEXT,
+    color TEXT,
+    bg TEXT,
+    skills TEXT, -- JSON string
+    tools TEXT, -- JSON string
+    data_access TEXT,
     heartbeat_interval INTEGER DEFAULT 300,
+    guardrails TEXT, -- JSON string
     is_active INTEGER DEFAULT 1,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
 );
 
--- 10. ENTERPRISE BRANDING
-CREATE TABLE IF NOT EXISTS enterprise_branding (
+-- 8. SCALING EVENTS (Operational Logs)
+CREATE TABLE IF NOT EXISTS scaling_events (
     id TEXT PRIMARY KEY,
-    user_id TEXT UNIQUE NOT NULL,
-    domain TEXT,
-    name TEXT,
+    fleet_id TEXT NOT NULL,
+    direction TEXT NOT NULL, -- 'UP', 'DOWN'
+    old_count INTEGER,
+    new_count INTEGER,
+    reason TEXT,
     created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now'))
+    FOREIGN KEY (fleet_id) REFERENCES fleets (id) ON DELETE CASCADE
 );
--- 11. API RATE LIMITS
+
+-- 9. API RATE LIMITS (High Volume Edge)
 CREATE TABLE IF NOT EXISTS api_rate_limits (
     key TEXT PRIMARY KEY,
-    tokens REAL NOT NULL,
-    last_refill TEXT NOT NULL
+    tokens REAL,
+    last_refill TEXT
 );

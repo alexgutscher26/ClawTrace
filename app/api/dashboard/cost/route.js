@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { turso } from '@/lib/turso';
 import { MODEL_PRICING } from '@/lib/pricing';
 
 const supabaseAdmin = createClient(
@@ -34,7 +35,7 @@ async function getUser(request) {
  * Handles the GET request to retrieve user-specific agent cost data and recommendations.
  *
  * This function first retrieves the user associated with the request. If the user is unauthorized, it returns a 401 response.
- * It then fetches all agents for the user, aggregates their costs by model, and generates savings recommendations based on
+ * It then fetches all agents for the user from Turso, aggregates their costs by model, and generates savings recommendations based on
  * current pricing. The results include total costs, usage by model, and sorted recommendations for potential savings.
  *
  * @param request - The incoming request object containing user information.
@@ -46,13 +47,19 @@ export async function GET(request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    // 1. Get all agents
-    const { data: agents, error: agentError } = await supabaseAdmin
-      .from('agents')
-      .select('id, name, model, metrics_json')
-      .eq('user_id', user.id);
+    // 1. Get all agents from Turso
+    const { rows } = await turso.execute({
+      sql: 'SELECT id, name, model, metrics_json FROM agents WHERE user_id = ?',
+      args: [user.id],
+    });
 
-    if (agentError) throw agentError;
+    const agents = rows.map((agent) => ({
+      ...agent,
+      metrics_json:
+        typeof agent.metrics_json === 'string'
+          ? JSON.parse(agent.metrics_json)
+          : agent.metrics_json || {},
+    }));
 
     // 2. Aggregate costs per model
     const usageByModel = {};

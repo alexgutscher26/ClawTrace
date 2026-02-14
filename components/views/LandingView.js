@@ -185,10 +185,21 @@ export default function LandingView() {
             </span>
           </div>
           <div className="mt-8 flex gap-8 font-mono text-[10px] tracking-widest text-zinc-600 uppercase">
-            <Link href="/pricing" className="hover:text-white transition-colors">PRICING</Link>
-            <Link href="/blog" className="hover:text-white transition-colors">BLOG</Link>
-            <Link href="/docs" className="hover:text-white transition-colors">DOCS</Link>
-            <button onClick={() => window.open('https://github.com/alexgutscher26/fleet', '_blank')} className="hover:text-white transition-colors uppercase">GITHUB</button>
+            <Link href="/pricing" className="transition-colors hover:text-white">
+              PRICING
+            </Link>
+            <Link href="/blog" className="transition-colors hover:text-white">
+              BLOG
+            </Link>
+            <Link href="/docs" className="transition-colors hover:text-white">
+              DOCS
+            </Link>
+            <button
+              onClick={() => window.open('https://github.com/alexgutscher26/fleet', '_blank')}
+              className="uppercase transition-colors hover:text-white"
+            >
+              GITHUB
+            </button>
           </div>
           <p className="mt-8 font-mono text-[10px] tracking-widest text-zinc-600 uppercase">
             © 2026 ClawTrace Systems Inc. • MIT License

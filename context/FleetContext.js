@@ -51,21 +51,24 @@ export function FleetProvider({ children }) {
               .then((bRes) => {
                 if (bRes.branding) setBranding(bRes.branding);
               })
-              .catch(() => { });
+              .catch(() => {});
           }
         })
-        .catch(() => { });
+        .catch(() => {});
     } else {
       // Check for custom domain branding (public)
-      const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-      const isMainDomain = typeof window !== 'undefined' && window.location.hostname.endsWith('clawtrace.dev');
+      const isLocal =
+        typeof window !== 'undefined' &&
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+      const isMainDomain =
+        typeof window !== 'undefined' && window.location.hostname.endsWith('clawtrace.dev');
 
       if (!isLocal && !isMainDomain && typeof window !== 'undefined') {
         const domain = window.location.hostname;
         // Fetch public branding
         fetch(`/api/branding/public?domain=${domain}`)
-          .then(res => res.json())
-          .then(res => {
+          .then((res) => res.json())
+          .then((res) => {
             if (res.branding) {
               setBranding(res.branding);
             } else {
@@ -79,15 +82,18 @@ export function FleetProvider({ children }) {
     }
   }, [session, api]);
 
-  const value = React.useMemo(() => ({
-    session,
-    loading,
-    masterPassphrase,
-    setMasterPassphrase,
-    branding,
-    setBranding,
-    api,
-  }), [session, loading, masterPassphrase, setMasterPassphrase, branding, setBranding, api]);
+  const value = React.useMemo(
+    () => ({
+      session,
+      loading,
+      masterPassphrase,
+      setMasterPassphrase,
+      branding,
+      setBranding,
+      api,
+    }),
+    [session, loading, masterPassphrase, setMasterPassphrase, branding, setBranding, api]
+  );
 
   return <FleetContext.Provider value={value}>{children}</FleetContext.Provider>;
 }

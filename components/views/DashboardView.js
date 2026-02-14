@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
 import posthog from 'posthog-js';
 import { toast } from 'sonner';
 import { Server, Plus, RefreshCw, AlertTriangle } from 'lucide-react';
@@ -15,7 +14,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import Navbar from '@/components/Navbar';
 import { useFleet } from '@/context/FleetContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import EmergencyModelSwitcher from '@/components/EmergencyModelSwitcher';
 import { StatsCards } from '@/components/dashboard/StatsCards';
 import { AgentsTable } from '@/components/dashboard/AgentsTable';
@@ -40,6 +39,7 @@ import { RecentAlerts } from '@/components/dashboard/RecentAlerts';
 export default function DashboardView() {
   const { session, api, masterPassphrase, branding } = useFleet();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const navigate = useCallback((path) => router.push(path), [router]);
   const [selectedFleet, setSelectedFleet] = useState(null);
   const [tier, setTier] = useState('free');
@@ -56,91 +56,6 @@ export default function DashboardView() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [newAgent, setNewAgent] = useState({ name: '', gateway_url: '', policy_profile: 'dev' });
-
-  useEffect(() => {
-    if (!loading && !session) {
-      navigate('/');
-    }
-  }, [loading, session]);
-
-  useEffect(() => {
-    if (!session) return;
-    api('/api/billing')
-      .then((res) => {
-        const p = res.subscription?.plan || 'free';
-        setTier(p.toLowerCase());
-        if (res.limits) setLimits(res.limits[p.toLowerCase()] || res.limits.free);
-      })
-      .catch(() => { });
-  }, [api]);
-
-  useEffect(() => {
-    if (tier === 'enterprise' || tier === 'pro') {
-      api('/api/custom-policies')
-        .then((res) => setCustomPolicies(res.policies || []))
-        .catch(() => { });
-    }
-  }, [api, tier]);
-
-  // Realtime subscription
-  useEffect(() => {
-    if (!selectedFleet) return;
-
-    const channel = supabase
-      .channel('dashboard-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'agents',
-          filter: `fleet_id=eq.${selectedFleet}`,
-        },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            setAgents((prev) => [...prev, payload.new]);
-            setStats((prev) => ({
-              ...prev,
-              total_agents: (prev?.total_agents || 0) + 1,
-            }));
-          } else if (payload.eventType === 'UPDATE') {
-            setAgents((prev) =>
-              prev.map((agent) => (agent.id === payload.new.id ? payload.new : agent))
-            );
-            // Pulse effect can be handled via CSS/state if needed, but the status update handles the visual
-          } else if (payload.eventType === 'DELETE') {
-            setAgents((prev) => prev.filter((agent) => agent.id !== payload.old.id));
-            setStats((prev) => ({
-              ...prev,
-              total_agents: Math.max(0, (prev?.total_agents || 0) - 1),
-            }));
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'alerts',
-        },
-        (payload) => {
-          setAlerts((prev) => [payload.new, ...prev]);
-          toast.message('New Alert', {
-            description: `${payload.new.type}: ${payload.new.message}`,
-          });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [selectedFleet]);
-
-  useEffect(() => {
-    if (loading) loadData();
-  }, [loading]); // Only run once on mount via loading check, but defined this way to be safe
 
   const loadData = useCallback(async () => {
     try {
@@ -176,6 +91,73 @@ export default function DashboardView() {
       console.error(err);
     }
   }, [api, selectedFleet, page]);
+
+  useEffect(() => {
+    if (!loading && !session) {
+      navigate('/');
+    }
+  }, [loading, session]);
+
+  useEffect(() => {
+    if (!session) return;
+    api('/api/billing')
+      .then((res) => {
+        const p = res.subscription?.plan || 'free';
+        setTier(p.toLowerCase());
+        if (res.limits) setLimits(res.limits[p.toLowerCase()] || res.limits.free);
+      })
+      .catch(() => {});
+  }, [api]);
+
+  // Confirm Stripe subscription after successful checkout (fallback if webhook didn't fire)
+  useEffect(() => {
+    if (!session) return;
+    const success = searchParams?.get('success');
+    const sessionId = searchParams?.get('session_id');
+    if (success === 'true' && sessionId) {
+      api('/api/billing/confirm', {
+        method: 'POST',
+        body: JSON.stringify({ session_id: sessionId }),
+      })
+        .then(async () => {
+          toast.success('Subscription activated');
+          const res = await api('/api/billing');
+          const p = res.subscription?.plan || 'free';
+          setTier(p.toLowerCase());
+          if (res.limits) setLimits(res.limits[p.toLowerCase()] || res.limits.free);
+          // Clean URL
+          const url = new URL(window.location.href);
+          url.searchParams.delete('success');
+          url.searchParams.delete('session_id');
+          window.history.replaceState({}, '', url.toString());
+        })
+        .catch(() => {});
+    }
+  }, [session, searchParams, api]);
+
+  useEffect(() => {
+    if (tier === 'enterprise' || tier === 'pro') {
+      api('/api/custom-policies')
+        .then((res) => setCustomPolicies(res.policies || []))
+        .catch(() => {});
+    }
+  }, [api, tier]);
+
+  // Polling for live updates (replaces Supabase realtime)
+  useEffect(() => {
+    if (!selectedFleet) return;
+
+    const interval = setInterval(() => {
+      loadAgents();
+      loadData();
+    }, 10000); // 10 seconds
+
+    return () => clearInterval(interval);
+  }, [selectedFleet, loadAgents, loadData]);
+
+  useEffect(() => {
+    if (loading) loadData();
+  }, [loading]); // Only run once on mount via loading check, but defined this way to be safe
 
   useEffect(() => {
     setPage(1);

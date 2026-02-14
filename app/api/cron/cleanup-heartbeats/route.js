@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase-admin';
+import { turso } from '@/lib/turso';
 import { isValidCronRequest, unauthorizedResponse } from '@/lib/cron-auth';
 
 // Force dynamic to prevent caching
@@ -17,23 +17,19 @@ export async function GET(request) {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const cutoffIso = thirtyDaysAgo.toISOString();
 
-    // 3. Delete old heartbeat records
-    // Assuming table name is 'heartbeats' and created_at is the timestamp column
-    const { count, error } = await supabaseAdmin
-      .from('heartbeats')
-      .delete({ count: 'exact' }) // Request exact count of deleted rows
-      .lt('created_at', cutoffIso);
+    // 3. Delete old agent_metrics records in Turso
+    const res = await turso.execute({
+        sql: 'DELETE FROM agent_metrics WHERE created_at < ?',
+        args: [cutoffIso]
+    });
 
-    if (error) {
-      console.error('Error cleaning up heartbeats:', error);
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-    }
+    const count = res.rowsAffected;
 
-    console.log(`[Cron] Cleaned up ${count} heartbeat records older than 30 days.`);
+    console.log(`[Cron] Cleaned up ${count} agent_metrics records older than 30 days.`);
 
     return NextResponse.json({
       success: true,
-      message: 'Heartbeat cleanup complete',
+      message: 'Agent metrics cleanup complete',
       deleted_count: count,
       cutoff_date: cutoffIso,
     });

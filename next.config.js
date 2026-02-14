@@ -1,4 +1,8 @@
-const path = require('path');
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const nextConfig = {
   output: 'standalone',
@@ -9,9 +13,9 @@ const nextConfig = {
   turbopack: {
     root: path.resolve(__dirname),
     resolveAlias: {
-      'tailwindcss': path.resolve(__dirname, 'node_modules/tailwindcss'),
-      '@tailwindcss/postcss': path.resolve(__dirname, 'node_modules/@tailwindcss/postcss')
-    }
+      tailwindcss: path.resolve(__dirname, 'node_modules/tailwindcss'),
+      '@tailwindcss/postcss': path.resolve(__dirname, 'node_modules/@tailwindcss/postcss'),
+    },
   },
   experimental: {
     serverActions: {
@@ -67,4 +71,4 @@ const nextConfig = {
 
 const isProd = process.env.NODE_ENV === 'production';
 
-module.exports = nextConfig;
+export default nextConfig;

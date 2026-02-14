@@ -7,14 +7,15 @@
 **Body:**
 Hey everyone,
 
-I've been building autonomous agents for a while, and I got tired of the lag. Most orchestrators today are essentially CRUD apps with long-polling. 
+I've been building autonomous agents for a while, and I got tired of the lag. Most orchestrators today are essentially CRUD apps with long-polling.
 
 We built **ClawFleet** to handle the scale of autonomous swarms where every millisecond of coordination counts.
 
 **The Tech Stack:**
-*   **Latency:** 0.1ms - 0.5ms heartbeat floor using binary WebSockets (no HTTP polling).
-*   **Security:** Zero-knowledge. AES-256-GCM encryption in the browser. We never see your secrets.
-*   **Scale:** Lightweight agents run as single binaries on edge compute.
+
+- **Latency:** 0.1ms - 0.5ms heartbeat floor using binary WebSockets (no HTTP polling).
+- **Security:** Zero-knowledge. AES-256-GCM encryption in the browser. We never see your secrets.
+- **Scale:** Lightweight agents run as single binaries on edge compute.
 
 **The Killer Feature:**
 We implemented **Policy Guardrails** at the network layer. You can set a "Cost Velocity" limit (e.g., "$1/minute"). If an agent hallucinates and starts looping expensive calls, the orchestrator kills the connection instantly. No more $500 surprise bills.

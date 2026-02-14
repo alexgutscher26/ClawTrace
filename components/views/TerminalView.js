@@ -49,7 +49,7 @@ export default function ClawTraceTerminal({ agentId, onClose }) {
 
     // Clear any existing timeouts before starting new ones
     const clearTimeouts = () => {
-      timeoutsRef.current.forEach(t => clearTimeout(t));
+      timeoutsRef.current.forEach((t) => clearTimeout(t));
       timeoutsRef.current = [];
     };
 
@@ -154,7 +154,8 @@ export default function ClawTraceTerminal({ agentId, onClose }) {
 
     const handleResize = () => {
       if (!term || term._disposed || !term.element) return;
-      if (term.element.offsetParent !== null) { // Check visibility
+      if (term.element.offsetParent !== null) {
+        // Check visibility
         try {
           fitAddon.fit();
         } catch (e) {

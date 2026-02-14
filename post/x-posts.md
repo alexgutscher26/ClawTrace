@@ -12,7 +12,7 @@ High-performance AI needs high-performance guardrails.
 Here is how we solved it at 0.2ms latency 👇
 
 **Tweet 2:**
-Most "guardrails" are just prompts. 
+Most "guardrails" are just prompts.
 "Please don't spend too much money." 🥺
 
 LLMs ignore prompts when they hallucinate. You can't talk a race car out of crashing. You need brakes.
@@ -22,7 +22,7 @@ We built a "Cost Velocity" circuit breaker into the ClawFleet orchestrator.
 
 Policy: "If Agent X > $1.00/min → KILL TCP CONNECTION."
 
-It happens at the network layer. The agent doesn't get a vote. 
+It happens at the network layer. The agent doesn't get a vote.
 Sub-millisecond enforcement.
 
 **Tweet 4:**

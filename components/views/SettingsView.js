@@ -35,6 +35,8 @@ export default function SettingsView() {
   const [addOpen, setAddOpen] = useState(false);
   const [newChannel, setNewChannel] = useState({ name: '', type: 'slack', webhook_url: '' });
   const [tier, setTier] = useState('free');
+  const [invoice, setInvoice] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState(null);
   const [policies, setPolicies] = useState([]);
   const [policyOpen, setPolicyOpen] = useState(false);
   const [newPolicy, setNewPolicy] = useState({
@@ -106,8 +108,10 @@ export default function SettingsView() {
       .then((res) => {
         const p = res.subscription?.plan || 'free';
         setTier(p.toLowerCase());
+        if (res.invoice) setInvoice(res.invoice);
+        if (res.payment_method) setPaymentMethod(res.payment_method);
       })
-      .catch(() => { });
+      .catch(() => {});
   }, [api]);
 
   useEffect(() => {
@@ -116,7 +120,7 @@ export default function SettingsView() {
         .then((res) => {
           if (res.branding) setBranding(res.branding);
         })
-        .catch(() => { });
+        .catch(() => {});
     }
   }, [tier, api]);
 
@@ -202,9 +206,9 @@ export default function SettingsView() {
               newPolicy.guardrails.approved_tools === '*'
                 ? ['*']
                 : newPolicy.guardrails.approved_tools
-                  .split(',')
-                  .map((t) => t.trim())
-                  .filter(Boolean),
+                    .split(',')
+                    .map((t) => t.trim())
+                    .filter(Boolean),
           },
         }),
       });
@@ -737,7 +741,9 @@ export default function SettingsView() {
                     />
                     {branding.domain && (
                       <div className="mt-4 border border-white/10 bg-white/5 p-4 text-xs">
-                        <p className="mb-2 font-black text-zinc-400 uppercase">DNS CONFIGURATION REQUIRED</p>
+                        <p className="mb-2 font-black text-zinc-400 uppercase">
+                          DNS CONFIGURATION REQUIRED
+                        </p>
                         <div className="grid grid-cols-[100px_1fr] gap-2 font-mono text-[10px]">
                           <span className="text-zinc-500">TYPE</span>
                           <span className="text-white">CNAME</span>
@@ -825,18 +831,28 @@ export default function SettingsView() {
                     <h5 className="mb-2 text-[10px] font-black tracking-widest text-zinc-500 uppercase">
                       NEXT INVOICE
                     </h5>
-                    <p className="font-mono text-xl text-white">--</p>
+                    <p className="font-mono text-xl text-white">
+                      {invoice ? `$${(invoice.amount / 100).toFixed(2)}` : '--'}
+                    </p>
                     <p className="mt-1 text-[8px] text-zinc-600 uppercase">
-                      Managed via generic payment processor
+                      {invoice
+                        ? `Due ${new Date(invoice.date).toLocaleDateString()}`
+                        : 'No upcoming invoice'}
                     </p>
                   </div>
                   <div className="border border-white/10 p-6">
                     <h5 className="mb-2 text-[10px] font-black tracking-widest text-zinc-500 uppercase">
                       PAYMENT METHOD
                     </h5>
-                    <p className="font-mono text-xl text-white">•••• •••• •••• ••••</p>
+                    <p className="font-mono text-xl text-white">
+                      {paymentMethod
+                        ? `•••• •••• •••• ${paymentMethod.last4}`
+                        : '•••• •••• •••• ••••'}
+                    </p>
                     <p className="mt-1 text-[8px] text-zinc-600 uppercase">
-                      Secure via Lemon Squeezy
+                      {paymentMethod
+                        ? `Secure via Stripe (${paymentMethod.brand})`
+                        : 'Secure via Stripe'}
                     </p>
                   </div>
                 </div>
@@ -845,6 +861,6 @@ export default function SettingsView() {
           </TabsContent>
         </Tabs>
       </div>
-    </div >
+    </div>
   );
 }

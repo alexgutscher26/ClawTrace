@@ -9,7 +9,7 @@ on:
 jobs:
   check-stale:
     if: github.event.schedule == '*/5 * * * *' || github.event_name == 'workflow_dispatch'
-    environment: production  # Use a proper environment name
+    environment: production # Use a proper environment name
     runs-on: ubuntu-latest
     steps:
       - name: Call check-stale endpoint

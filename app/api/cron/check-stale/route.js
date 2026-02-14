@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase-admin';
 import { isValidCronRequest, unauthorizedResponse } from '@/lib/cron-auth';
 import { processSmartAlerts } from '@/lib/alerts';
 import { checkStaleAgents } from '@/lib/cron-jobs/check-stale';
@@ -14,7 +13,7 @@ export async function GET(request) {
   }
 
   try {
-    const result = await checkStaleAgents(supabaseAdmin, processSmartAlerts);
+    const result = await checkStaleAgents(processSmartAlerts);
     return NextResponse.json(result);
   } catch (err) {
     console.error('Cron job failed:', err);
