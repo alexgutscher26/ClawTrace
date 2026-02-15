@@ -6,7 +6,7 @@ const font = Plus_Jakarta_Sans({ subsets: ['latin'] });
 
 export const metadata = {
   title: {
-    default: 'ClawTrace Orchestrator',
+    default: 'ClawTrace: The Agent Orchestrator',
     template: '%s | ClawTrace Orchestrator',
   },
   description:
@@ -58,6 +58,7 @@ import { FleetProvider } from '@/context/FleetContext';
 import { AnalyticsProvider } from '@/context/AnalyticsProvider';
 import { Toaster } from 'sonner';
 import { CommandPalette } from '@/components/CommandPalette';
+import { Analytics } from "@vercel/analytics/next";
 
 /**
  * Renders the root layout of the application with children components.
@@ -81,6 +82,7 @@ export default function RootLayout({ children }) {
               <Toaster richColors position="top-right" theme="dark" />
               <CommandPalette />
               {children}
+              <Analytics />
             </AnalyticsProvider>
           </Suspense>
         </FleetProvider>
