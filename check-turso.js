@@ -9,7 +9,7 @@ async function check() {
   try {
     const { rows: agents } = await turso.execute('SELECT count(*) as count FROM agents');
     console.log('Agents count:', agents[0].count);
-    
+
     const { rows: fleets } = await turso.execute('SELECT count(*) as count FROM fleets');
     console.log('Fleets count:', fleets[0].count);
 
@@ -29,7 +29,6 @@ async function check() {
         FROM agents
     `);
     console.log('Stats query result:', stats[0]);
-
   } catch (err) {
     console.error('Error checking Turso:', err);
   }

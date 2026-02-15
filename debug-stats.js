@@ -25,7 +25,7 @@ async function check() {
           sum(cast(json_extract(metrics_json, '$.tasks_completed') as integer)) as total_tasks
         FROM agents
         WHERE user_id = ?`;
-        
+
     const { rows } = await turso.execute({
       sql,
       args: [userId],
