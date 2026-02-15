@@ -10,8 +10,14 @@ const APP_NAME = "ClawTrace";
 const AGENT_FRAMEWORK = "OpenClaw";
 
 // --- Data Generators ---
+/**
+ * Generates a random integer between min and max, inclusive.
+ */
 const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 const randomFloat = (min, max) => (Math.random() * (max - min) + min).toFixed(1);
+/**
+ * Returns a random element from the given array.
+ */
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
 // --- Content Libraries ---
