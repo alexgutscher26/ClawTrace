@@ -58,7 +58,7 @@ import { FleetProvider } from '@/context/FleetContext';
 import { AnalyticsProvider } from '@/context/AnalyticsProvider';
 import { Toaster } from 'sonner';
 import { CommandPalette } from '@/components/CommandPalette';
-import { Analytics } from "@vercel/analytics/next";
+import { Analytics } from '@vercel/analytics/next';
 
 /**
  * Renders the root layout of the application with children components.

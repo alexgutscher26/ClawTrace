@@ -387,7 +387,7 @@ export async function GET(request, context) {
         try {
           const res = await turso.execute({
             sql: 'SELECT user_id, policy_profile FROM agents WHERE id = ?',
-            args: [agentId]
+            args: [agentId],
           });
           agent = res.rows[0];
         } catch (e) {
@@ -409,7 +409,7 @@ export async function GET(request, context) {
             try {
               const cpRes = await turso.execute({
                 sql: 'SELECT heartbeat_interval FROM custom_policies WHERE user_id = ? AND name = ? LIMIT 1',
-                args: [agent.user_id, profile]
+                args: [agent.user_id, profile],
               });
               if (cpRes.rows.length > 0) {
                 policyInterval = cpRes.rows[0].heartbeat_interval;
@@ -467,7 +467,7 @@ export async function GET(request, context) {
         try {
           const res = await turso.execute({
             sql: 'SELECT user_id, policy_profile FROM agents WHERE id = ?',
-            args: [agentId]
+            args: [agentId],
           });
           agent = res.rows[0];
         } catch (e) {
@@ -489,7 +489,7 @@ export async function GET(request, context) {
             try {
               const cpRes = await turso.execute({
                 sql: 'SELECT heartbeat_interval FROM custom_policies WHERE user_id = ? AND name = ? LIMIT 1',
-                args: [agent.user_id, profile]
+                args: [agent.user_id, profile],
               });
               if (cpRes.rows.length > 0) {
                 policyInterval = cpRes.rows[0].heartbeat_interval;
@@ -550,7 +550,7 @@ export async function GET(request, context) {
         try {
           const res = await turso.execute({
             sql: 'SELECT user_id, policy_profile FROM agents WHERE id = ?',
-            args: [agentId]
+            args: [agentId],
           });
           agent = res.rows[0];
         } catch (e) {
@@ -572,7 +572,7 @@ export async function GET(request, context) {
             try {
               const cpRes = await turso.execute({
                 sql: 'SELECT heartbeat_interval FROM custom_policies WHERE user_id = ? AND name = ? LIMIT 1',
-                args: [agent.user_id, profile]
+                args: [agent.user_id, profile],
               });
               if (cpRes.rows.length > 0) {
                 policyInterval = cpRes.rows[0].heartbeat_interval;
@@ -647,15 +647,15 @@ export async function GET(request, context) {
     if (agentMatch) {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
-      
+
       const res = await turso.execute({
         sql: 'SELECT * FROM agents WHERE id = ? AND user_id = ?',
-        args: [agentMatch[1], user.id]
+        args: [agentMatch[1], user.id],
       });
-      
+
       if (res.rows.length === 0) return json({ error: 'Agent not found' }, 404);
       const agent = res.rows[0];
-      
+
       return json({ agent: await decryptAgent(agent) });
     }
 
@@ -1209,24 +1209,24 @@ export async function POST(request, context) {
     if (restartMatch) {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
-      
+
       const agentId = restartMatch[1];
       const now = new Date().toISOString();
-      
+
       try {
         await turso.execute({
           sql: 'UPDATE agents SET status = ?, last_heartbeat = ?, updated_at = ? WHERE id = ? AND user_id = ?',
-          args: ['idle', now, now, agentId, user.id]
+          args: ['idle', now, now, agentId, user.id],
         });
-        
+
         const res = await turso.execute({
           sql: 'SELECT * FROM agents WHERE id = ?',
-          args: [agentId]
+          args: [agentId],
         });
-        
+
         if (res.rows.length === 0) return json({ error: 'Agent not found' }, 404);
         const agent = res.rows[0];
-        
+
         return json({ agent, message: 'Agent restart initiated' });
       } catch (e) {
         throw e;
@@ -1241,14 +1241,14 @@ export async function POST(request, context) {
       try {
         const res = await turso.execute({
           sql: 'SELECT id, fleet_id, agent_secret, user_id, gateway_url, policy_profile FROM agents WHERE id = ?',
-          args: [body.agent_id]
+          args: [body.agent_id],
         });
         agent = res.rows[0];
       } catch (e) {
         console.error('[HANDSHAKE] Database error:', e);
         throw e;
       }
-      
+
       if (!agent) {
         console.error('[HANDSHAKE] Agent not found:', body.agent_id);
         return json({ error: 'Agent not found' }, 404);
@@ -1344,7 +1344,7 @@ export async function POST(request, context) {
             userId = agent.user_id;
             policyProfile = agent.policy_profile;
           } else {
-             return json({ error: 'Agent not found' }, 404);
+            return json({ error: 'Agent not found' }, 404);
           }
         } catch (e) {
           console.error('[Heartbeat] Turso error:', e.message);
@@ -1380,11 +1380,11 @@ export async function POST(request, context) {
             agent = tursoRes.rows[0];
             agent.metrics_json = agent.metrics_json ? JSON.parse(agent.metrics_json) : null;
           } else {
-             return json({ error: 'Agent not found' }, 404);
+            return json({ error: 'Agent not found' }, 404);
           }
         } catch (e) {
-             console.error('[Heartbeat] Turso error:', e.message);
-             return json({ error: 'Internal server error' }, 500);
+          console.error('[Heartbeat] Turso error:', e.message);
+          return json({ error: 'Internal server error' }, 500);
         }
       }
 
@@ -1508,11 +1508,11 @@ export async function POST(request, context) {
     if (resolveMatch) {
       const user = await getUser(request);
       if (!user) return json({ error: 'Unauthorized' }, 401);
-      
+
       try {
         await turso.execute({
           sql: 'UPDATE alerts SET resolved = 1, resolved_at = ? WHERE id = ? AND user_id = ?',
-          args: [new Date().toISOString(), resolveMatch[1], user.id]
+          args: [new Date().toISOString(), resolveMatch[1], user.id],
         });
         return json({ message: 'Alert resolved' });
       } catch (e) {
@@ -1530,16 +1530,16 @@ export async function POST(request, context) {
       try {
         const fleetRes = await turso.execute({
           sql: 'SELECT * FROM fleets WHERE user_id = ? LIMIT 1',
-          args: [user.id]
+          args: [user.id],
         });
-        
+
         if (fleetRes.rows.length > 0) {
           fleetId = fleetRes.rows[0].id;
         } else {
           fleetId = uuidv4();
           await turso.execute({
             sql: 'INSERT INTO fleets (id, user_id, name, created_at) VALUES (?, ?, ?, ?)',
-            args: [fleetId, user.id, 'Production Fleet', new Date().toISOString()]
+            args: [fleetId, user.id, 'Production Fleet', new Date().toISOString()],
           });
         }
       } catch (e) {
@@ -1549,13 +1549,16 @@ export async function POST(request, context) {
 
       // 2. Clean up existing data (Turso)
       try {
-        await turso.batch([
+        await turso.batch(
+          [
             { sql: 'DELETE FROM agents WHERE user_id = ?', args: [user.id] },
             { sql: 'DELETE FROM alerts WHERE user_id = ?', args: [user.id] },
-            { sql: 'DELETE FROM agent_metrics WHERE user_id = ?', args: [user.id] }
-        ], 'write');
+            { sql: 'DELETE FROM agent_metrics WHERE user_id = ?', args: [user.id] },
+          ],
+          'write'
+        );
       } catch (e) {
-         console.error('Turso cleanup error:', e);
+        console.error('Turso cleanup error:', e);
       }
 
       const now = new Date();
@@ -1695,10 +1698,10 @@ export async function POST(request, context) {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }));
-      
+
       // Insert Agents into Turso
       try {
-        const agentStatements = agentDocs.map(agent => ({
+        const agentStatements = agentDocs.map((agent) => ({
           sql: `INSERT INTO agents (id, user_id, fleet_id, name, status, model, location, machine_id, gateway_url, config_json, metrics_json, policy_profile, last_heartbeat, created_at, updated_at) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           args: [
@@ -1716,8 +1719,8 @@ export async function POST(request, context) {
             agent.policy_profile,
             agent.last_heartbeat,
             agent.created_at,
-            agent.updated_at
-          ]
+            agent.updated_at,
+          ],
         }));
         await turso.batch(agentStatements, 'write');
       } catch (e) {
@@ -1749,17 +1752,17 @@ export async function POST(request, context) {
           resolved_at: new Date(now - 3600000).toISOString(),
         },
       ];
-      
+
       const alertDocs = demoAlerts.map((a) => ({
         id: uuidv4(),
         user_id: user.id,
         ...a,
         created_at: new Date(now - Math.random() * 86400000).toISOString(),
       }));
-      
+
       // Insert Alerts into Turso
       try {
-        const alertStatements = alertDocs.map(alert => ({
+        const alertStatements = alertDocs.map((alert) => ({
           sql: `INSERT INTO alerts (id, user_id, agent_id, agent_name, type, message, resolved, resolved_at, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           args: [
@@ -1771,12 +1774,12 @@ export async function POST(request, context) {
             alert.message,
             alert.resolved ? 1 : 0,
             alert.resolved_at || null,
-            alert.created_at
-          ]
+            alert.created_at,
+          ],
         }));
         await turso.batch(alertStatements, 'write');
       } catch (e) {
-         console.error('Turso alert insert error:', e);
+        console.error('Turso alert insert error:', e);
       }
 
       // Seed metrics history for charts
@@ -1879,7 +1882,10 @@ export async function POST(request, context) {
         return json({ checkout_url: session.url, plan });
       } catch (err) {
         console.error('Stripe Checkout error:', err);
-        return json({ error: `Payment service unavailable: ${err.message}`, details: err.message }, 500);
+        return json(
+          { error: `Payment service unavailable: ${err.message}`, details: err.message },
+          500
+        );
       }
     }
 
