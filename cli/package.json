@@ -1,6 +1,6 @@
 {
   "name": "clawtrace-monitor",
-  "version": "1.0.2",
+  "version": "1.0.5",
   "description": "CLI heartbeat agent and configuration manager for ClawTrace Monitor",
   "bin": {
     "clawtrace": "./index.js"
