@@ -1,5 +1,8 @@
 import { baseUrl } from './sitemap'
 
+/**
+ * Generates a robots.txt configuration object.
+ */
 export default function robots() {
     return {
         rules: {
