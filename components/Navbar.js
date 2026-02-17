@@ -63,7 +63,7 @@ export default function Navbar({ session, branding, transparent = false }) {
               </span>
             ) : (
               <span className="font-mono text-sm font-bold tracking-tighter text-white">
-                FLEET<span className="text-zinc-600">//</span>OS
+                CLAWTRACE<span className="text-zinc-600">//</span>OS
               </span>
             )}
           </Link>
