@@ -2,6 +2,9 @@ import { blogPosts } from '@/lib/blog-data'
 
 export const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://clawtrace.dev'
 
+/**
+ * Generates a sitemap including blog posts and predefined routes.
+ */
 export default async function sitemap() {
   const blogs = blogPosts.map((post) => ({
     url: `${baseUrl}/blog/${post.slug}`,
