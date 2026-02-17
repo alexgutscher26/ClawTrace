@@ -19,6 +19,9 @@ import {
 import { useFleet } from '@/context/FleetContext';
 
 // Technical Stat Component
+/**
+ * Renders a technical statistic display with a label, value, and optional status indicator.
+ */
 const TechStat = ({ label, value, status = 'normal' }) => (
   <div className="flex flex-col border-l border-white/10 pl-4 py-1">
     <span className="text-[10px] font-mono uppercase text-zinc-500 tracking-wider mb-1">{label}</span>
@@ -30,6 +33,9 @@ const TechStat = ({ label, value, status = 'normal' }) => (
 );
 
 // Feature Block Component
+/**
+ * Renders a feature block with an icon, title, and description.
+ */
 const FeatureBlock = ({ icon: Icon, title, desc, delay }) => (
   <div
     className="group tech-card p-6 relative overflow-hidden animate-in fade-in slide-in-from-bottom-4 fill-mode-both"
@@ -51,6 +57,9 @@ const FeatureBlock = ({ icon: Icon, title, desc, delay }) => (
   </div>
 );
 
+/**
+ * Renders the landing view of the application.
+ */
 export default function LandingView() {
   const { session, branding } = useFleet();
   const [mounted, setMounted] = useState(false);
