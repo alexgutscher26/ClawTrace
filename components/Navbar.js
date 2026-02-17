@@ -4,18 +4,11 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Zap, X, Menu, ArrowLeft } from 'lucide-react';
+import { Zap, X, Menu, Terminal } from 'lucide-react';
 
 /**
- * Renders a responsive navigation bar with authentication options.
- *
- * The Navbar component utilizes session information to conditionally render links for settings, console, and logout actions. It also includes branding and a mobile menu toggle. The handleLogout function is called to sign out the user and refresh the session state. The component adapts its appearance based on the transparent prop and the open state for mobile navigation.
- *
- * @param {Object} props - The component props.
- * @param {Object} props.session - The current user session.
- * @param {Object} props.branding - The branding information for the application.
- * @param {boolean} [props.transparent=false] - Determines if the navbar should be transparent.
- * @returns {JSX.Element} The rendered Navbar component.
+ * Renders a technical, industrial-style navigation bar.
+ * Features grid-based layout, monospaced typography, and sharp interaction states.
  */
 export default function Navbar({ session, branding, transparent = false }) {
   const router = useRouter();
@@ -27,95 +20,97 @@ export default function Navbar({ session, branding, transparent = false }) {
     router.refresh(); // Ensure session state clears
   };
 
+  const NavItem = ({ href, label, external = false }) => {
+    if (external) {
+      return (
+        <button
+          onClick={() => window.open(href, '_blank')}
+          className="relative h-full px-6 flex items-center justify-center font-mono text-xs text-zinc-400 hover:text-white hover:bg-white/5 border-r border-white/10 uppercase tracking-widest transition-all group"
+        >
+          <span className="group-hover:translate-x-1 transition-transform duration-300">{label}</span>
+          <span className="absolute bottom-0 left-0 w-full h-[2px] bg-emerald-500 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
+        </button>
+      )
+    }
+    return (
+      <Link
+        href={href}
+        className="relative h-full px-6 flex items-center justify-center font-mono text-xs text-zinc-400 hover:text-white hover:bg-white/5 border-r border-white/10 uppercase tracking-widest transition-all group"
+      >
+        <span className="group-hover:translate-x-1 transition-transform duration-300">{label}</span>
+        <span className="absolute bottom-0 left-0 w-full h-[2px] bg-emerald-500 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
+      </Link>
+    );
+  };
+
   return (
     <nav
-      className={`fixed top-0 right-0 left-0 z-50 border-b border-white transition-colors duration-300 ${transparent ? 'border-transparent bg-transparent' : 'border-white/10 bg-black'}`}
+      className={`fixed top-8 right-0 left-0 z-40 border-y border-white/10 transition-colors duration-300 bg-black/90 backdrop-blur-md`}
     >
       <div className="container mx-auto grid h-16 grid-cols-2 md:grid-cols-12">
         {/* Logo Section */}
-        <div className="col-span-1 flex items-center border-r border-white/20 px-4 md:col-span-3 md:px-6">
-          <Link href="/" className="group flex cursor-pointer items-center gap-2">
-            <div className="flex h-5 w-5 items-center justify-center bg-white transition-transform group-hover:rotate-180">
-              <Zap className="h-3 w-3 fill-black text-black" />
+        <div className="col-span-1 flex items-center border-r border-white/10 px-4 md:col-span-3 md:px-0">
+          <Link href="/" className="group flex cursor-pointer items-center gap-3 pl-6 h-full w-full hover:bg-white/5 transition-colors">
+            <div className="flex h-6 w-6 items-center justify-center border border-white/20 bg-black group-hover:border-emerald-500 transition-colors">
+              <Terminal className="h-3 w-3 text-white group-hover:text-emerald-500" />
             </div>
             {branding?.name ? (
-              <span className="font-mono text-lg font-bold tracking-tighter text-white uppercase italic">
+              <span className="font-mono text-sm font-bold tracking-tighter text-white uppercase transform group-hover:translate-x-1 transition-transform">
                 {branding.name}
               </span>
             ) : (
-              <span className="font-mono text-lg font-bold tracking-tighter text-white">
-                ClawTrace<span className="text-zinc-500">//</span>OS
+              <span className="font-mono text-sm font-bold tracking-tighter text-white">
+                FLEET<span className="text-zinc-600">//</span>OS
               </span>
             )}
           </Link>
         </div>
 
-        {/* Center / Spacer */}
-        <div className="col-span-5 hidden items-center border-r border-white/20 px-6 md:flex">
-          <div className="flex gap-6 font-mono text-xs tracking-widest text-zinc-500 uppercase">
-            {session && (
-              <Link href="/dashboard/settings" className="transition-colors hover:text-white">
-                SETTINGS
-              </Link>
-            )}
-            <Link href="/changelog" className="transition-colors hover:text-white">
-              CHANGELOG
-            </Link>
-            <Link href="/pricing" className="transition-colors hover:text-white">
-              PRICING
-            </Link>
-            <Link href="/blog" className="transition-colors hover:text-white">
-              BLOG
-            </Link>
-            <Link href="/docs" className="transition-colors hover:text-white">
-              DOCS
-            </Link>
-            <button
-              onClick={() => window.open('https://github.com/alexgutscher26/fleet', '_blank')}
-              className="transition-colors hover:text-white"
-            >
-              GITHUB
-            </button>
-          </div>
+        {/* Desktop Navigation */}
+        <div className="col-span-6 hidden md:flex items-center h-full">
+          <NavItem href="/dashboard/settings" label="Settings" />
+          <NavItem href="/changelog" label="Logs" />
+          <NavItem href="/docs" label="Manual" />
+          <NavItem href="https://github.com/alexgutscher26/fleet" label="Source" external />
         </div>
 
         {/* Auth Actions */}
-        <div className="col-span-1 flex items-center justify-end md:col-span-4">
+        <div className="col-span-1 flex items-center justify-end md:col-span-3">
           {session ? (
             <div className="flex h-full w-full">
               <Link
                 href="/dashboard"
-                className="flex h-full flex-1 items-center justify-center border-r border-white/20 text-xs font-bold uppercase transition-colors hover:bg-white hover:text-black"
+                className="flex h-full flex-1 items-center justify-center border-l border-white/10 bg-white text-black font-mono text-xs font-bold uppercase hover:bg-emerald-500 hover:text-black transition-colors"
               >
-                CONSOLE
+                Console
               </Link>
               <button
                 onClick={handleLogout}
-                className="h-full w-24 text-xs font-bold text-red-500 uppercase transition-colors hover:bg-red-500 hover:text-black"
+                className="h-full px-6 text-xs font-mono font-bold text-zinc-500 uppercase border-l border-white/10 hover:bg-red-500/10 hover:text-red-500 transition-colors"
               >
-                LOGOUT
+                <X className="h-4 w-4" />
               </button>
             </div>
           ) : (
-            <div className="flex h-full w-full">
+            <div className="flex h-full w-full font-mono">
               <Link
                 href="/login"
-                className="flex h-full flex-1 items-center justify-center border-r border-white/20 text-xs text-white uppercase transition-colors hover:bg-white/10"
+                className="flex h-full flex-1 items-center justify-center border-l border-white/10 text-xs text-zinc-400 uppercase hover:text-white hover:bg-white/5 transition-colors"
               >
-                LOGIN
+                Login
               </Link>
               <Link
                 href="/register"
-                className="flex h-full flex-1 items-center justify-center bg-white text-xs font-bold text-black uppercase transition-colors hover:bg-zinc-200"
+                className="flex h-full flex-1 items-center justify-center border-l border-white/10 bg-white/5 text-xs font-bold text-white uppercase hover:bg-emerald-500 hover:text-black transition-colors"
               >
-                GET KEY
+                Init_Key
               </Link>
             </div>
           )}
 
           {/* Mobile Menu Toggle */}
           <button
-            className="flex h-full w-16 items-center justify-center border-l border-white/20 text-white md:hidden"
+            className="flex h-full w-16 items-center justify-center border-l border-white/10 text-white md:hidden hover:bg-white/5"
             onClick={() => setOpen(!open)}
             aria-label="Toggle navigation menu"
           >
@@ -124,40 +119,40 @@ export default function Navbar({ session, branding, transparent = false }) {
         </div>
       </div>
 
-      {/* Mobile Menu */}
+      {/* Mobile Menu Overlay */}
       {open && (
-        <div className="border-b border-white bg-black p-0 md:hidden">
+        <div className="border-b border-white/10 bg-black md:hidden animate-in slide-in-from-top-2">
           <Link
-            href="/pricing"
+            href="/docs"
             onClick={() => setOpen(false)}
-            className="block w-full border-b border-white/10 p-4 text-left font-mono text-xs text-white uppercase hover:bg-white/10"
+            className="block w-full border-b border-white/10 p-4 font-mono text-xs text-zinc-400 uppercase hover:text-white hover:bg-white/5"
           >
-            PRICING
+            Running Manual
           </Link>
           <Link
-            href="/blog"
+            href="/changelog"
             onClick={() => setOpen(false)}
-            className="block w-full border-b border-white/10 p-4 text-left font-mono text-xs text-white uppercase hover:bg-white/10"
+            className="block w-full border-b border-white/10 p-4 font-mono text-xs text-zinc-400 uppercase hover:text-white hover:bg-white/5"
           >
-            BLOG
+            System Logs
           </Link>
           {session ? (
             <>
               <Link
                 href="/dashboard"
                 onClick={() => setOpen(false)}
-                className="block w-full border-b border-white/10 p-4 text-left font-mono text-xs text-white uppercase hover:bg-white/10"
+                className="block w-full border-b border-white/10 p-4 font-mono text-xs text-emerald-500 font-bold uppercase hover:bg-white/5"
               >
-                CONSOLE
+                &gt; Open Console
               </Link>
               <button
                 onClick={() => {
                   handleLogout();
                   setOpen(false);
                 }}
-                className="block w-full p-4 text-left font-mono text-xs text-red-500 uppercase hover:bg-red-500 hover:text-black"
+                className="block w-full p-4 font-mono text-xs text-red-500 uppercase hover:bg-red-500/10"
               >
-                LOGOUT
+                Terminate Session
               </button>
             </>
           ) : (
@@ -165,16 +160,16 @@ export default function Navbar({ session, branding, transparent = false }) {
               <Link
                 href="/login"
                 onClick={() => setOpen(false)}
-                className="block w-full border-b border-white/10 p-4 text-left font-mono text-xs text-white uppercase hover:bg-white/10"
+                className="block w-full border-b border-white/10 p-4 font-mono text-xs text-white uppercase hover:bg-white/5"
               >
-                LOGIN
+                Login
               </Link>
               <Link
                 href="/register"
                 onClick={() => setOpen(false)}
-                className="block w-full bg-white p-4 text-left text-xs font-bold text-black uppercase"
+                className="block w-full p-4 font-mono text-xs font-bold text-emerald-500 uppercase hover:bg-emerald-500/10"
               >
-                GET KEY
+                Initialize Key
               </Link>
             </>
           )}
