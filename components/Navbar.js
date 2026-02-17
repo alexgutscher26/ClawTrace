@@ -7,8 +7,15 @@ import { supabase } from '@/lib/supabase';
 import { Zap, X, Menu, Terminal } from 'lucide-react';
 
 /**
- * Renders a technical, industrial-style navigation bar.
- * Features grid-based layout, monospaced typography, and sharp interaction states.
+ * Renders a technical, industrial-style navigation bar with session management.
+ *
+ * The Navbar component utilizes the session state to conditionally render authentication actions. It features a grid-based layout and includes navigation items that can be either internal links or external buttons. The component also manages a mobile menu toggle and handles user logout, ensuring the session state is cleared and the user is redirected appropriately.
+ *
+ * @param {Object} props - The properties for the Navbar component.
+ * @param {Object} props.session - The current user session.
+ * @param {Object} props.branding - The branding information for the application.
+ * @param {boolean} [props.transparent=false] - Indicates if the navbar should be transparent.
+ * @returns {JSX.Element} The rendered Navbar component.
  */
 export default function Navbar({ session, branding, transparent = false }) {
   const router = useRouter();
