@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Zap, X, Menu, Terminal } from 'lucide-react';
 
@@ -12,6 +12,7 @@ import { Zap, X, Menu, Terminal } from 'lucide-react';
  */
 export default function Navbar({ session, branding, transparent = false }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -43,9 +44,11 @@ export default function Navbar({ session, branding, transparent = false }) {
     );
   };
 
+  const isHome = pathname === '/';
+
   return (
     <nav
-      className={`fixed top-8 right-0 left-0 z-40 border-y border-white/10 transition-colors duration-300 bg-black/90 backdrop-blur-md`}
+      className={`fixed ${isHome ? 'top-8' : 'top-0'} right-0 left-0 z-40 border-y border-white/10 transition-all duration-300 bg-black/90 backdrop-blur-md`}
     >
       <div className="container mx-auto grid h-16 grid-cols-2 md:grid-cols-12">
         {/* Logo Section */}
