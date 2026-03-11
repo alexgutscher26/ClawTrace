@@ -16,27 +16,38 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function checkTables() {
   console.log('Checking Supabase tables...');
-  
-  const tablesToCheck = ['fleets', 'agents', 'alert_channels', 'alert_configs', 'custom_policies', 'metrics'];
-  
+
+  const tablesToCheck = [
+    'fleets',
+    'agents',
+    'alert_channels',
+    'alert_configs',
+    'custom_policies',
+    'metrics',
+  ];
+
   for (const table of tablesToCheck) {
-    const { data, error } = await supabase.from(table).select('count', { count: 'exact', head: true });
-    
+    const { data, error } = await supabase
+      .from(table)
+      .select('count', { count: 'exact', head: true });
+
     if (error) {
       console.log(`Table '${table}' status: ${error.code} - ${error.message}`);
     } else {
-      console.log(`Table '${table}' exists. Count: ${data?.length !== undefined ? 'Accessible' : 'Unknown'}`); // head: true returns null data but count in count property if requested? 
+      console.log(
+        `Table '${table}' exists. Count: ${data?.length !== undefined ? 'Accessible' : 'Unknown'}`
+      ); // head: true returns null data but count in count property if requested?
       // Actually with head:true, count is in the 'count' property of response, data is null.
       // But let's just try to select 1 row.
     }
   }
-  
+
   // Also check if we can query 'profiles' which should exist
   const { data: profiles, error: pError } = await supabase.from('profiles').select('id').limit(1);
   if (pError) {
-     console.log('Profiles table error:', pError.message);
+    console.log('Profiles table error:', pError.message);
   } else {
-     console.log('Profiles table exists.');
+    console.log('Profiles table exists.');
   }
 }
 

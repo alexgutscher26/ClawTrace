@@ -19,8 +19,8 @@ export async function GET(request) {
 
     // 3. Delete old agent_metrics records in Turso
     const res = await turso.execute({
-        sql: 'DELETE FROM agent_metrics WHERE created_at < ?',
-        args: [cutoffIso]
+      sql: 'DELETE FROM agent_metrics WHERE created_at < ?',
+      args: [cutoffIso],
     });
 
     const count = res.rowsAffected;
