@@ -21,9 +21,8 @@ export default function MasterKeyModal({ onSetKey }) {
     const handleOpen = () => setIsOpen(true);
     window.addEventListener('open-master-key-modal', handleOpen);
 
-    const saved = sessionStorage.getItem('master_passphrase');
-    if (!saved) setIsOpen(true);
-    else onSetKey(saved);
+    // Always require the user to enter the master key on load; do not persist it in storage.
+    setIsOpen(true);
 
     return () => window.removeEventListener('open-master-key-modal', handleOpen);
   }, [onSetKey]);
@@ -31,7 +30,7 @@ export default function MasterKeyModal({ onSetKey }) {
   const handleSave = (e) => {
     e.preventDefault();
     if (passphrase.length < 8) return toast.error('Key must be at least 8 characters');
-    sessionStorage.setItem('master_passphrase', passphrase);
+    // Do not persist the master passphrase; keep it only in memory for this session.
     onSetKey(passphrase);
     setIsOpen(false);
     toast.success('Master Key active (Session only)');
