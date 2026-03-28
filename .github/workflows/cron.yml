@@ -1,4 +1,6 @@
 name: Cron Jobs
+permissions:
+  contents: read
 
 on:
   schedule:
